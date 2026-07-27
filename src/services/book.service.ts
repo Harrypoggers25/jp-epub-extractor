@@ -2,13 +2,12 @@ import fs from "fs/promises";
 import JSZip from "jszip";
 import * as cheerio from "cheerio";
 import kuromoji from "kuromoji";
+import ch from "@harrypoggers25/color-utils";
 
 export type PosType = '助動詞' | '助詞' | '記号' | 'フィラー' | 'その他' | '接続詞' | '連体詞' | '名詞' | '動詞' | '副詞' | '接頭詞' | '形容詞' | '感動詞';
 
 export interface ISection { filename: string, content: string };
 export interface IBook extends Array<ISection> { };
-export interface IParsedSection { filename: string, sentences: Array<string> };
-export interface IParsedBook extends Array<IParsedSection> { };
 export interface IToken {
 	word_id: number,
 	word_type: 'KNOWN' | 'UNKNOWN',
@@ -23,6 +22,54 @@ export interface IToken {
 	basic_form: string,
 	reading: string,
 	pronunciation: string
+}
+
+export interface IParsedSection { filename: string, sentences: Array<string> };
+export interface IParsedBook extends Array<IParsedSection> { };
+export interface IParsedToken {
+	token_id: number,
+	wt_name: string,
+	w_basic_form: string,
+	w_reading: string,
+	w_pos_details: string,
+	wt_description: string,
+	surface_form: string,
+};
+
+const POS_DESC: Record<PosType, string> = {
+	'助動詞': 'Auxiliary verbs',
+	'助詞': 'Particles',
+	'記号': 'Symbols',
+	'フィラー': 'Fillers',
+	'その他': 'Others',
+	'接続詞': 'Conjunction',
+	'連体詞': 'Pre-noun adjectival',
+	'名詞': 'Noun',
+	'動詞': 'Verb',
+	'副詞': 'Adverb',
+	'接頭詞': 'Prefix',
+	'形容詞': 'I-Adjective',
+	'感動詞': 'Interjection',
+};
+
+export function parseToken(token: IToken): IParsedToken {
+	const token_id = token.word_id;
+	const wt_name = token.pos;
+	const w_basic_form = token.basic_form;
+	const w_reading = token.reading;
+	const w_pos_details = (() => {
+		const result: Array<string> = [];
+		for (const key of ['pos_detail_1', 'pos_detail_2', 'pos_detail_3']) {
+			const pos_detail = (token as any)[key] as string;
+			if (!pos_detail || pos_detail === '*') continue;
+			result.push(pos_detail);
+		}
+		return result.join(',');
+	})();
+	const wt_description: string | undefined = POS_DESC[wt_name];
+	const surface_form = token.surface_form;
+
+	return { token_id, wt_name, w_basic_form, w_reading, w_pos_details, wt_description, surface_form };
 }
 
 export async function extractEpub(path: string): Promise<IBook> {
@@ -69,4 +116,8 @@ export async function parseSentence(sentence: string, filterOut: Array<string> =
 	});
 
 	return tokenizer.tokenize(sentence).filter(elem => !filterOut.includes(elem.pos)) as Array<IToken>;
+}
+
+export function displayProgress(i: number, count: number) {
+	console.log(ch.green('Progress:'), `${Math.round((i / count * 100) * 100) / 100}%`);
 }
