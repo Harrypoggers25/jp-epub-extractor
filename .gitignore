@@ -1,0 +1,9 @@
+/src/test
+/dist
+.env
+/node_modules
+/database
+/uploads
+/exports
+/epubs
+.vscode

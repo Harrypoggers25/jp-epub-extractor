@@ -1,0 +1,30 @@
+{
+  "name": "epub-extractor",
+  "version": "1.0.0",
+  "main": "app.js",
+  "type": "commonjs",
+  "scripts": {
+    "b": "tsc",
+    "r": "node dist/app.js",
+    "br": "tsc && node dist/app.js",
+    "tbr": "tsc && node dist/test/test.js",
+    "sinitbr": "tsc && node dist/scripts/env.script.js && node dist/scripts/db.script.js",
+    "senvbr": "tsc && node dist/scripts/env.script.js",
+    "sdbbr": "tsc && node dist/scripts/db.script.js",
+    "sbackupbr": "tsc && node dist/scripts/backup.script.js"
+  },
+  "keywords": [],
+  "author": "harrypoggers25",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/kuromoji": "^0.1.3",
+    "@types/node": "^26.1.1",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "fs": "^0.0.1-security",
+    "jszip": "^3.10.1",
+    "kuromoji": "^0.1.2"
+  }
+}
