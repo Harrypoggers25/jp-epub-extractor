@@ -91,7 +91,4 @@ async function parseSentence(sentence: string) {
 	}
 
 	console.log(dict);
-
-	// const sentence = "小学生なりの小さな手をきちんとあげ、立ちあがってそう言ったら、放課後、職員室に来なさいと言われた上に、校庭もちゃんと走らされてしまったことについて、私、小柳奈ノ花は納得がいっていません。";
-	// console.log(await parseSentence(sentence));
 })()
