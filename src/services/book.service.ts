@@ -3,6 +3,8 @@ import JSZip from "jszip";
 import * as cheerio from "cheerio";
 import kuromoji from "kuromoji";
 
+export type PosType = '助動詞' | '助詞' | '記号' | 'フィラー' | 'その他' | '接続詞' | '連体詞' | '名詞' | '動詞' | '副詞' | '接頭詞' | '形容詞' | '感動詞';
+
 export interface ISection { filename: string, content: string };
 export interface IBook extends Array<ISection> { };
 export interface IParsedSection { filename: string, sentences: Array<string> };
@@ -12,7 +14,7 @@ export interface IToken {
 	word_type: 'KNOWN' | 'UNKNOWN',
 	word_position: number,
 	surface_form: string,
-	pos: string,
+	pos: PosType,
 	pos_detail_1: string,
 	pos_detail_2: string,
 	pos_detail_3: string,
