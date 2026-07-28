@@ -30,6 +30,7 @@
     "cheerio": "^1.2.0",
     "fs": "^0.0.1-security",
     "jszip": "^3.10.1",
-    "kuromoji": "^0.1.2"
+    "kuromoji": "^0.1.2",
+    "wanakana": "^5.3.1"
   }
 }

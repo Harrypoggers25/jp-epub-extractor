@@ -8,6 +8,7 @@ import fs from "fs/promises";
 import JSZip from "jszip";
 import kuromoji from "kuromoji";
 import Message from "@harrypoggers25/message";
+import { toHiragana } from "wanakana";
 
 export type PosType = '助動詞' | '助詞' | '記号' | 'フィラー' | 'その他' | '接続詞' | '連体詞' | '名詞' | '動詞' | '副詞' | '接頭詞' | '形容詞' | '感動詞';
 
@@ -35,7 +36,7 @@ export interface IParsedToken {
 	token_id: number,
 	wt_name: string,
 	w_basic_form: string,
-	w_reading: string,
+	w_reading?: string,
 	w_pos_details: string,
 	wt_description: string,
 	surface_form: string,
@@ -61,7 +62,7 @@ export function parseToken(token: IToken): IParsedToken {
 	const token_id = token.word_id;
 	const wt_name = token.pos;
 	const w_basic_form = token.basic_form;
-	const w_reading = token.reading;
+	const w_reading = token.reading ? toHiragana(token.reading) : token.reading;
 	const w_pos_details = (() => {
 		const result: Array<string> = [];
 		for (const key of ['pos_detail_1', 'pos_detail_2', 'pos_detail_3']) {
@@ -77,12 +78,15 @@ export function parseToken(token: IToken): IParsedToken {
 	return { token_id, wt_name, w_basic_form, w_reading, w_pos_details, wt_description, surface_form };
 }
 
-export async function extractEpubFile(path: string): Promise<IBook> {
+type ExtractEpubFileOptions = { sections?: Array<string> };
+export async function extractEpubFile(path: string, options?: ExtractEpubFileOptions): Promise<IBook> {
 	const file = await fs.readFile(path);
 	const zip = await JSZip.loadAsync(file);
+	const sections = options?.sections;
 
 	const result: IBook = [];
 	for (const filename of Object.keys(zip.files)) {
+		if (sections && !sections.includes(filename)) continue;
 		if (filename.endsWith(".xhtml") || filename.endsWith(".html")) {
 			const content = await zip.files[filename].async("string");
 			result.push({ filename, content });
@@ -127,14 +131,15 @@ function displayProgress(i: number, count: number) {
 	console.log(ch.green('Progress:'), `${Math.round((i / count * 100) * 100) / 100}%`);
 }
 
-type ExtractBookOptions = { filteredPos?: Array<PosType>, showDuplicate?: boolean };
+type ExtractBookOptions = { sections?: Array<string>, filteredPos?: Array<PosType>, showDuplicate?: boolean };
 export async function extractBook(fileName: string, options?: ExtractBookOptions) {
 	const filteredPos = options?.filteredPos ?? [];
 	const showDuplicate = options?.showDuplicate ?? true;
+	const sections = options?.sections;
 	const ignores: Array<number> = [];
 
 	try {
-		const book = await extractEpubFile(fileName);
+		const book = await extractEpubFile(fileName, { sections });
 		const { count, parsedBook } = parseBook(book);
 
 		let i = 0;
