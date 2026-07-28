@@ -6,7 +6,7 @@ import { IJishoWord } from "./helpers/jisho.helper";
 
 // SERVICES
 import Jisho from "./services/jisho.service";
-import { PosType } from "./services/book.service";
+import { PosType } from "./helpers/book.helper";
 
 const filteredPos: Array<PosType> = ['感動詞', '連体詞', '助動詞', '助詞', '記号', 'フィラー', 'その他'];
 const fileName = 'epubs/book.epub';
