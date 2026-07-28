@@ -1,6 +1,9 @@
 // CONFIGS
 import { db, WordBuffer, WordType } from "../configs/db.config";
 
+// HELPERS
+import { displayProgress } from "../helpers";
+
 // MODULES
 import * as cheerio from "cheerio";
 import ch from "@harrypoggers25/color-utils";
@@ -125,10 +128,6 @@ export async function parseSentence(sentence: string, filterOut: Array<string> =
 	});
 
 	return tokenizer.tokenize(sentence).filter(elem => !filterOut.includes(elem.pos)) as Array<IToken>;
-}
-
-function displayProgress(i: number, count: number) {
-	console.log(ch.green('Progress:'), `${Math.round((i / count * 100) * 100) / 100}%`);
 }
 
 type ExtractBookOptions = { sections?: Array<string>, filteredPos?: Array<PosType>, showDuplicate?: boolean };

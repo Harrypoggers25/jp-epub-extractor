@@ -16,6 +16,7 @@ export const WordType = db.define('word_types', {
 	wt_description: { type: DataTypes.TEXT, allowNull: true },
 	created_at: { type: DataTypes.TIMESTAMP, allowNull: false },
 });
+export interface IWordType extends ReturnType<typeof WordType.getEmptyModel> { };
 
 export const WordBuffer = db.define('word_buffers', {
 	token_id: { type: DataTypes.INTEGER, allowNull: false, primaryKey: true },
@@ -27,3 +28,15 @@ export const WordBuffer = db.define('word_buffers', {
 	wt_name: { type: DataTypes.VARCHAR(511), allowNull: false },
 });
 WordBuffer.setForeignKey(WordType, 'wt_name');
+export interface IWordBuffer extends ReturnType<typeof WordBuffer.getEmptyModel> { };
+
+export const JishoBuffer = db.define('jisho_buffers', {
+	token_ids: { type: DataTypes.TEXT, allowNull: false },
+	w_basic_form: { type: DataTypes.VARCHAR(511), allowNull: false },
+	j_response: { type: DataTypes.TEXT, allowNull: false },
+	count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+	created_at: { type: DataTypes.TIMESTAMP, allowNull: false },
+	wt_name: { type: DataTypes.VARCHAR(511), allowNull: false },
+});
+JishoBuffer.setForeignKey(WordType, 'wt_name');
+export interface IJishoBuffer extends ReturnType<typeof JishoBuffer.getEmptyModel> { };

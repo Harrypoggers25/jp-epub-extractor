@@ -2,6 +2,7 @@
 import Env from "@harrypoggers25/env";
 
 const env = Env.define({
+	AXIOS_USER_AGENT: { type: 'string' },
 	DB_HOST: { type: 'string', default: 'localhost' },
 	DB_USER: { type: 'string' },
 	DB_PASSWORD: { type: 'string' },
