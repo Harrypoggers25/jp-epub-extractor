@@ -2,7 +2,11 @@
 import { db, JishoBuffer } from "./configs/db.config";
 
 // HELPERS
+import { asyncHandler } from "./helpers";
 import { IJishoWord } from "./helpers/jisho.helper";
+
+// MODULES
+import Message from "@harrypoggers25/message";
 
 // SERVICES
 import Jisho from "./services/jisho.service";
@@ -32,11 +36,11 @@ const sections = [
 // 	'感動詞': 'Interjection',
 // };
 
-(async () => {
+asyncHandler('APP ERROR', async () => {
 	await db.sync({ alter: false });
 
 	const buffers = await JishoBuffer.find();
-	if (!buffers) return;
+	if (!buffers) throw new Error(Message.failed(['find', 'jisho buffers']));
 
 	const result: Set<string> = new Set();
 	for (const buffer of buffers) {
@@ -65,4 +69,4 @@ const sections = [
 	}
 
 	Array.from(result).sort().forEach(val => console.log(val));
-})()
+});
