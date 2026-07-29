@@ -36,7 +36,7 @@ const sections = [
 // 	'感動詞': 'Interjection',
 // };
 
-asyncHandler('APP ERROR', async () => {
+asyncHandler('app', async () => {
 	await db.sync({ alter: false });
 
 	const buffers = await JishoBuffer.find();

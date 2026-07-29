@@ -32,7 +32,7 @@ namespace Jisho {
 	}
 
 	export const search = async (word: string) => {
-		return asyncHandler('JISHO SEARCH ERROR', async () => {
+		return asyncHandler('jisho search', async () => {
 			const url = `${API_URL}${word}`;
 			const response = await axios.get(url);
 			if (response.status !== 200) throw new Error(Message.failed(['find', `search result for ${word}`]));
@@ -74,12 +74,11 @@ namespace Jisho {
 					if (!jishoBuffer) throw new Error(`Failed to search keyword ${w_basic_form}`);
 				}
 			} catch (error: any) {
-				console.log(ch.red(`APP ERROR[${errorCount}]:`), error.message ?? error);
+				console.log(ch.red(`JISHO LOAD_BUFFER ERROR[${errorCount}]:`), error.message ?? error);
 				errorCount += 1;
 			} finally {
 				displayProgress(i + 1, words.length);
 				await new Promise(resolve => setTimeout(resolve, 250));
-				continue;
 			}
 		}
 	}

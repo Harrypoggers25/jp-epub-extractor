@@ -9,7 +9,7 @@ export const asyncHandler = async <T>(errorHeader: string, handler: () => Promis
 	try {
 		return await handler();
 	} catch (error: any) {
-		console.log(ch.red(`${errorHeader}:`), error.message ?? error);
+		console.log(ch.red(`${errorHeader.toUpperCase()} ERROR:`), error.message ?? error);
 		return undefined;
 	}
 }
