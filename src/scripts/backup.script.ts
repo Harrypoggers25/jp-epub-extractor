@@ -1,15 +1,22 @@
 import ch from "@harrypoggers25/color-utils";
-import { WordBuffer, WordType } from "../configs/db.config";
+import { JishoBuffer, JishoResponseState, WordBuffer, WordType } from "../configs/db.config";
 
 (async () => {
-    const append = true;
-    const path = './database/epub-extractor-v1.sql';
+	const path = './database/epub-extractor-v1.json';
+	const append = true;
+	const format = 'json';
 
-    const wordTypes = await WordType.backup(path, { orderBy: { created_at: 'ASC' } });
-    if (!wordTypes) return;
+	const wordTypes = await WordType.backup(path, { orderBy: { created_at: 'ASC' }, format });
+	if (!wordTypes) return;
 
-    const wordBuffers = await WordBuffer.backup(path, { orderBy: { created_at: 'ASC' }, append });
-    if (!wordBuffers) return;
+	const jishoResponseStates = await JishoResponseState.backup(path, { orderBy: { j_response_state: 'ASC' }, format, append });
+	if (!jishoResponseStates) return;
 
-    console.log(ch.green('SCRIPT:'), 'All db data has been', ch.green('successfully'), 'backed up');
+	const wordBuffers = await WordBuffer.backup(path, { orderBy: { created_at: 'ASC' }, format, append });
+	if (!wordBuffers) return;
+
+	const jishoBuffers = await JishoBuffer.backup(path, { orderBy: { created_at: 'ASC' }, format, append });
+	if (!jishoBuffers) return;
+
+	console.log(ch.green('SCRIPT:'), 'All db data has been', ch.green('successfully'), 'backed up');
 })()

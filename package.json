@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@harrypoggers25/color-utils": "^1.0.1",
-    "@harrypoggers25/db-postgresql": "^1.3.0",
+    "@harrypoggers25/db-postgresql": "^1.4.4",
     "@harrypoggers25/env": "^1.0.0",
     "@harrypoggers25/message": "^1.0.0",
     "axios": "^1.18.1",

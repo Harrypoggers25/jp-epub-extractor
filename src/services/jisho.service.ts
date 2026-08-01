@@ -1,5 +1,5 @@
 // CONFIGS
-import { JishoBuffer, WordBuffer } from "../configs/db.config";
+import { JishoBuffer, CleanedBuffer, WordBuffer } from "../configs/db.config";
 
 // MODULES
 import axiosBuilder from "axios";
@@ -9,7 +9,7 @@ import Message from "@harrypoggers25/message";
 
 // HELPERS
 import { asyncHandler, displayProgress } from "../helpers";
-import { IJishoReducedWord, IJishoWord } from "../helpers/jisho.helper";
+import { IJishoReducedWord, IJishoWord, MapWordType } from "../helpers/jisho.helper";
 
 const axios = axiosBuilder.create({ timeout: 10000, headers: { 'User-Agent': env.AXIOS_USER_AGENT } });
 
@@ -81,6 +81,38 @@ namespace Jisho {
 				await new Promise(resolve => setTimeout(resolve, 250));
 			}
 		}
+	}
+
+	export async function filterWord(buffers: Array<ReturnType<typeof JishoBuffer.getEmptyModel>>) {
+		// Noun = Na-adjective
+		await CleanedBuffer.delete();
+		for (const buffer of buffers) {
+			const { token_ids, w_basic_form, count, wt_name } = buffer;
+			const created_at = new Date();
+			const response = (JSON.parse(buffer.j_response) as Array<IJishoWord>).map(res => Jisho.reduceWord(res));
+			if (!response.length) {
+				await CleanedBuffer.create({ token_ids, w_basic_form, j_response: buffer.j_response, j_response_count: 0, count, j_response_state: 1, wt_name, created_at });
+				continue;
+			}
+
+			const isValidWordType = (res: IJishoReducedWord) => MapWordType[wt_name].some(pos => res.senses.some(sense => sense.parts_of_speech.includes(pos)));
+			const word_forms = (res: IJishoReducedWord): Array<string> => [...res.japanese.map(Object.values).flat(), res.slug];
+			const { new_response, j_response_state } = (() => {
+				const new_response1 = response.filter(res => isValidWordType(res) && word_forms(res).includes(buffer.w_basic_form));
+				if (new_response1.length !== 0) return { new_response: new_response1, j_response_state: 1 };
+
+				const new_response2 = response.filter(res => word_forms(res).includes(buffer.w_basic_form));
+				if (new_response2.length !== 0) return { new_response: new_response2, j_response_state: 2 };
+
+				return { new_response: response, j_response_state: 3 };
+			})();
+			const j_response = JSON.stringify(new_response);
+			const j_response_count = new_response.length;
+			if (response.length !== j_response_count && j_response_count === 0) console.log(ch.yellow(`${w_basic_form} [${wt_name}]:`), `Before: ${ch.green(response.length)}, After: ${ch.green(j_response_count)}, Difference: ${ch.green(response.length - j_response_count)}`);
+			await CleanedBuffer.create({ token_ids, w_basic_form, j_response, j_response_count, count, j_response_state, wt_name, created_at });
+		}
+
+		console.log(ch.green('JISHO WORD FILTER:'), 'successfully filtered word into words table');
 	}
 }
 

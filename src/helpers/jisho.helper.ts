@@ -24,7 +24,6 @@ export interface IJishoReducedSense {
 	parts_of_speech: Array<string>,
 	tags: Array<string>,
 }
-
 export interface IJishoReducedWord {
 	slug: string;
 	is_common: boolean;
@@ -34,7 +33,7 @@ export interface IJishoReducedWord {
 	senses: Array<IJishoReducedSense>,
 }
 
-export const MapPos: Record<string, Array<string>> = {
+export const MapPos = {
 	adverb: [
 		'Adverb (fukushi)',
 		"Adverb taking the 'to' particle",
@@ -138,5 +137,32 @@ export const MapPos: Record<string, Array<string>> = {
 		"Yodan verb with 'ru' ending (archaic)",
 		'Wikipedia definition',
 		"'taru' adjective",
-	]
-}
+	],
+};
+
+export const MapWordType: Record<string, Array<string>> = {
+	'副詞': MapPos.adverb,
+	'名詞': [
+		...MapPos.noun,
+		...MapPos.adjective_na,
+	],
+	'動詞': [
+		...MapPos.verb_u,
+		...MapPos.verb_ru,
+		...MapPos.verb_suru,
+		...MapPos.verb_kuru,
+		...MapPos.intransitive_verb,
+		...MapPos.transitive_verb,
+	],
+	'助動詞': MapPos.auxiliary,
+	'形容詞': MapPos.adjective_i,
+	'接続詞': MapPos.conjunction,
+	'連体詞': MapPos.pre_noun_adjectival,
+	'接頭詞': MapPos.prefix,
+	'助詞': MapPos.particle,
+	// 'フィラー': 'Fillers',
+	// '感動詞': 'Interjection',
+	// '記号': 'Symbols',
+	// 'その他': 'Others',
+};
+

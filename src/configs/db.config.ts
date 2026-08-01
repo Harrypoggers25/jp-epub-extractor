@@ -10,7 +10,6 @@ export const db = Db.config({
 	port: env.DB_PORT
 });
 
-
 export const WordType = db.define('word_types', {
 	wt_name: { type: DataTypes.VARCHAR(511), allowNull: false, primaryKey: true },
 	wt_description: { type: DataTypes.TEXT, allowNull: true },
@@ -40,3 +39,31 @@ export const JishoBuffer = db.define('jisho_buffers', {
 });
 JishoBuffer.setForeignKey(WordType, 'wt_name');
 export interface IJishoBuffer extends ReturnType<typeof JishoBuffer.getEmptyModel> { };
+
+export const JishoResponseState = db.define('jisho_response_states', {
+	j_response_state: { type: DataTypes.SERIAL, allowNull: false, primaryKey: true },
+	description: { type: DataTypes.TEXT, allowNull: false },
+});
+
+export const CleanedBuffer = db.define('cleaned_buffers', {
+	token_ids: { type: DataTypes.TEXT, allowNull: false },
+	w_basic_form: { type: DataTypes.VARCHAR(511), allowNull: false },
+	j_response: { type: DataTypes.TEXT, allowNull: false },
+	j_response_state: { type: DataTypes.INTEGER, allowNull: false },
+	j_response_count: { type: DataTypes.INTEGER, allowNull: false },
+	count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+	created_at: { type: DataTypes.TIMESTAMP, allowNull: false },
+	wt_name: { type: DataTypes.VARCHAR(511), allowNull: false },
+});
+CleanedBuffer.setForeignKey(JishoResponseState, 'j_response_state');
+CleanedBuffer.setForeignKey(WordType, 'wt_name');
+export interface ICleanedBuffer extends ReturnType<typeof CleanedBuffer.getEmptyModel> { };
+
+export const Word = db.define('words', {
+	token_ids: { type: DataTypes.TEXT, allowNull: false },
+	w_basic_form: { type: DataTypes.VARCHAR(511), allowNull: false },
+	j_response: { type: DataTypes.TEXT, allowNull: false },
+	count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+	created_at: { type: DataTypes.TIMESTAMP, allowNull: false },
+});
+
