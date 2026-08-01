@@ -11,11 +11,10 @@ import Message from "@harrypoggers25/message";
 
 // SERVICES
 import Jisho from "./services/jisho.service";
-import { PosType } from "./helpers/book.helper";
 
-const filteredPos: Array<PosType> = ['感動詞', '連体詞', '助動詞', '助詞', '記号', 'フィラー', 'その他'];
-const fileName = 'epubs/book.epub';
-const sections = ['text/part0003_split_000.html', 'text/part0003_split_001.html', 'text/part0004.html',];
+// const filteredPos: Array<PosType> = ['感動詞', '連体詞', '助動詞', '助詞', '記号', 'フィラー', 'その他'];
+// const fileName = 'epubs/book.epub';
+// const sections = ['text/part0003_split_000.html', 'text/part0003_split_001.html', 'text/part0004.html',];
 
 App.listen({
 	port: env.PORT,
@@ -27,12 +26,12 @@ App.listen({
 		await db.sync({ alter: false });
 	},
 	callback: async () => {
-		const buffers = await JishoBuffer.find();
-		if (!buffers) throw new Error(Message.failed(['find', 'jisho buffers']));
+		asyncHandler('app', async () => {
+			const buffers = await JishoBuffer.find();
+			if (!buffers) throw new Error(Message.failed(['find', 'jisho buffers']));
 
-		await Jisho.filterWord(buffers);
+			await Jisho.filterWord(buffers);
+		});
 	},
 });
 
-asyncHandler('app', async () => {
-});
