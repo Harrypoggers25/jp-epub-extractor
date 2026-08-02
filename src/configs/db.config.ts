@@ -60,10 +60,14 @@ CleanedBuffer.setForeignKey(WordType, 'wt_name');
 export interface ICleanedBuffer extends ReturnType<typeof CleanedBuffer.getEmptyModel> { };
 
 export const Word = db.define('words', {
+	w_id: { type: DataTypes.SERIAL, allowNull: false, primaryKey: true },
 	token_ids: { type: DataTypes.TEXT, allowNull: false },
 	w_basic_form: { type: DataTypes.VARCHAR(511), allowNull: false },
 	j_response: { type: DataTypes.TEXT, allowNull: false },
 	count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
 	created_at: { type: DataTypes.TIMESTAMP, allowNull: false },
+	wt_name: { type: DataTypes.VARCHAR(511), allowNull: false },
 });
+Word.setForeignKey(WordType, 'wt_name');
+export interface IWord extends ReturnType<typeof Word.getEmptyModel> { };
 
