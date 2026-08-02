@@ -115,6 +115,7 @@
             border-radius: 14px;
             margin-bottom: 24px;
             box-shadow: 0 8px 30px rgba(0, 0, 0, .05);
+            border: 1px solid #ddd;
         }
 
         .header h1 {
@@ -142,7 +143,35 @@
             border-radius: 14px;
             padding: 22px;
             margin-bottom: 20px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, .06);
+            border: 1px solid #ddd;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, .15);
+            cursor: pointer;
+        }
+
+        .entry:hover {
+            background: #eef2ff;
+        }
+
+        .entry:hover .word {
+            background: #ffffff;
+        }
+
+        .entry:hover .sense {
+            background: #f5f7ff;
+        }
+
+        .entry.selected {
+            background: #e8f5e9;
+            border-color: #66bb6a;
+            box-shadow: 0 8px 30px rgba(76, 175, 80, .18);
+        }
+
+        .entry.selected .word {
+            background: #f1f8f1;
+        }
+
+        .entry.selected .sense {
+            background: #f6fff6;
         }
 
         .entry-header {
