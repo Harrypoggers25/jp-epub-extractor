@@ -7,10 +7,75 @@ async function asyncHandler(header, handler) {
 	}
 }
 
-asyncHandler('PAGE', async () => {
+function createElement(tag, className, text = null) {
+	const element = document.createElement(tag);
+
+	if (className) {
+		element.className = className;
+	}
+
+	if (text !== null) {
+		element.textContent = text;
+	}
+
+	return element;
+}
+
+asyncHandler('SIDEBAR INIT', async () => {
+	const allData = await asyncHandler('WORD FIND ALL', async () => {
+		const response = await fetch('/api/cleaned-buffers', {
+			method: 'GET',
+		})
+		if (!response.ok) throw new Error(`Failed to find all words. Internal error`);
+
+		const result = await response.json();
+		if (!result) throw new Error(`Failed to find words. Unable to find data`);
+		if (!result.length) throw new Error(`Failed to find words. No data found`);
+
+		return result;
+	});
+	if (!allData) throw new Error('Failed to load data');
+
+	const searchInput = document.getElementById('searchInput');
+	searchInput.oninput = ev => {
+		const text = ev.target.value;
+		console.log(text);
+	};
+	const searchResults = document.getElementById('searchResults');
+
+	renderSearchResults();
+
+	function renderSearchResults() {
+		for (let i = 0; i < allData.length; i++) {
+			const entry = allData[i];
+			const searchItem = i === 0 ? createSearchItem(entry, true) : createSearchItem(entry);
+			searchResults.appendChild(searchItem);
+		}
+	}
+
+	function createSearchItem(entry, active = false) {
+		const card = createElement('div', 'search-item');
+		if (active) card.classList.add('active');
+
+		card.appendChild(createSearchWord(entry.w_basic_form));
+		card.appendChild(createSearchWordType(entry.wt_name));
+
+		return card;
+	}
+
+	function createSearchWord(word) {
+		return createElement('div', 'search-word', word);
+	}
+
+	function createSearchWordType(wordType) {
+		return createElement('div', 'search-word-type', wordType);
+	}
+});
+
+asyncHandler('MAIN INIT', async () => {
 	const allData = await asyncHandler('WORD FIND', async () => {
 		const params = new URLSearchParams(window.location.search);
-		const w_basic_form = params.get('search');
+		const w_basic_form = params.get('select');
 		if (!w_basic_form) throw new Error(`Failed to find words. Missing search parameter`);
 
 		const response = await fetch(`/api/cleaned-buffers/${w_basic_form}`, {
@@ -177,19 +242,5 @@ asyncHandler('PAGE', async () => {
 		section.appendChild(heading);
 
 		return section;
-	}
-
-	function createElement(tag, className, text = null) {
-		const element = document.createElement(tag);
-
-		if (className) {
-			element.className = className;
-		}
-
-		if (text !== null) {
-			element.textContent = text;
-		}
-
-		return element;
 	}
 });
