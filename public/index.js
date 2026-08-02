@@ -16,38 +16,61 @@ function createElement(tag, className = null, text = null) {
 }
 
 class Sidebar {
-	constructor() {
+	constructor(buffer) {
 		this.searchInput = document.getElementById('searchInput')
 		this.searchResults = document.getElementById('searchResults')
+
+		this.buffer = buffer;
+		this.selectedWord = null;
 	}
 	async findWords(word) {
-		return await asyncHandler('FIND WORDS', async () => {
-			const url = !word ? '/api/cleaned-buffers' : `/api/cleaned-buffers/${word}`
-			const response = await fetch(url, {
-				method: 'GET',
-			})
-			if (!response.ok) throw new Error(`Failed to find words. Internal error`);
+		const url = !word ? '/api/cleaned-buffers' : `/api/cleaned-buffers/${word}`
+		const response = await fetch(url, {
+			method: 'GET',
+		})
+		if (!response.ok) throw new Error(`Failed to find words. Internal error`);
 
-			const entries = await response.json();
-			if (!entries) throw new Error(`Failed to find words. Unable to find data`);
+		const words = await response.json();
+		if (!words) throw new Error(`Failed to find words. Unable to find data`);
 
-			return entries;
-		});
+		return words;
 	}
-	renderSearchResults(entries) {
+	async selectWord(word) {
+		if (this.selectedWord) {
+			const card = document.querySelector(`[data-id="${this.selectedWord.w_basic_form}_${this.selectedWord.wt_name}"]`);
+			card?.classList?.remove('active');
+		}
+
+		this.selectedWord = word;
+		const card = document.querySelector(`[data-id="${this.selectedWord.w_basic_form}_${this.selectedWord.wt_name}"]`);
+		card?.classList?.add('active');
+
+		const params = new URLSearchParams(window.location.search);
+		params.set('select', word.w_basic_form);
+		params.set('wt_name', word.wt_name);
+		window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
+
+		this.buffer.setWord(word);
+	}
+	renderSearchResults(words) {
 		this.searchResults.innerHTML = '';
-		for (let i = 0; i < entries.length; i++) {
-			const entry = entries[i];
-			const searchItem = i === 0 ? this.createSearchItem(entry, true) : this.createSearchItem(entry);
-			this.searchResults.appendChild(searchItem);
+		for (const word of words) {
+			this.searchResults.appendChild(this.createSearchItem(word));
+		}
+		if (this.selectedWord) {
+			const card = document.querySelector(`[data-id="${this.selectedWord.w_basic_form}_${this.selectedWord.wt_name}"]`);
+			card?.classList?.add('active');
 		}
 	}
-	createSearchItem(entry, active = false) {
+	createSearchItem(word) {
 		const card = createElement('div', 'search-item');
-		if (active) card.classList.add('active');
-
-		card.appendChild(this.createSearchWord(entry.w_basic_form));
-		card.appendChild(this.createSearchWordType(entry.wt_name));
+		card.dataset.id = `${word.w_basic_form}_${word.wt_name}`;
+		card.appendChild(this.createSearchWord(word.w_basic_form));
+		card.appendChild(this.createSearchWordType(word.wt_name));
+		card.onclick = async e => {
+			e.preventDefault();
+			this.selectWord(word);
+		}
 
 		return card;
 	}
@@ -58,106 +81,72 @@ class Sidebar {
 		return createElement('div', 'search-word-type', wordType);
 	}
 }
-const sidebar = new Sidebar();
 
-asyncHandler('SIDEBAR INIT', async () => {
-	const entries = await sidebar.findWords();
-	if (!entries) throw new Error('Failed to load data');
-	if (!entries.length) throw new Error(`Failed to load data. No data found`);
+class Buffer {
+	constructor() {
+		this.basicForm = document.getElementById("basicForm");
+		this.tokenId = document.getElementById("tokenId");
+		this.wordType = document.getElementById("wordType");
+		this.count = document.getElementById("count");
+		this.container = document.getElementById("entries");
 
-	sidebar.searchInput.oninput = async ev => {
-		await asyncHandler('SIDEBAR SEARCH', async () => {
-			const word = ev.target.value;
-			const entries = await sidebar.findWords(word);
-			if (!entries) throw new Error('Failed to load data');
-			if (!entries.length) throw new Error(`Failed to load data. No data found`);
-
-			sidebar.renderSearchResults(entries);
-		})
-	};
-
-	sidebar.renderSearchResults(entries);
-});
-
-asyncHandler('MAIN INIT', async () => {
-	const entries = await asyncHandler('WORD FIND', async () => {
-		const params = new URLSearchParams(window.location.search);
-		const w_basic_form = params.get('select');
-		if (!w_basic_form) throw new Error(`Failed to find words. Missing search parameter`);
-
-		const response = await fetch(`/api/cleaned-buffers/${w_basic_form}`, {
-			method: 'GET',
-		})
-		if (!response.ok) throw new Error(`Failed to find words [${w_basic_form}]. Internal error`);
-
-		const result = await response.json();
-		if (!result) throw new Error(`Failed to find words [${w_basic_form}]. Unable to find data`);
-		if (!result.length) throw new Error(`Failed to find words [${w_basic_form}]. No data found`);
-
-		return result;
-	});
-	if (!entries) throw new Error(`Failed to load data`);
-
-	const entry = entries[0];
-	const j_response = JSON.parse(entry.j_response);
-
-	const basicForm = document.getElementById("basicForm");
-	const tokenId = document.getElementById("tokenId");
-	const wordType = document.getElementById("wordType");
-	const count = document.getElementById("count");
-	const container = document.getElementById("entries");
-
-	renderHeader();
-	renderEntries();
-
-	function renderHeader() {
-		basicForm.textContent = entry.w_basic_form;
-		tokenId.textContent = `Token: ${entry.token_ids}`;
-		wordType.textContent = entry.wt_name;
-		count.textContent = `${j_response.length} Dictionary Entries`;
+		this.w_basic_form = '';
+		this.token_ids = '';
+		this.wt_name = '';
+		this.j_response = '[]';
 	}
+	setWord(word) {
+		this.w_basic_form = word.w_basic_form;
+		this.token_ids = word.token_ids;
+		this.wt_name = word.wt_name;
+		this.j_response = JSON.parse(word.j_response);
 
-	function renderEntries() {
-		j_response.forEach((entry) => {
-			container.appendChild(createEntry(entry));
+		this.renderHeader();
+		this.renderEntries();
+	}
+	renderHeader() {
+		this.basicForm.textContent = this.w_basic_form;
+		this.tokenId.textContent = `Token: ${this.token_ids}`;
+		this.wordType.textContent = this.wt_name;
+		this.count.textContent = `${this.j_response.length} Dictionary Entries`;
+	}
+	renderEntries() {
+		this.container.innerHTML = '';
+		this.j_response.forEach(entry => {
+			this.container.appendChild(this.createEntry(entry));
 		});
 	}
-
-	function createEntry(entry) {
+	createEntry(entry) {
 		const card = createElement("div", "entry");
-		card.appendChild(createEntryHeader(entry));
-		card.appendChild(createJapaneseSection(entry.japanese));
-		card.appendChild(createMeaningSection(entry.senses));
-		if (entry.tags.length > 0) card.appendChild(createDictionaryTags(entry.tags));
+		card.appendChild(this.createEntryHeader(entry));
+		card.appendChild(this.createJapaneseSection(entry.japanese));
+		card.appendChild(this.createMeaningSection(entry.senses));
+		if (entry.tags.length > 0) card.appendChild(this.createDictionaryTags(entry.tags));
 
 		return card;
 	}
-
-	function createEntryHeader(entry) {
+	createEntryHeader(entry) {
 		const header = createElement("div", "entry-header");
 		const slug = createElement("div", "slug", entry.slug);
-
-		const badges = document.createElement("div");
-		if (entry.is_common) badges.appendChild(createBadge("Common", "common"));
-		if (entry.jlpt) badges.appendChild(createBadge(entry.jlpt, "jlpt"));
+		const badges = createElement("div");
+		if (entry.is_common) badges.appendChild(this.createBadge("Common", "common"));
+		if (entry.jlpt) badges.appendChild(this.createBadge(entry.jlpt, "jlpt"));
 
 		header.appendChild(slug);
 		header.appendChild(badges);
 
 		return header;
 	}
-
-	function createJapaneseSection(words) {
-		const section = createSection("Japanese");
+	createJapaneseSection(words) {
+		const section = this.createSection("Forms");
 
 		words.forEach((word) => {
-			section.appendChild(createJapaneseWord(word));
+			section.appendChild(this.createJapaneseWord(word));
 		});
 
 		return section;
 	}
-
-	function createJapaneseWord(word) {
+	createJapaneseWord(word) {
 		const wrapper = createElement("div", "word");
 		const text = createElement("strong", null, word.word);
 		const reading = createElement("span", null, word.reading);
@@ -166,58 +155,83 @@ asyncHandler('MAIN INIT', async () => {
 
 		return wrapper;
 	}
-
-	function createMeaningSection(senses) {
-		const section = createSection("Meanings");
+	createMeaningSection(senses) {
+		const section = this.createSection("Meanings");
 
 		senses.forEach((sense) => {
-			section.appendChild(createSense(sense));
+			section.appendChild(this.createSense(sense));
 		});
 
 		return section;
 	}
-
-	function createSense(sense) {
+	createSense(sense) {
 		const wrapper = createElement("div", "sense");
 		const definitions = createElement("div", "definitions", sense.english_definitions.join(", "));
 		wrapper.appendChild(definitions);
-		wrapper.appendChild(createTagContainer(sense.parts_of_speech));
-		if (sense.tags.length > 0) wrapper.appendChild(createTagContainer(sense.tags));
+		wrapper.appendChild(this.createTagContainer(sense.parts_of_speech));
+		if (sense.tags.length > 0) wrapper.appendChild(this.createTagContainer(sense.tags));
 
 		return wrapper;
 	}
+	createDictionaryTags(tags) {
+		const section = this.createSection("Dictionary Tags");
 
-	function createDictionaryTags(tags) {
-		const section = createSection("Dictionary Tags");
-
-		section.appendChild(createTagContainer(tags));
+		section.appendChild(this.createTagContainer(tags));
 
 		return section;
 	}
-
-	function createTagContainer(tags) {
+	createTagContainer(tags) {
 		const container = createElement("div", "tags");
 
 		tags.forEach((tag) => {
-			container.appendChild(createTag(tag));
+			container.appendChild(this.createTag(tag));
 		});
 
 		return container;
 	}
-
-	function createTag(text) {
+	createTag(text) {
 		return createElement("span", "tag", text);
 	}
-
-	function createBadge(text, className) {
+	createBadge(text, className) {
 		return createElement("span", className, text);
 	}
-
-	function createSection(title) {
+	createSection(title) {
 		const section = createElement("div", "section");
 		const heading = createElement("h3", null, title);
 		section.appendChild(heading);
 
 		return section;
 	}
+}
+
+const buffer = new Buffer();
+const sidebar = new Sidebar(buffer);
+
+asyncHandler('MAIN INIT', async () => {
+	const words = await asyncHandler('SIDEBAR INIT', async () => {
+		const words = await sidebar.findWords();
+		sidebar.searchInput.oninput = async ev => {
+			await asyncHandler('SIDEBAR SEARCH', async () => {
+				const text = ev.target.value;
+				const words = await sidebar.findWords(text);
+
+				sidebar.renderSearchResults(words);
+			})
+		};
+
+		sidebar.renderSearchResults(words);
+
+		const params = new URLSearchParams(window.location.search);
+		const select = params.get('select');
+		const wt_name = params.get('wt_name');
+
+		if (!select && !wt_name) return words;
+		if (!wt_name) return words.filter(word => word.w_basic_form === select);
+		return words.filter(word => word.w_basic_form === select && word.wt_name === wt_name);
+	});
+	if (!words.length) throw new Error(`Failed to load data. No data found`);
+
+	const word = words[0];
+	sidebar.selectWord(word);
+	buffer.setWord(word);
 });
