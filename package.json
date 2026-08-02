@@ -33,6 +33,7 @@
     "@harrypoggers25/route": "^1.0.4",
     "axios": "^1.18.1",
     "cheerio": "^1.2.0",
+    "ejs": "^6.0.1",
     "fs": "^0.0.1-security",
     "jszip": "^3.10.1",
     "kuromoji": "^0.1.2",
