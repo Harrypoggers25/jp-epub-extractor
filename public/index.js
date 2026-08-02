@@ -15,55 +15,68 @@ function createElement(tag, className = null, text = null) {
 	return element;
 }
 
-asyncHandler('SIDEBAR INIT', async () => {
-	const allData = await asyncHandler('WORD FIND ALL', async () => {
-		const response = await fetch('/api/cleaned-buffers', {
-			method: 'GET',
-		})
-		if (!response.ok) throw new Error(`Failed to find all words. Internal error`);
+class Sidebar {
+	constructor() {
+		this.searchInput = document.getElementById('searchInput')
+		this.searchResults = document.getElementById('searchResults')
+	}
+	async findWords(word) {
+		return await asyncHandler('FIND WORDS', async () => {
+			const url = !word ? '/api/cleaned-buffers' : `/api/cleaned-buffers/${word}`
+			const response = await fetch(url, {
+				method: 'GET',
+			})
+			if (!response.ok) throw new Error(`Failed to find words. Internal error`);
 
-		const result = await response.json();
-		if (!result) throw new Error(`Failed to find words. Unable to find data`);
-		if (!result.length) throw new Error(`Failed to find words. No data found`);
+			const entries = await response.json();
+			if (!entries) throw new Error(`Failed to find words. Unable to find data`);
 
-		return result;
-	});
-	if (!allData) throw new Error('Failed to load data');
-
-	const searchInput = document.getElementById('searchInput');
-	searchInput.oninput = ev => {
-		const text = ev.target.value;
-		console.log(text);
-	};
-	const searchResults = document.getElementById('searchResults');
-
-	renderSearchResults();
-
-	function renderSearchResults() {
-		for (let i = 0; i < allData.length; i++) {
-			const entry = allData[i];
-			const searchItem = i === 0 ? createSearchItem(entry, true) : createSearchItem(entry);
-			searchResults.appendChild(searchItem);
+			return entries;
+		});
+	}
+	renderSearchResults(entries) {
+		this.searchResults.innerHTML = '';
+		for (let i = 0; i < entries.length; i++) {
+			const entry = entries[i];
+			const searchItem = i === 0 ? this.createSearchItem(entry, true) : this.createSearchItem(entry);
+			this.searchResults.appendChild(searchItem);
 		}
 	}
-
-	function createSearchItem(entry, active = false) {
+	createSearchItem(entry, active = false) {
 		const card = createElement('div', 'search-item');
 		if (active) card.classList.add('active');
 
-		card.appendChild(createSearchWord(entry.w_basic_form));
-		card.appendChild(createSearchWordType(entry.wt_name));
+		card.appendChild(this.createSearchWord(entry.w_basic_form));
+		card.appendChild(this.createSearchWordType(entry.wt_name));
 
 		return card;
 	}
-
-	function createSearchWord(word) {
+	createSearchWord(word) {
 		return createElement('div', 'search-word', word);
 	}
-
-	function createSearchWordType(wordType) {
+	createSearchWordType(wordType) {
 		return createElement('div', 'search-word-type', wordType);
 	}
+}
+const sidebar = new Sidebar();
+
+asyncHandler('SIDEBAR INIT', async () => {
+	const entries = await sidebar.findWords();
+	if (!entries) throw new Error('Failed to load data');
+	if (!entries.length) throw new Error(`Failed to load data. No data found`);
+
+	sidebar.searchInput.oninput = async ev => {
+		await asyncHandler('SIDEBAR SEARCH', async () => {
+			const word = ev.target.value;
+			const entries = await sidebar.findWords(word);
+			if (!entries) throw new Error('Failed to load data');
+			if (!entries.length) throw new Error(`Failed to load data. No data found`);
+
+			sidebar.renderSearchResults(entries);
+		})
+	};
+
+	sidebar.renderSearchResults(entries);
 });
 
 asyncHandler('MAIN INIT', async () => {
