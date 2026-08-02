@@ -15,6 +15,11 @@ function createElement(tag, className = null, text = null) {
 	return element;
 }
 
+function wordId(a, b) {
+	if (arguments.length === 2) return `${a}_${b}`;
+	return `${a.w_basic_form}_${a.wt_name}`;
+}
+
 class Sidebar {
 	constructor(buffer) {
 		this.searchInput = document.getElementById('searchInput')
@@ -37,12 +42,12 @@ class Sidebar {
 	}
 	async selectWord(word) {
 		if (this.selectedWord) {
-			const card = document.querySelector(`[data-id="${this.selectedWord.w_basic_form}_${this.selectedWord.wt_name}"]`);
+			const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
 			card?.classList?.remove('active');
 		}
 
 		this.selectedWord = word;
-		const card = document.querySelector(`[data-id="${this.selectedWord.w_basic_form}_${this.selectedWord.wt_name}"]`);
+		const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
 		card?.classList?.add('active');
 
 		const params = new URLSearchParams(window.location.search);
@@ -58,13 +63,13 @@ class Sidebar {
 			this.searchResults.appendChild(this.createSearchItem(word));
 		}
 		if (this.selectedWord) {
-			const card = document.querySelector(`[data-id="${this.selectedWord.w_basic_form}_${this.selectedWord.wt_name}"]`);
+			const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
 			card?.classList?.add('active');
 		}
 	}
 	createSearchItem(word) {
 		const card = createElement('div', 'search-item');
-		card.dataset.id = `${word.w_basic_form}_${word.wt_name}`;
+		card.dataset.id = wordId(word);
 		card.appendChild(this.createSearchWord(word.w_basic_form));
 		card.appendChild(this.createSearchWordType(word.wt_name));
 		card.onclick = async e => {
