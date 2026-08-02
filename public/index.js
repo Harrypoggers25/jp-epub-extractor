@@ -7,16 +7,10 @@ async function asyncHandler(header, handler) {
 	}
 }
 
-function createElement(tag, className, text = null) {
+function createElement(tag, className = null, text = null) {
 	const element = document.createElement(tag);
-
-	if (className) {
-		element.className = className;
-	}
-
-	if (text !== null) {
-		element.textContent = text;
-	}
+	if (className !== null) element.className = className;
+	if (text !== null) element.textContent = text;
 
 	return element;
 }
@@ -73,7 +67,7 @@ asyncHandler('SIDEBAR INIT', async () => {
 });
 
 asyncHandler('MAIN INIT', async () => {
-	const allData = await asyncHandler('WORD FIND', async () => {
+	const entries = await asyncHandler('WORD FIND', async () => {
 		const params = new URLSearchParams(window.location.search);
 		const w_basic_form = params.get('select');
 		if (!w_basic_form) throw new Error(`Failed to find words. Missing search parameter`);
@@ -89,10 +83,10 @@ asyncHandler('MAIN INIT', async () => {
 
 		return result;
 	});
-	if (!allData) throw new Error(`Failed to load data`);
+	if (!entries) throw new Error(`Failed to load data`);
 
-	const data = allData[0];
-	const entries = JSON.parse(data.j_response);
+	const entry = entries[0];
+	const j_response = JSON.parse(entry.j_response);
 
 	const basicForm = document.getElementById("basicForm");
 	const tokenId = document.getElementById("tokenId");
@@ -104,47 +98,35 @@ asyncHandler('MAIN INIT', async () => {
 	renderEntries();
 
 	function renderHeader() {
-		basicForm.textContent = data.w_basic_form;
-		tokenId.textContent = `Token: ${data.token_ids}`;
-		wordType.textContent = data.wt_name;
-		count.textContent = `${entries.length} Dictionary Entries`;
+		basicForm.textContent = entry.w_basic_form;
+		tokenId.textContent = `Token: ${entry.token_ids}`;
+		wordType.textContent = entry.wt_name;
+		count.textContent = `${j_response.length} Dictionary Entries`;
 	}
 
 	function renderEntries() {
-		entries.forEach((entry) => {
+		j_response.forEach((entry) => {
 			container.appendChild(createEntry(entry));
 		});
 	}
 
 	function createEntry(entry) {
 		const card = createElement("div", "entry");
-
 		card.appendChild(createEntryHeader(entry));
 		card.appendChild(createJapaneseSection(entry.japanese));
 		card.appendChild(createMeaningSection(entry.senses));
-
-		if (entry.tags.length > 0) {
-			card.appendChild(createDictionaryTags(entry.tags));
-		}
+		if (entry.tags.length > 0) card.appendChild(createDictionaryTags(entry.tags));
 
 		return card;
 	}
 
 	function createEntryHeader(entry) {
 		const header = createElement("div", "entry-header");
-
-		const slug = createElement("div", "slug");
-		slug.textContent = entry.slug;
+		const slug = createElement("div", "slug", entry.slug);
 
 		const badges = document.createElement("div");
-
-		if (entry.is_common) {
-			badges.appendChild(createBadge("Common", "common"));
-		}
-
-		if (entry.jlpt) {
-			badges.appendChild(createBadge(entry.jlpt, "jlpt"));
-		}
+		if (entry.is_common) badges.appendChild(createBadge("Common", "common"));
+		if (entry.jlpt) badges.appendChild(createBadge(entry.jlpt, "jlpt"));
 
 		header.appendChild(slug);
 		header.appendChild(badges);
@@ -164,13 +146,8 @@ asyncHandler('MAIN INIT', async () => {
 
 	function createJapaneseWord(word) {
 		const wrapper = createElement("div", "word");
-
-		const text = document.createElement("strong");
-		text.textContent = word.word;
-
-		const reading = document.createElement("span");
-		reading.textContent = word.reading;
-
+		const text = createElement("strong", null, word.word);
+		const reading = createElement("span", null, word.reading);
 		wrapper.appendChild(text);
 		wrapper.appendChild(reading);
 
@@ -189,17 +166,10 @@ asyncHandler('MAIN INIT', async () => {
 
 	function createSense(sense) {
 		const wrapper = createElement("div", "sense");
-
-		const definitions = createElement("div", "definitions");
-		definitions.textContent = sense.english_definitions.join(", ");
-
+		const definitions = createElement("div", "definitions", sense.english_definitions.join(", "));
 		wrapper.appendChild(definitions);
-
 		wrapper.appendChild(createTagContainer(sense.parts_of_speech));
-
-		if (sense.tags.length > 0) {
-			wrapper.appendChild(createTagContainer(sense.tags));
-		}
+		if (sense.tags.length > 0) wrapper.appendChild(createTagContainer(sense.tags));
 
 		return wrapper;
 	}
@@ -223,10 +193,7 @@ asyncHandler('MAIN INIT', async () => {
 	}
 
 	function createTag(text) {
-		const tag = createElement("span", "tag");
-		tag.textContent = text;
-
-		return tag;
+		return createElement("span", "tag", text);
 	}
 
 	function createBadge(text, className) {
@@ -235,10 +202,7 @@ asyncHandler('MAIN INIT', async () => {
 
 	function createSection(title) {
 		const section = createElement("div", "section");
-
-		const heading = document.createElement("h3");
-		heading.textContent = title;
-
+		const heading = createElement("h3", null, title);
 		section.appendChild(heading);
 
 		return section;
