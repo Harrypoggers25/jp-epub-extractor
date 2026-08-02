@@ -9,6 +9,9 @@ import { asyncHandler } from "./helpers";
 import App from "@harrypoggers25/app-express";
 import Message from "@harrypoggers25/message";
 
+// ROUTERS
+import router from "./routers";
+
 // SERVICES
 import Jisho from "./services/jisho.service";
 
@@ -21,7 +24,7 @@ App.listen({
 	version: '1.0.0',
 	cors: [env.ORIGIN_URL],
 	beforeListen: async (app) => {
-		// app.use('/', router);
+		app.use('/', router);
 
 		await db.sync({ alter: false });
 	},

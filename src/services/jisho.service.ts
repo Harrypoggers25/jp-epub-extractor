@@ -84,7 +84,6 @@ namespace Jisho {
 	}
 
 	export async function filterWord(buffers: Array<ReturnType<typeof JishoBuffer.getEmptyModel>>) {
-		// Noun = Na-adjective
 		await CleanedBuffer.delete();
 		for (const buffer of buffers) {
 			const { token_ids, w_basic_form, count, wt_name } = buffer;
