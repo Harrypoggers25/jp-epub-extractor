@@ -48,9 +48,9 @@ export const JishoResponseState = db.define('jisho_response_states', {
 export const CleanedBuffer = db.define('cleaned_buffers', {
 	token_ids: { type: DataTypes.TEXT, allowNull: false },
 	w_basic_form: { type: DataTypes.VARCHAR(511), allowNull: false },
+	w_character_type: { type: DataTypes.VARCHAR(16), allowNull: false, defaultValue: 'kanji' },
 	j_response: { type: DataTypes.TEXT, allowNull: false },
 	j_response_state: { type: DataTypes.INTEGER, allowNull: false },
-	j_response_count: { type: DataTypes.INTEGER, allowNull: false },
 	count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
 	created_at: { type: DataTypes.TIMESTAMP, allowNull: false },
 	wt_name: { type: DataTypes.VARCHAR(511), allowNull: false },

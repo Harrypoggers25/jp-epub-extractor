@@ -9,7 +9,7 @@ import Route from "@harrypoggers25/route";
 
 export namespace CleanedBufferHandler {
 	export const findAll = Route.asyncHandler(async (_, res) => {
-		const words = await CleanedBuffer.find({ orderBy: { w_basic_form: 'ASC', wt_name: 'ASC' } });
+		const words = await CleanedBuffer.find({ orderBy: { w_character_type: 'DESC', w_basic_form: 'ASC', wt_name: 'ASC' } });
 		if (!words) throw new Error(Message.failed(['find', 'all words']));
 
 		res.status(200).json(words);

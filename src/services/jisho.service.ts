@@ -6,6 +6,7 @@ import axiosBuilder from "axios";
 import ch from "@harrypoggers25/color-utils";
 import env from "../configs/env.config";
 import Message from "@harrypoggers25/message";
+import { isKatakana, isHiragana, isKanji } from "wanakana";
 
 // HELPERS
 import { asyncHandler, displayProgress } from "../helpers";
@@ -83,22 +84,33 @@ namespace Jisho {
 		}
 	}
 
-	export async function filterWord(buffers: Array<ReturnType<typeof JishoBuffer.getEmptyModel>>) {
+	function characterType(w_basic_form: string): 'kanji' | 'katakana' | 'hiragana' | 'others' {
+		const chars = w_basic_form.split('');
+		if (chars.every(c => isHiragana(c))) return 'hiragana';
+		if (chars.every(c => isKatakana(c))) return 'katakana';
+		if (chars.every(c => isHiragana(c) || isKanji(c))) return 'kanji'
+		return 'others';
+	}
+
+	export async function filterWord(buffers: Array<ReturnType<typeof JishoBuffer.getEmptyModel>>, filterType: boolean = false) {
 		await CleanedBuffer.delete();
 		for (const buffer of buffers) {
 			const { token_ids, w_basic_form, count, wt_name } = buffer;
+			const w_character_type = characterType(w_basic_form);
 			const created_at = new Date();
 			const response = (JSON.parse(buffer.j_response) as Array<IJishoWord>).map(res => Jisho.reduceWord(res));
 			if (!response.length) {
-				await CleanedBuffer.create({ token_ids, w_basic_form, j_response: buffer.j_response, j_response_count: 0, count, j_response_state: 1, wt_name, created_at });
+				await CleanedBuffer.create({ token_ids, w_basic_form, w_character_type, j_response: buffer.j_response, count, j_response_state: 1, wt_name, created_at });
 				continue;
 			}
 
 			const isValidWordType = (res: IJishoReducedWord) => MapWordType[wt_name].some(pos => res.senses.some(sense => sense.parts_of_speech.includes(pos)));
 			const word_forms = (res: IJishoReducedWord): Array<string> => [...res.japanese.map(Object.values).flat(), res.slug];
 			const { new_response, j_response_state } = (() => {
-				const new_response1 = response.filter(res => isValidWordType(res) && word_forms(res).includes(buffer.w_basic_form));
-				if (new_response1.length !== 0) return { new_response: new_response1, j_response_state: 1 };
+				if (filterType) {
+					const new_response1 = response.filter(res => isValidWordType(res) && word_forms(res).includes(buffer.w_basic_form));
+					if (new_response1.length !== 0) return { new_response: new_response1, j_response_state: 1 };
+				}
 
 				const new_response2 = response.filter(res => word_forms(res).includes(buffer.w_basic_form));
 				if (new_response2.length !== 0) return { new_response: new_response2, j_response_state: 2 };
@@ -108,7 +120,7 @@ namespace Jisho {
 			const j_response = JSON.stringify(new_response);
 			const j_response_count = new_response.length;
 			if (response.length !== j_response_count && j_response_count === 0) console.log(ch.yellow(`${w_basic_form} [${wt_name}]:`), `Before: ${ch.green(response.length)}, After: ${ch.green(j_response_count)}, Difference: ${ch.green(response.length - j_response_count)}`);
-			await CleanedBuffer.create({ token_ids, w_basic_form, j_response, j_response_count, count, j_response_state, wt_name, created_at });
+			await CleanedBuffer.create({ token_ids, w_basic_form, w_character_type, j_response, count, j_response_state, wt_name, created_at });
 		}
 
 		console.log(ch.green('JISHO WORD FILTER:'), 'successfully filtered word into words table');
