@@ -21,11 +21,11 @@ function wordId(a, b) {
 }
 
 class Sidebar {
-	constructor(buffer) {
+	constructor() {
+		this.words = null;
 		this.searchInput = document.getElementById('searchInput')
 		this.searchResults = document.getElementById('searchResults')
 
-		this.buffer = buffer;
 		this.selectedWord = null;
 	}
 	async findWords(word) {
@@ -55,9 +55,10 @@ class Sidebar {
 		params.set('wt_name', word.wt_name);
 		window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
 
-		this.buffer.setWord(word);
+		buffer.setWord(word);
 	}
 	renderSearchResults(words) {
+		this.words = words;
 		this.searchResults.innerHTML = '';
 		for (const word of words) {
 			this.searchResults.appendChild(this.createSearchItem(word));
@@ -210,7 +211,7 @@ class Buffer {
 }
 
 const buffer = new Buffer();
-const sidebar = new Sidebar(buffer);
+const sidebar = new Sidebar();
 
 asyncHandler('MAIN INIT', async () => {
 	const words = await asyncHandler('SIDEBAR INIT', async () => {
