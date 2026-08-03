@@ -69,11 +69,14 @@ class Sidebar {
 		}
 	}
 	createSearchItem(word) {
+		const senseCount = JSON.parse(word.j_response).length;
+
 		const card = createElement('div', 'search-item');
 		card.dataset.id = wordId(word);
 		card.appendChild(this.createSearchWord(word.w_basic_form));
 		card.appendChild(this.createSearchWordType(word.wt_name));
 		if (buffer.senseStates[wordId(word)]) card.classList.add('modified');
+		if (senseCount === 1) card.classList.add('unique');
 		card.onclick = async e => {
 			e.preventDefault();
 			this.selectWord(word);
