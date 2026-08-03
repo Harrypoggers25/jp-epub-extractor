@@ -73,6 +73,7 @@ class Sidebar {
 		card.dataset.id = wordId(word);
 		card.appendChild(this.createSearchWord(word.w_basic_form));
 		card.appendChild(this.createSearchWordType(word.wt_name));
+		if (buffer.senseStates[wordId(word)]) card.classList.add('modified');
 		card.onclick = async e => {
 			e.preventDefault();
 			this.selectWord(word);
@@ -88,6 +89,72 @@ class Sidebar {
 	}
 }
 
+const SenseState = {
+	create: async (body) => {
+		return await asyncHandler('CREATE SENSE STATE', async () => {
+			const response = await fetch('/api/sense-states', {
+				method: 'POST',
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!response.ok) throw new Error(`Failed to create sense state. Internal error`);
+
+			const senseState = await response.json();
+			if (!senseState) throw new Error(`Failed to create sense state. Unable to create data`);
+
+			return senseState;
+		});
+	},
+	findAll: async () => {
+		return await asyncHandler('FIND ALL SENSE STATES', async () => {
+			const response = await fetch('/api/sense-states', { method: 'GET', });
+			if (!response.ok) throw new Error(`Failed to find all sense states. Internal error`);
+
+			const senseStates = await response.json();
+			if (!senseStates) throw new Error(`Failed to find all sense states. Unable to find data`);
+
+			return senseStates;
+		})
+	},
+	update: async (ss_key, body) => {
+		return await asyncHandler('UPDATE SENSE STATE', async () => {
+			const response = await fetch(`/api/sense-states/${ss_key}`, {
+				method: 'PATCH',
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!response.ok) throw new Error(`Failed to update sense state [${ss_key}]. Internal error`);
+
+			const senseState = await response.json();
+			if (!senseState) throw new Error(`Failed to update sense state [${ss_key}]. Unable to update data`);
+
+			return senseState;
+		});
+	},
+	removeAll: async () => {
+		return await asyncHandler('DELETE ALL SENSE STATE', async () => {
+			const response = await fetch('/api/sense-states', { method: 'DELETE' });
+			if (!response.ok) throw new Error(`Failed to delete all sense states. Internal error`);
+
+			const senseStates = await response.json();
+			if (!senseStates) throw new Error(`Failed to delete all sense states. Unable to delete data`);
+
+			return senseStates;
+		});
+	},
+	remove: async (ss_key) => {
+		return await asyncHandler('DELETE SENSE STATE', async () => {
+			const response = await fetch(`/api/sense-states/${ss_key}`, { method: 'DELETE' });
+			if (!response.ok) throw new Error(`Failed to delete sense state [${ss_key}]. Internal error`);
+
+			const senseState = await response.json();
+			if (!senseState) throw new Error(`Failed to delete sense state [${ss_key}]. Unable to delete data`);
+
+			return senseState;
+		});
+	},
+}
+
 class Buffer {
 	constructor() {
 		this.basicForm = document.getElementById("basicForm");
@@ -100,6 +167,19 @@ class Buffer {
 		this.token_ids = '';
 		this.wt_name = '';
 		this.j_response = '[]';
+
+		this.senseStates = {};
+	}
+	async loadSenses() {
+		const senseStates = await SenseState.findAll();
+		if (!senseStates) {
+			this.senseStates = {};
+			return;
+		}
+
+		for (const { ss_key, state } of senseStates) {
+			this.senseStates[ss_key] = new Set(JSON.parse(state));
+		}
 	}
 	setWord(word) {
 		this.w_basic_form = word.w_basic_form;
@@ -118,16 +198,69 @@ class Buffer {
 	}
 	renderEntries() {
 		this.container.innerHTML = '';
-		this.j_response.forEach(entry => {
-			this.container.appendChild(this.createEntry(entry));
-		});
+		for (let i = 0; i < this.j_response.length; i++) {
+			const entry = this.j_response[i];
+			this.container.appendChild(this.createEntry(entry, i));
+		}
 	}
-	createEntry(entry) {
+	async toggleEntry(card, i) {
+		const ss_key = wordId(this.w_basic_form, this.wt_name);
+		const senseState = this.senseStates[ss_key] ? new Set(this.senseStates[ss_key]) : new Set();
+
+		// Toggle off
+		if (card.classList.contains('selected')) {
+			if (!senseState.size) {
+				card.classList.remove('selected');
+				return;
+			}
+
+			senseState.delete(i);
+			if (!senseState.size) {
+				const deletedSenseState = await SenseState.remove(ss_key);
+				if (!deletedSenseState) return;
+
+				card.classList.remove('selected');
+				delete this.senseStates[ss_key];
+				return;
+			}
+
+			const updatedSenseState = await SenseState.update(ss_key, { state: Array.from(senseState) });
+			if (!updatedSenseState) return;
+
+			card.classList.remove('selected');
+			this.senseStates[ss_key] = senseState;
+			return;
+		}
+
+		// Toggle on
+		if (!senseState.size) {
+			senseState.add(i);
+			const createdSenseState = await SenseState.create({ ss_key, state: Array.from(senseState) });
+			if (!createdSenseState) return;
+		} else {
+			senseState.add(i);
+			const updatedSenseState = await SenseState.update(ss_key, { state: Array.from(senseState) });
+			if (!updatedSenseState) return;
+		}
+
+		card.classList.add('selected');
+		this.senseStates[ss_key] = senseState;
+	}
+	createEntry(entry, i) {
 		const card = createElement("div", "entry");
 		card.appendChild(this.createEntryHeader(entry));
 		card.appendChild(this.createJapaneseSection(entry.japanese));
 		card.appendChild(this.createMeaningSection(entry.senses));
+		const selectedSense = this.senseStates[wordId(this.w_basic_form, this.wt_name)];
+		if (selectedSense && selectedSense.has(i)) card.classList.add('selected');
 		if (entry.tags.length > 0) card.appendChild(this.createDictionaryTags(entry.tags));
+
+		card.onclick = async ev => {
+			ev.preventDefault();
+			await this.toggleEntry(card, i);
+
+			sidebar.renderSearchResults(sidebar.words);
+		}
 
 		return card;
 	}
@@ -214,6 +347,7 @@ const buffer = new Buffer();
 const sidebar = new Sidebar();
 
 asyncHandler('MAIN INIT', async () => {
+	await buffer.loadSenses()
 	const words = await asyncHandler('SIDEBAR INIT', async () => {
 		const words = await sidebar.findWords();
 		sidebar.searchInput.oninput = async ev => {

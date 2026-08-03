@@ -59,6 +59,12 @@ CleanedBuffer.setForeignKey(JishoResponseState, 'j_response_state');
 CleanedBuffer.setForeignKey(WordType, 'wt_name');
 export interface ICleanedBuffer extends ReturnType<typeof CleanedBuffer.getEmptyModel> { };
 
+export const SenseState = db.define('sense_states', {
+	ss_key: { type: DataTypes.VARCHAR(1023), allowNull: false, primaryKey: true },
+	state: { type: DataTypes.TEXT, allowNull: false },
+});
+export interface ISenseState extends ReturnType<typeof CleanedBuffer.getEmptyModel> { };
+
 export const Word = db.define('words', {
 	w_id: { type: DataTypes.SERIAL, allowNull: false, primaryKey: true },
 	token_ids: { type: DataTypes.TEXT, allowNull: false },

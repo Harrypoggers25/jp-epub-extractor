@@ -77,13 +77,35 @@
             transition: background .2s;
         }
 
+        .search-item.active {
+            background: #1b2038;
+            border-left: 4px solid #7c8aff;
+        }
+
+        .search-item.modified {
+            background: #14211a;
+            border-left: 4px solid #5cbf60;
+        }
+
+        .search-item.active.modified {
+            background: #1b2b2a;
+            border-left: 4px solid #5cc8b5;
+        }
+
         .search-item:hover {
             background: #181a1b;
         }
 
-        .search-item.active {
-            background: #1b2038;
-            border-left: 4px solid #7c8aff;
+        .search-item.active:hover {
+            background: #232b4d;
+        }
+
+        .search-item.modified:hover {
+            background: #1b2d23;
+        }
+
+        .search-item.active.modified:hover {
+            background: #223635;
         }
 
         .search-word {
@@ -141,6 +163,7 @@
             padding: 6px 12px;
             border-radius: 999px;
             font-size: 14px;
+            align-content: center;
         }
 
         .entry {
@@ -154,15 +177,20 @@
         }
 
         .entry:hover {
-            background: #1b2038;
+            border-color: #263CAB;
+            box-shadow: 0 8px 30px rgba(16, 26, 74, .22);
+            < !-- background: #1b2038;
+            -->
         }
 
         .entry:hover .word {
-            background: #181a1b;
+            < !-- background: #181a1b;
+            -->
         }
 
         .entry:hover .sense {
-            background: #14161f;
+            < !-- background: #14161f;
+            -->
         }
 
         .entry.selected {
