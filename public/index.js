@@ -65,6 +65,23 @@ class Sidebar {
 		this.searchResults = document.getElementById('searchResults')
 
 		this.selectedWord = null;
+
+		this.searchInput.oninput = eventHandler(async ev => {
+			await asyncHandler('SIDEBAR SEARCH', async () => {
+				const text = ev.target.value;
+				const words = await sidebar.findWords(text);
+
+				this.renderSearchResults(words);
+			})
+		});
+		this.searchInput.addEventListener('keydown', async ev => {
+			if (['Enter', 'Escape'].includes(ev.key)) {
+				const cards = document.getElementsByClassName('search-item');
+				if (!cards || !cards.length) return;
+
+				focusCard(cards[0]);
+			}
+		});
 	}
 	async findWords(word) {
 		const url = !word ? '/api/cleaned-buffers' : `/api/cleaned-buffers/${word}`
@@ -144,6 +161,9 @@ class Sidebar {
 		card.tabIndex = 0;
 		card.addEventListener('keydown', eventHandler(async ev => {
 			switch (ev.key) {
+				case 's':
+					this.searchInput.focus();
+					break;
 				case 'j':
 					focusCard(card.nextElementSibling);
 					break;
@@ -557,15 +577,6 @@ asyncHandler('MAIN INIT', async () => {
 	await buffer.loadSenses()
 	const words = await asyncHandler('SIDEBAR INIT', async () => {
 		const words = await sidebar.findWords();
-		sidebar.searchInput.oninput = async ev => {
-			await asyncHandler('SIDEBAR SEARCH', async () => {
-				const text = ev.target.value;
-				const words = await sidebar.findWords(text);
-
-				sidebar.renderSearchResults(words);
-			})
-		};
-
 		sidebar.renderSearchResults(words);
 
 		const params = new URLSearchParams(window.location.search);
