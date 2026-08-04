@@ -119,7 +119,15 @@ class Sidebar {
 		card.dataset.id = wordId(word);
 		card.appendChild(this.createSearchWord(word.w_basic_form));
 		card.appendChild(this.createSearchWordType(word.wt_name));
-		if (buffer.senseStates[wordId(word)]) card.classList.add('modified');
+		const isModified = (word) => {
+			const senseState = buffer.senseStates[wordId(word)];
+			if (!senseState) return false;
+
+			const { state, ignore, merged_with } = senseState;
+			return state.size || ignore || merged_with;
+		}
+
+		if (isModified(word)) card.classList.add('modified');
 		if (senseCount === 1) card.classList.add('unique');
 		if (senseCount === 0) card.classList.add('error');
 		card.onclick = async e => {
@@ -183,6 +191,7 @@ class Sidebar {
 }
 
 const SenseState = {
+	init: () => ({ state: new Set(), ignore: false, unimportant: false, merged_with: null }),
 	create: async (body) => {
 		return await asyncHandler('CREATE SENSE STATE', async () => {
 			const response = await fetch('/api/sense-states', {
@@ -255,6 +264,7 @@ class Buffer {
 		this.wordType = document.getElementById("wordType");
 		this.count = document.getElementById("count");
 		this.container = document.getElementById("entries");
+		this.headerActions = document.getElementById("headerActions");
 
 		this.w_basic_form = '';
 		this.token_ids = '';
@@ -265,13 +275,13 @@ class Buffer {
 	}
 	async loadSenses() {
 		const senseStates = await SenseState.findAll();
-		if (!senseStates) {
+		if (!senseStates || !senseStates.length) {
 			this.senseStates = {};
 			return;
 		}
 
-		for (const { ss_key, state } of senseStates) {
-			this.senseStates[ss_key] = new Set(JSON.parse(state));
+		for (const { ss_key, state, unimportant, ignore, merged_with } of senseStates) {
+			this.senseStates[ss_key] = { state: new Set(JSON.parse(state)), unimportant, ignore, merged_with };
 		}
 	}
 	setWord(word) {
@@ -294,6 +304,11 @@ class Buffer {
 		this.tokenId.textContent = `Token: ${this.token_ids}`;
 		this.wordType.textContent = this.wt_name;
 		this.count.textContent = `${this.j_response.length} Dictionary Entries`;
+
+		this.headerActions.innerHTML = '';
+		for (const button of this.createHeaderActions()) {
+			this.headerActions.appendChild(button);
+		}
 	}
 	renderEntries() {
 		this.container.innerHTML = '';
@@ -302,56 +317,55 @@ class Buffer {
 			this.container.appendChild(this.createEntry(entry, i));
 		}
 	}
+	createHeaderActions() {
+		const btnUnimportant = createElement('button', 'header-btn', 'Unimportant');
+		const btnIgnore = createElement('button', 'header-btn', 'Ignore');
+		const btnMergeWith = createElement('button', 'header-btn', 'Merge with...');
+
+		return [btnUnimportant, btnIgnore, btnMergeWith];
+	}
 	async toggleEntry(card, i) {
 		const ss_key = wordId(this.w_basic_form, this.wt_name);
-		const senseState = this.senseStates[ss_key] ? new Set(this.senseStates[ss_key]) : new Set();
+		if (!this.senseStates[ss_key]) {
+			const createdSenseState = await SenseState.create({ ss_key });
+			if (!createdSenseState) return;
+
+			this.senseStates[ss_key] = SenseState.init();
+		}
+
+		const state = this.senseStates[ss_key].state ? new Set(this.senseStates[ss_key].state) : new Set();
 
 		// Toggle off
 		if (card.classList.contains('selected')) {
-			if (!senseState.size) {
+			if (!state.size) {
 				card.classList.remove('selected');
 				return;
 			}
 
-			senseState.delete(i);
-			if (!senseState.size) {
-				const deletedSenseState = await SenseState.remove(ss_key);
-				if (!deletedSenseState) return;
-
-				card.classList.remove('selected');
-				delete this.senseStates[ss_key];
-				return;
-			}
-
-			const updatedSenseState = await SenseState.update(ss_key, { state: Array.from(senseState) });
+			state.delete(i);
+			const updatedSenseState = await SenseState.update(ss_key, { state: Array.from(state) });
 			if (!updatedSenseState) return;
 
 			card.classList.remove('selected');
-			this.senseStates[ss_key] = senseState;
+			this.senseStates[ss_key].state = state;
 			return;
 		}
 
 		// Toggle on
-		if (!senseState.size) {
-			senseState.add(i);
-			const createdSenseState = await SenseState.create({ ss_key, state: Array.from(senseState) });
-			if (!createdSenseState) return;
-		} else {
-			senseState.add(i);
-			const updatedSenseState = await SenseState.update(ss_key, { state: Array.from(senseState) });
-			if (!updatedSenseState) return;
-		}
+		state.add(i);
+		const updatedSenseState = await SenseState.update(ss_key, { state: Array.from(state) });
+		if (!updatedSenseState) return;
 
 		card.classList.add('selected');
-		this.senseStates[ss_key] = senseState;
+		this.senseStates[ss_key].state = state;
 	}
 	createEntry(entry, i) {
 		const card = createElement("div", "entry");
 		card.appendChild(this.createEntryHeader(entry));
 		card.appendChild(this.createJapaneseSection(entry.japanese));
 		card.appendChild(this.createMeaningSection(entry.senses));
-		const selectedSense = this.senseStates[wordId(this.w_basic_form, this.wt_name)];
-		if (selectedSense && selectedSense.has(i)) card.classList.add('selected');
+		const senseState = this.senseStates[wordId(this.w_basic_form, this.wt_name)];
+		if (senseState?.state && senseState.state.has(i)) card.classList.add('selected');
 		if (entry.tags.length > 0) card.appendChild(this.createDictionaryTags(entry.tags));
 
 		const clickHandler = async ev => {
