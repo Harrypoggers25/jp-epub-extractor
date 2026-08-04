@@ -4,22 +4,19 @@ import { SenseState, Word } from "../configs/db.config";
 // MODULES
 import Message from "@harrypoggers25/message";
 
-// HELPER
-import { isArrayObj } from "../helpers/json.helper";
-
 // ROUTES
 import Route from "@harrypoggers25/route";
 
 export namespace SenseStateHandler {
 	export const create = Route.asyncHandler(async (req, res) => {
-		const { ss_key, unimportant, ignore, merged_with } = req.body;
+		const { ss_key, unsure, ignore, merged_with } = req.body;
 		const state = (() => {
 			const { state } = req.body;
 			if (!state) return state;
 			return JSON.stringify(Array.from(new Set(state)));
 		})();
 
-		const senseState = await SenseState.create({ ss_key, state, unimportant, ignore, merged_with });
+		const senseState = await SenseState.create({ ss_key, state, unsure, ignore, merged_with });
 		if (!senseState) throw new Error(Message.failed(['create', 'sense state', ss_key]));
 
 		res.status(201).json(senseState);
@@ -42,14 +39,14 @@ export namespace SenseStateHandler {
 
 	export const update = Route.asyncHandler(async (req, res) => {
 		const ss_key = req.params.ss_key as string;
-		const { unimportant, ignore, merged_with } = req.body;
+		const { unsure, ignore, merged_with } = req.body;
 		const state = (() => {
 			const { state } = req.body;
 			if (!state) return state;
 			return JSON.stringify(Array.from(new Set(state)));
 		})();
 
-		const senseState = await SenseState.updateByPk(ss_key, { state, unimportant, ignore, merged_with });
+		const senseState = await SenseState.updateByPk(ss_key, { state, unsure, ignore, merged_with });
 		if (!senseState) throw new Error(Message.failed(['update', 'sense state', ss_key]))
 
 		res.status(200).json(senseState);

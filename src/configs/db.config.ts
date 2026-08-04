@@ -62,7 +62,7 @@ export interface ICleanedBuffer extends ReturnType<typeof CleanedBuffer.getEmpty
 export const SenseState = db.define('sense_states', {
 	ss_key: { type: DataTypes.VARCHAR(1023), allowNull: false, primaryKey: true },
 	state: { type: DataTypes.TEXT, allowNull: false, defaultValue: '[]' },
-	unimportant: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+	unsure: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 	ignore: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 	merged_with: { type: DataTypes.VARCHAR(1023), allowNull: true },
 });
