@@ -75,6 +75,14 @@
             border-left: 4px solid #999;
             cursor: pointer;
             transition: background .2s;
+            color: #e8e6e3;
+        }
+
+        .search-item:focus,
+        .search-item:focus-visible,
+        .search-item:active {
+            outline: none !important;
+            box-shadow: none !important;
         }
 
         .search-item.unique {
@@ -99,37 +107,41 @@
             border-left: 4px solid #5cc8b5;
         }
 
-        .search-item:hover {
-            background: #181a1b;
+        .search-item:is(:hover, :focus) {
+            background: #272a2b;
             border-left: 4px solid #999;
+            color: #999;
         }
 
-        .search-item.unique:hover {
+        .search-item.unique:is(:hover, :focus) {
             background: #3d331a;
             border-left: 4px solid #d9b64c;
+            color: #d9b64c;
         }
 
-        .search-item.active:hover {
+        .search-item.active:is(:hover, :focus) {
             background: #232b4d;
             border-left: 4px solid #7c8aff;
+            color: #7c8aff;
         }
 
 
-        .search-item.modified:hover {
+        .search-item.modified:is(:hover, :focus) {
             background: #1b2d23;
             border-left: 4px solid #5cbf60;
+            color: #5cbf60;
         }
 
 
-        .search-item.active.modified:hover {
+        .search-item.active.modified:is(:hover, :focus) {
             background: #223635;
             border-left: 4px solid #5cc8b5;
+            color: #5cc8b5;
         }
 
         .search-word {
             font-size: 20px;
             font-weight: bold;
-            color: #e8e6e3;
         }
 
         .search-word-type {
@@ -189,31 +201,35 @@
             border-radius: 14px;
             padding: 22px;
             margin-bottom: 20px;
-            border: 1px solid #333;
+            border: 2px solid #333;
             box-shadow: 0 8px 30px rgba(0, 0, 0, .5);
             cursor: pointer;
         }
 
-        .entry:hover {
+        .entry:focus,
+        .entry:focus-visible,
+        .entry:active {
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .entry:is(:hover, :focus) {
+            background: #272a2b;
             border-color: #263CAB;
             box-shadow: 0 8px 30px rgba(16, 26, 74, .22);
-            < !-- background: #1b2038;
-            -->
         }
 
-        .entry:hover .word {
-            < !-- background: #181a1b;
-            -->
-        }
-
-        .entry:hover .sense {
-            < !-- background: #14161f;
-            -->
+        .entry:is(:hover, :focus) .slug {
+            color: #263CAB;
         }
 
         .entry.selected {
             border-color: #5cbf60;
             box-shadow: 0 8px 30px rgba(76, 175, 80, .22);
+        }
+
+        .entry.selected:is(:hover, :focus) .slug {
+            color: #5cbf60;
         }
 
         .entry-header {

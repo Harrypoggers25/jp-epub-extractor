@@ -20,6 +20,37 @@ function wordId(a, b) {
 	return `${a.w_basic_form}_${a.wt_name}`;
 }
 
+
+function focusCard(card) {
+	card?.focus();
+	card?.scrollIntoView({
+		behavior: "smooth",
+		block: "nearest"
+	});
+};
+
+function focusModifiedCard(card, cardHandler) {
+	let newCard = cardHandler(card);
+	while (newCard) {
+		if (newCard.classList.contains('modified')) {
+			focusCard(newCard);
+			break;
+		}
+		newCard = cardHandler(newCard);
+	}
+}
+
+function focusUnmodifiedCard(card, cardHandler) {
+	let newCard = cardHandler(card);
+	while (newCard) {
+		if (!newCard.classList.contains('modified')) {
+			focusCard(newCard);
+			break;
+		}
+		newCard = cardHandler(newCard);
+	}
+}
+
 class Sidebar {
 	constructor() {
 		this.words = null;
@@ -49,6 +80,7 @@ class Sidebar {
 		this.selectedWord = word;
 		const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
 		card?.classList?.add('active');
+		focusCard(card);
 
 		const params = new URLSearchParams(window.location.search);
 		params.set('select', word.w_basic_form);
@@ -56,6 +88,18 @@ class Sidebar {
 		window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
 
 		buffer.setWord(word);
+	}
+	focus() {
+		const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
+		if (card) {
+			focusCard(card);
+			return;
+		}
+
+		const cards = document.getElementsByClassName('search-item');
+		if (!cards.length) return;
+
+		focusCard(cards[0]);
 	}
 	renderSearchResults(words) {
 		this.words = words;
@@ -77,10 +121,56 @@ class Sidebar {
 		card.appendChild(this.createSearchWordType(word.wt_name));
 		if (buffer.senseStates[wordId(word)]) card.classList.add('modified');
 		if (senseCount === 1) card.classList.add('unique');
+		if (senseCount === 0) card.classList.add('error');
 		card.onclick = async e => {
 			e.preventDefault();
 			this.selectWord(word);
 		}
+		card.tabIndex = 0;
+		card.addEventListener('keydown', ev => {
+			switch (ev.key) {
+				case 'j':
+					ev.preventDefault();
+					focusCard(card.nextElementSibling);
+					break;
+				case 'k':
+					ev.preventDefault();
+					focusCard(card.previousElementSibling);
+					break;
+				case 'l':
+				case 'h':
+					ev.preventDefault();
+					buffer.focus();
+					break;
+				case 'w':
+				case 'e':
+					ev.preventDefault();
+					focusUnmodifiedCard(card, card => card.nextElementSibling);
+
+					break;
+				case 'W':
+				case 'E':
+					ev.preventDefault();
+					focusModifiedCard(card, card => card.nextElementSibling);
+
+					break;
+				case 'b':
+					ev.preventDefault();
+					focusUnmodifiedCard(card, card => card.previousElementSibling);
+
+					break;
+				case 'B':
+					ev.preventDefault();
+					focusModifiedCard(card, card => card.previousElementSibling);
+
+					break;
+				case 'Enter':
+					ev.preventDefault();
+					card.click();
+					buffer.focus();
+					break;
+			}
+		});
 
 		return card;
 	}
@@ -193,6 +283,12 @@ class Buffer {
 		this.renderHeader();
 		this.renderEntries();
 	}
+	focus() {
+		const cards = document.getElementsByClassName('entry');
+		if (!cards.length) return;
+
+		focusCard(cards[0]);
+	}
 	renderHeader() {
 		this.basicForm.textContent = this.w_basic_form;
 		this.tokenId.textContent = `Token: ${this.token_ids}`;
@@ -258,12 +354,40 @@ class Buffer {
 		if (selectedSense && selectedSense.has(i)) card.classList.add('selected');
 		if (entry.tags.length > 0) card.appendChild(this.createDictionaryTags(entry.tags));
 
-		card.onclick = async ev => {
+		const clickHandler = async ev => {
 			ev.preventDefault();
 			await this.toggleEntry(card, i);
 
 			sidebar.renderSearchResults(sidebar.words);
 		}
+		card.onclick = clickHandler;
+		card.tabIndex = 0;
+		card.addEventListener('keydown', async ev => {
+			switch (ev.key) {
+				case 'j':
+					ev.preventDefault();
+					focusCard(card.nextElementSibling);
+					break;
+				case 'k':
+					ev.preventDefault();
+					focusCard(card.previousElementSibling);
+					break;
+				case 'Escape':
+				case 'q':
+				case 'l':
+				case 'h':
+					ev.preventDefault();
+					sidebar.focus();
+					break;
+				case 'Enter':
+					ev.preventDefault();
+					await clickHandler(ev);
+					if (!ev.shiftKey) {
+						sidebar.focus();
+					}
+					break;
+			}
+		});
 
 		return card;
 	}
