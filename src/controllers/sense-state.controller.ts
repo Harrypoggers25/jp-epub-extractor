@@ -12,20 +12,14 @@ import Route from "@harrypoggers25/route";
 
 export namespace SenseStateHandler {
 	export const create = Route.asyncHandler(async (req, res) => {
-		const { ss_key } = req.body;
+		const { ss_key, unimportant, ignore, merged_with } = req.body;
 		const state = (() => {
 			const { state } = req.body;
-			if (!isArrayObj<number>(state, i => typeof i === 'number')) throw new Error(Message.failed(['create', 'sense state', ss_key], {
-				subMessage: 'State must be an array of numbers'
-			}));
-			if (!state.length) throw new Error(Message.failed(['create', 'Sense state', ss_key], {
-				subMessage: 'State must not be empty'
-			}));
-
+			if (!state) return state;
 			return JSON.stringify(Array.from(new Set(state)));
 		})();
 
-		const senseState = await SenseState.create({ ss_key, state });
+		const senseState = await SenseState.create({ ss_key, state, unimportant, ignore, merged_with });
 		if (!senseState) throw new Error(Message.failed(['create', 'sense state', ss_key]));
 
 		res.status(201).json(senseState);
@@ -48,25 +42,20 @@ export namespace SenseStateHandler {
 
 	export const update = Route.asyncHandler(async (req, res) => {
 		const ss_key = req.params.ss_key as string;
+		const { unimportant, ignore, merged_with } = req.body;
 		const state = (() => {
 			const { state } = req.body;
-			if (!isArrayObj<number>(state, i => typeof i === 'number')) throw new Error(Message.failed(['create', 'sense state', ss_key], {
-				subMessage: 'State must be an array of numbers'
-			}));
-			if (!state.length) throw new Error(Message.failed(['create', 'Sense state', ss_key], {
-				subMessage: 'State must not be empty'
-			}));
-
+			if (!state) return state;
 			return JSON.stringify(Array.from(new Set(state)));
 		})();
 
-		const senseState = await SenseState.updateByPk(ss_key, { state });
+		const senseState = await SenseState.updateByPk(ss_key, { state, unimportant, ignore, merged_with });
 		if (!senseState) throw new Error(Message.failed(['update', 'sense state', ss_key]))
 
 		res.status(200).json(senseState);
 	});
 
-	export const removeAll = Route.asyncHandler(async (req, res) => {
+	export const removeAll = Route.asyncHandler(async (_, res) => {
 		const senseStates = await SenseState.delete();
 		if (!senseStates) throw new Error(Message.failed(['delete', 'all sense states']));
 
