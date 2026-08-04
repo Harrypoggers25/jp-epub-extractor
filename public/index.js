@@ -58,6 +58,21 @@ function focusUnmodifiedCard(card, cardHandler) {
 	}
 }
 
+const CleanedBuffer = {
+	find: async (w_basic_form) => {
+		return await asyncHandler('FIND WORDS', async () => {
+			const url = !w_basic_form ? '/api/cleaned-buffers' : `/api/cleaned-buffers/${w_basic_form}`
+			const response = await fetch(url, { method: 'GET' });
+			if (!response) throw new Error('Failed to find words. Internal error');
+
+			const words = await response.json();
+			if (!words) throw new Error('Failed to find words. Unable to find data');
+
+			return words;
+		});
+	}
+}
+
 class Sidebar {
 	constructor() {
 		this.words = null;
@@ -69,7 +84,8 @@ class Sidebar {
 		this.searchInput.oninput = eventHandler(async ev => {
 			await asyncHandler('SIDEBAR SEARCH', async () => {
 				const text = ev.target.value;
-				const words = await sidebar.findWords(text);
+				const words = await CleanedBuffer.find(text);
+				if (!words) throw new Error(`Failed to search word '${text}'`);
 
 				this.renderSearchResults(words);
 			})
@@ -82,18 +98,6 @@ class Sidebar {
 				focusCard(cards[0]);
 			}
 		});
-	}
-	async findWords(word) {
-		const url = !word ? '/api/cleaned-buffers' : `/api/cleaned-buffers/${word}`
-		const response = await fetch(url, {
-			method: 'GET',
-		})
-		if (!response.ok) throw new Error(`Failed to find words. Internal error`);
-
-		const words = await response.json();
-		if (!words) throw new Error(`Failed to find words. Unable to find data`);
-
-		return words;
 	}
 	async selectWord(word) {
 		if (this.selectedWord) {
@@ -576,7 +580,9 @@ const sidebar = new Sidebar();
 asyncHandler('MAIN INIT', async () => {
 	await buffer.loadSenses()
 	const words = await asyncHandler('SIDEBAR INIT', async () => {
-		const words = await sidebar.findWords();
+		const words = await CleanedBuffer.find();
+		if (!words) throw new Error('Failed to initialize sidebar. Unable to find words');
+
 		sidebar.renderSearchResults(words);
 
 		const params = new URLSearchParams(window.location.search);
