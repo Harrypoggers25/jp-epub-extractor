@@ -187,7 +187,7 @@
         .header-btn {
             background: #232527;
             color: #e8e6e3;
-            border: 1px solid #333;
+            border: 2px solid #333;
             border-radius: 8px;
             padding: 8px 14px;
             font-size: 13px;
@@ -200,12 +200,24 @@
         .header-btn:hover {
             background: #272a2b;
             border-color: #7c8aff;
+            box-shadow: 0 8px 30px rgba(21, 62, 255, 0.27);
             color: #7c8aff;
         }
 
-        .header-btn:focus-visible {
-            outline: 2px solid #7c8aff;
-            outline-offset: 1px;
+        .header-btn.selected {
+            border-color: #5cbf60;
+        }
+
+        .header-btn.selected:hover {
+            color: #5cbf60;
+            box-shadow: 0 8px 30px rgba(76, 175, 80, .22);
+        }
+
+        .header-btn:disabled {
+            background: #1a1c1d;
+            color: #5a5c5d;
+            border-color: #2a2c2d;
+            cursor: default;
         }
 
         .header-content {
@@ -249,13 +261,12 @@
         .entry:focus-visible,
         .entry:active {
             outline: none !important;
-            box-shadow: none !important;
         }
 
         .entry:is(:hover, :focus) {
             background: #272a2b;
             border-color: #7c8aff;
-            box-shadow: 0 8px 30px rgba(16, 26, 74, .22);
+            box-shadow: 0 8px 30px rgba(21, 62, 255, 0.27);
         }
 
         .entry:is(:hover, :focus) .slug {
@@ -264,6 +275,9 @@
 
         .entry.selected {
             border-color: #5cbf60;
+        }
+
+        .entry.selected:is(:hover, :focus) {
             box-shadow: 0 8px 30px rgba(76, 175, 80, .22);
         }
 

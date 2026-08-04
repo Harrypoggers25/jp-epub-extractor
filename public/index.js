@@ -7,6 +7,13 @@ async function asyncHandler(header, handler) {
 	}
 }
 
+const eventHandler = (handler) => {
+	return async ev => {
+		ev.preventDefault();
+		await handler?.(ev);
+	}
+}
+
 function createElement(tag, className = null, text = null) {
 	const element = document.createElement(tag);
 	if (className !== null) element.className = className;
@@ -135,50 +142,42 @@ class Sidebar {
 			this.selectWord(word);
 		}
 		card.tabIndex = 0;
-		card.addEventListener('keydown', ev => {
+		card.addEventListener('keydown', eventHandler(async ev => {
 			switch (ev.key) {
 				case 'j':
-					ev.preventDefault();
 					focusCard(card.nextElementSibling);
 					break;
 				case 'k':
-					ev.preventDefault();
 					focusCard(card.previousElementSibling);
 					break;
 				case 'l':
 				case 'h':
-					ev.preventDefault();
 					buffer.focus();
 					break;
 				case 'w':
 				case 'e':
-					ev.preventDefault();
 					focusUnmodifiedCard(card, card => card.nextElementSibling);
 
 					break;
 				case 'W':
 				case 'E':
-					ev.preventDefault();
 					focusModifiedCard(card, card => card.nextElementSibling);
 
 					break;
 				case 'b':
-					ev.preventDefault();
 					focusUnmodifiedCard(card, card => card.previousElementSibling);
 
 					break;
 				case 'B':
-					ev.preventDefault();
 					focusModifiedCard(card, card => card.previousElementSibling);
 
 					break;
 				case 'Enter':
-					ev.preventDefault();
 					card.click();
 					buffer.focus();
 					break;
 			}
-		});
+		}));
 
 		return card;
 	}
@@ -191,7 +190,7 @@ class Sidebar {
 }
 
 const SenseState = {
-	init: () => ({ state: new Set(), ignore: false, unimportant: false, merged_with: null }),
+	init: () => ({ state: new Set(), ignore: false, unsure: false, merged_with: null }),
 	create: async (body) => {
 		return await asyncHandler('CREATE SENSE STATE', async () => {
 			const response = await fetch('/api/sense-states', {
@@ -280,9 +279,19 @@ class Buffer {
 			return;
 		}
 
-		for (const { ss_key, state, unimportant, ignore, merged_with } of senseStates) {
-			this.senseStates[ss_key] = { state: new Set(JSON.parse(state)), unimportant, ignore, merged_with };
+		for (const { ss_key, state, unsure, ignore, merged_with } of senseStates) {
+			this.senseStates[ss_key] = { state: new Set(JSON.parse(state)), unsure, ignore, merged_with };
 		}
+	}
+	async initSenseState(ss_key) {
+		if (!this.senseStates[ss_key]) {
+			const createdSenseState = await SenseState.create({ ss_key });
+			if (!createdSenseState) return false;
+
+			this.senseStates[ss_key] = SenseState.init();
+		}
+
+		return true
 	}
 	setWord(word) {
 		this.w_basic_form = word.w_basic_form;
@@ -318,22 +327,84 @@ class Buffer {
 		}
 	}
 	createHeaderActions() {
-		const btnUnimportant = createElement('button', 'header-btn', 'Unimportant');
-		const btnIgnore = createElement('button', 'header-btn', 'Ignore');
-		const btnMergeWith = createElement('button', 'header-btn', 'Merge with...');
+		const ss_key = wordId(this.w_basic_form, this.wt_name);
 
-		return [btnUnimportant, btnIgnore, btnMergeWith];
+		const syncButtonState = (senseState) => {
+			if (!senseState) return;
+
+			const { merged_with, unsure, ignore } = senseState;
+			if (ignore) {
+				if (!btnIgnore.classList.contains('selected')) btnIgnore.classList.add('selected');
+				btnMergeWith.disabled = true;
+				btnUnsure.disabled = true;
+				return;
+			}
+			if (btnIgnore.classList.contains('selected')) btnIgnore.classList.remove('selected');
+			btnMergeWith.disabled = false;
+
+			if (merged_with) {
+				if (!btnMergeWith.classList.contains('selected')) btnMergeWith.classList.add('selected');
+				btnUnsure.disabled = true;
+				return;
+			}
+			if (btnMergeWith.classList.contains('selected')) btnMergeWith.classList.remove('selected');
+			btnUnsure.disabled = false
+
+			if (unsure) {
+				if (!btnUnsure.classList.contains('selected')) btnUnsure.classList.add('selected');
+				return;
+			}
+			if (btnUnsure.classList.contains('selected')) btnUnsure.classList.remove('selected');
+		}
+
+		const btnMergeWith = createElement('button', 'header-btn', 'Merge with...');
+		btnMergeWith.onclick = eventHandler(async () => {
+			if (!this.initSenseState(ss_key)) return;
+
+			const merged_with = !this.senseStates[ss_key].merged_with ? true : false;
+
+			this.senseStates[ss_key].merged_with = merged_with ? 'kaka' : null;
+			syncButtonState(this.senseStates[ss_key]);
+		});
+
+		const btnUnsure = createElement('button', 'header-btn', 'Unsure');
+		btnUnsure.onclick = eventHandler(async ev => {
+			if (!this.initSenseState(ss_key)) return;
+
+			const unsure = !this.senseStates[ss_key].unsure;
+			const updatedSenseState = await SenseState.update(ss_key, { unsure });
+			if (!updatedSenseState) return;
+
+			this.senseStates[ss_key].unsure = unsure;
+			syncButtonState(this.senseStates[ss_key]);
+		});
+
+		const btnIgnore = createElement('button', 'header-btn', 'Ignore');
+		btnIgnore.onclick = eventHandler(async () => {
+			if (!this.initSenseState(ss_key)) return;
+
+			const ignore = !this.senseStates[ss_key].ignore;
+			const updatedSenseState = await SenseState.update(ss_key, { ignore });
+			if (!updatedSenseState) return;
+
+			this.senseStates[ss_key].ignore = ignore;
+			syncButtonState(this.senseStates[ss_key]);
+		});
+
+		const buttons = [btnMergeWith, btnUnsure, btnIgnore]
+		buttons.forEach(button => {
+			button.tabIndex = 0;
+		})
+
+		syncButtonState(this.senseStates[ss_key]);
+
+		return buttons;
 	}
 	async toggleEntry(card, i) {
 		const ss_key = wordId(this.w_basic_form, this.wt_name);
-		if (!this.senseStates[ss_key]) {
-			const createdSenseState = await SenseState.create({ ss_key });
-			if (!createdSenseState) return;
+		if (!this.initSenseState(ss_key)) return;
 
-			this.senseStates[ss_key] = SenseState.init();
-		}
-
-		const state = this.senseStates[ss_key].state ? new Set(this.senseStates[ss_key].state) : new Set();
+		const state = new Set(this.senseStates[ss_key].state);
 
 		// Toggle off
 		if (card.classList.contains('selected')) {
@@ -368,40 +439,35 @@ class Buffer {
 		if (senseState?.state && senseState.state.has(i)) card.classList.add('selected');
 		if (entry.tags.length > 0) card.appendChild(this.createDictionaryTags(entry.tags));
 
-		const clickHandler = async ev => {
-			ev.preventDefault();
+		const clickHandler = eventHandler(async () => {
 			await this.toggleEntry(card, i);
 
 			sidebar.renderSearchResults(sidebar.words);
-		}
+		});
 		card.onclick = clickHandler;
 		card.tabIndex = 0;
-		card.addEventListener('keydown', async ev => {
+		card.addEventListener('keydown', eventHandler(async ev => {
 			switch (ev.key) {
 				case 'j':
-					ev.preventDefault();
 					focusCard(card.nextElementSibling);
 					break;
 				case 'k':
-					ev.preventDefault();
 					focusCard(card.previousElementSibling);
 					break;
 				case 'Escape':
 				case 'q':
 				case 'l':
 				case 'h':
-					ev.preventDefault();
 					sidebar.focus();
 					break;
 				case 'Enter':
-					ev.preventDefault();
 					await clickHandler(ev);
 					if (!ev.shiftKey) {
 						sidebar.focus();
 					}
 					break;
 			}
-		});
+		}));
 
 		return card;
 	}
