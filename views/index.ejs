@@ -170,6 +170,47 @@
             margin-bottom: 24px;
             box-shadow: 0 8px 30px rgba(0, 0, 0, .4);
             border: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .header-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .header-btn {
+            background: #232527;
+            color: #e8e6e3;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background .2s, border-color .2s;
+            text-align: left;
+        }
+
+        .header-btn:hover {
+            background: #272a2b;
+            border-color: #7c8aff;
+            color: #7c8aff;
+        }
+
+        .header-btn:focus-visible {
+            outline: 2px solid #7c8aff;
+            outline-offset: 1px;
+        }
+
+        .header-content {
+            flex: 1;
+            min-width: 0;
         }
 
         .header h1 {
@@ -213,12 +254,12 @@
 
         .entry:is(:hover, :focus) {
             background: #272a2b;
-            border-color: #263CAB;
+            border-color: #7c8aff;
             box-shadow: 0 8px 30px rgba(16, 26, 74, .22);
         }
 
         .entry:is(:hover, :focus) .slug {
-            color: #263CAB;
+            color: #7c8aff;
         }
 
         .entry.selected {
@@ -345,11 +386,18 @@
         <main class="content">
             <div class="container">
                 <div class="header">
-                    <h1 id="basicForm"></h1>
-                    <div class="meta">
-                        <div id="tokenId" class="badge"></div>
-                        <div id="wordType" class="badge"></div>
-                        <div id="count" class="badge"></div>
+                    <div class="header-content">
+                        <h1 id="basicForm"></h1>
+                        <div class="meta">
+                            <div id="tokenId" class="badge"></div>
+                            <div id="wordType" class="badge"></div>
+                            <div id="count" class="badge"></div>
+                        </div>
+                    </div>
+                    <div id="headerActions" class="header-actions">
+                        <!-- <button class="header-btn" id="btnUnimportant">Unimportant</button> -->
+                        <!-- <button class="header-btn" id="btnIgnore">Ignore</button> -->
+                        <!-- <button class="header-btn" id="btnMerge">Merge with...</button> -->
                     </div>
                 </div>
                 <div id="entries"></div>
