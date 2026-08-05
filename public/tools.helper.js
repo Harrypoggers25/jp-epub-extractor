@@ -27,7 +27,10 @@ export function wordId(a, b) {
 	return `${a.w_basic_form}_${a.wt_name}`;
 }
 
-export function focusCard(card) {
+export const nextElem = elem => elem.nextElementSibling;
+export const prevElem = elem => elem.previousElementSibling;
+
+export function focusElem(card) {
 	card?.focus();
 	card?.scrollIntoView({
 		behavior: "smooth",
@@ -39,7 +42,7 @@ export function focusModifiedCard(card, cardHandler) {
 	let newCard = cardHandler(card);
 	while (newCard) {
 		if (newCard.classList.contains('modified')) {
-			focusCard(newCard);
+			focusElem(newCard);
 			break;
 		}
 		newCard = cardHandler(newCard);
@@ -50,7 +53,7 @@ export function focusUnmodifiedCard(card, cardHandler) {
 	let newCard = cardHandler(card);
 	while (newCard) {
 		if (!newCard.classList.contains('modified')) {
-			focusCard(newCard);
+			focusElem(newCard);
 			break;
 		}
 		newCard = cardHandler(newCard);

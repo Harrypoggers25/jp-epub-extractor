@@ -92,14 +92,33 @@ class Sidebar {
 		}
 		card.tabIndex = 0;
 		card.addEventListener('keydown', eventHandler(async ev => {
+			const firstCard = () => document.getElementsByClassName('search-item')[0];
+			const lastCard = () => {
+				const cards = document.getElementsByClassName('search-item');
+				return cards[cards.length - 1];
+			}
 			switch (ev.key) { // Sidebar
 				case 's':
 					this.searchInput.focus();
 					break;
+				case 'Home':
+					focusElem(firstCard());
+					break;
+				case 'End':
+					focusElem(lastCard());
+					break;
 				case 'j':
+					if (!nextElem(card)) {
+						focusElem(firstCard());
+						break;
+					}
 					focusElem(nextElem(card));
 					break;
 				case 'k':
+					if (!prevElem(card)) {
+						focusElem(lastCard());
+						break;
+					}
 					focusElem(prevElem(card));
 					break;
 				case 'l':
@@ -145,6 +164,7 @@ class Buffer {
 		this.count = document.getElementById("count");
 		this.container = document.getElementById("entries");
 		this.headerActions = document.getElementById("headerActions");
+		this.buttons = [];
 
 		this.w_basic_form = '';
 		this.token_ids = '';
@@ -185,9 +205,44 @@ class Buffer {
 	}
 	focus() {
 		const cards = document.getElementsByClassName('entry');
-		if (!cards.length) return;
+		if (cards.length) {
+			focusElem(cards[0]);
+			return;
+		}
 
-		focusElem(cards[0]);
+		for (const button of this.buttons) {
+			if (!button.disabled) {
+				focusElem(button);
+				return;
+			}
+		}
+	}
+	async keyDownHandler(ev) {
+		switch (ev.key) {
+			case 'Escape':
+			case 'q':
+			case 'l':
+			case 'h':
+				sidebar.focus();
+				break;
+			case 'm':
+				if (!this.buttons[0].disabled) {
+					this.buttons[0].click();
+				}
+				break;
+			case 'u':
+				if (!this.buttons[1].disabled) {
+					this.buttons[1].click();
+					focusElem(this.buttons[1]);
+				}
+				break;
+			case 'i':
+				if (!this.buttons[2].disabled) {
+					this.buttons[2].click();
+					focusElem(this.buttons[2]);
+				}
+				break;
+		}
 	}
 	renderHeader() {
 		this.basicForm.textContent = this.w_basic_form;
@@ -207,80 +262,136 @@ class Buffer {
 			this.container.appendChild(this.createEntry(entry, i));
 		}
 	}
+	syncButtonState(ss_key) {
+		const senseState = this.senseStates[ss_key];
+		if (!senseState) return;
+
+		const [btnMergeWith, btnUnsure, btnIgnore] = this.buttons;
+		const { merged_with, unsure, ignore } = senseState;
+		if (ignore) {
+			if (!btnIgnore.classList.contains('selected')) btnIgnore.classList.add('selected');
+			btnMergeWith.disabled = true;
+			btnUnsure.disabled = true;
+			return;
+		}
+		if (btnIgnore.classList.contains('selected')) btnIgnore.classList.remove('selected');
+		btnMergeWith.disabled = false;
+
+		if (merged_with) {
+			if (!btnMergeWith.classList.contains('selected')) {
+				btnMergeWith.classList.add('selected');
+				btnMergeWith.textContent = 'Unmerge';
+			}
+			btnUnsure.disabled = true;
+			btnIgnore.disabled = true;
+			return;
+		}
+		if (btnMergeWith.classList.contains('selected')) {
+			btnMergeWith.classList.remove('selected');
+			btnMergeWith.textContent = 'Merge';
+		}
+		btnUnsure.disabled = false
+		btnIgnore.disabled = false;
+
+		if (unsure) {
+			if (!btnUnsure.classList.contains('selected')) btnUnsure.classList.add('selected');
+			return;
+		}
+		if (btnUnsure.classList.contains('selected')) btnUnsure.classList.remove('selected');
+	}
 	createHeaderActions() {
 		const ss_key = wordId(this.w_basic_form, this.wt_name);
 
-		const syncButtonState = (senseState) => {
-			if (!senseState) return;
-
-			const { merged_with, unsure, ignore } = senseState;
-			if (ignore) {
-				if (!btnIgnore.classList.contains('selected')) btnIgnore.classList.add('selected');
-				btnMergeWith.disabled = true;
-				btnUnsure.disabled = true;
-				return;
-			}
-			if (btnIgnore.classList.contains('selected')) btnIgnore.classList.remove('selected');
-			btnMergeWith.disabled = false;
-
-			if (merged_with) {
-				if (!btnMergeWith.classList.contains('selected')) btnMergeWith.classList.add('selected');
-				btnUnsure.disabled = true;
-				return;
-			}
-			if (btnMergeWith.classList.contains('selected')) btnMergeWith.classList.remove('selected');
-			btnUnsure.disabled = false
-
-			if (unsure) {
-				if (!btnUnsure.classList.contains('selected')) btnUnsure.classList.add('selected');
-				return;
-			}
-			if (btnUnsure.classList.contains('selected')) btnUnsure.classList.remove('selected');
-		}
-
-		const btnMergeWith = createElement('button', 'header-btn', 'Merge with...');
+		const btnMergeWith = createElement('button', 'header-btn', 'Merge');
 		btnMergeWith.onclick = eventHandler(async () => {
-			if (!this.initSenseState(ss_key)) return;
+			if (!(await this.initSenseState(ss_key))) return;
 
+			if (this.senseStates[ss_key].merged_with) {
+				const merged_with = null;
+				const updatedSenseState = await SenseState.update(ss_key, { merged_with });
+				if (!updatedSenseState) return;
 
+				this.senseStates[ss_key].merged_with = merged_with;
+				this.syncButtonState(ss_key);
+				return;
+			}
+
+			await mergeModal.open(this.w_basic_form, this.wt_name);
 		});
 
 		const btnUnsure = createElement('button', 'header-btn', 'Unsure');
 		btnUnsure.onclick = eventHandler(async () => {
-			if (!this.initSenseState(ss_key)) return;
+			if (!(await this.initSenseState(ss_key))) return;
 
 			const unsure = !this.senseStates[ss_key].unsure;
 			const updatedSenseState = await SenseState.update(ss_key, { unsure });
 			if (!updatedSenseState) return;
 
 			this.senseStates[ss_key].unsure = unsure;
-			syncButtonState(this.senseStates[ss_key]);
+			this.syncButtonState(ss_key);
 		});
 
 		const btnIgnore = createElement('button', 'header-btn', 'Ignore');
 		btnIgnore.onclick = eventHandler(async () => {
-			if (!this.initSenseState(ss_key)) return;
+			if (!(await this.initSenseState(ss_key))) return;
 
 			const ignore = !this.senseStates[ss_key].ignore;
 			const updatedSenseState = await SenseState.update(ss_key, { ignore });
 			if (!updatedSenseState) return;
 
 			this.senseStates[ss_key].ignore = ignore;
-			syncButtonState(this.senseStates[ss_key]);
+			this.syncButtonState(ss_key);
 		});
 
-		const buttons = [btnMergeWith, btnUnsure, btnIgnore]
-		buttons.forEach(button => {
+		this.buttons = [btnMergeWith, btnUnsure, btnIgnore];
+		this.buttons.forEach(button => {
 			button.tabIndex = 0;
+			button.addEventListener('keydown', eventHandler(async ev => {
+				const canFocus = (button) => {
+					if (!button || button.disabled) return false;
+					return true;
+				}
+				switch (ev.key) { // Buffer buttons
+					case 'j':
+						if (!canFocus(nextElem(button))) {
+							const cards = document.getElementsByClassName('entry');
+							if (!cards) break;
+
+							focusElem(cards[0]);
+							break;
+						}
+						focusElem(nextElem(button));
+						break;
+					case 'k':
+						if (!canFocus(prevElem(button))) {
+							const cards = document.getElementsByClassName('entry');
+							if (!cards) break;
+
+							focusElem(cards[cards.length - 1]);
+							break;
+						}
+						focusElem(prevElem(button));
+						break;
+					case 'Enter':
+						button.click();
+						if (!ev.shiftKey) {
+							sidebar.focus();
+						}
+						break;
+					default:
+						await this.keyDownHandler(ev);
+						break;
+				}
+			}));
 		})
 
-		syncButtonState(this.senseStates[ss_key]);
+		this.syncButtonState(ss_key);
 
-		return buttons;
+		return this.buttons;
 	}
 	async toggleEntry(card, i) {
 		const ss_key = wordId(this.w_basic_form, this.wt_name);
-		if (!this.initSenseState(ss_key)) return;
+		if (!(await this.initSenseState(ss_key))) return;
 
 		const state = new Set(this.senseStates[ss_key].state);
 
@@ -327,22 +438,31 @@ class Buffer {
 		card.addEventListener('keydown', eventHandler(async ev => {
 			switch (ev.key) { // Buffer Entry
 				case 'j':
+					if (!nextElem(card)) {
+						for (let i = this.buttons.length - 1; i >= 0; i--) {
+							if (!this.buttons[i].disabled) focusElem(this.buttons[i]);
+						}
+						break;
+					}
 					focusElem(nextElem(card));
 					break;
 				case 'k':
+					if (!prevElem(card)) {
+						for (let i = 0; i < this.buttons.length; i++) {
+							if (!this.buttons[i].disabled) focusElem(this.buttons[i]);
+						}
+						break;
+					}
 					focusElem(prevElem(card));
-					break;
-				case 'Escape':
-				case 'q':
-				case 'l':
-				case 'h':
-					sidebar.focus();
 					break;
 				case 'Enter':
 					await clickHandler(ev);
 					if (!ev.shiftKey) {
 						sidebar.focus();
 					}
+					break;
+				default:
+					await this.keyDownHandler(ev);
 					break;
 			}
 		}));
@@ -428,8 +548,153 @@ class Buffer {
 	}
 }
 
+class MergeModal {
+	constructor() {
+		this.mergeModal = document.getElementById('mergeModal');
+		this.modalTargetWord = document.getElementById('modalTargetWord');
+		this.modalSelectedWord = document.getElementById('modalSelectedWord');
+		this.modalSearchInput = document.getElementById('modalSearchInput');
+		this.modalList = document.getElementById('modalList');
+		this.modalCancel = document.getElementById('modalCancel');
+		this.modalConfirm = document.getElementById('modalConfirm');
+
+		this.modalItems = {};
+		this.selectedWord = null;
+		this.w_basic_form = null;
+		this.wt_name = null;
+
+		this.modalSearchInput.oninput = eventHandler(async ev => {
+			await asyncHandler('MERGE MODAL SEARCH', async () => {
+				const text = ev.target.value;
+				const words = await CleanedBuffer.find(text);
+				if (!words) throw new Error(`Failed to search word '${text}'`);
+
+				this.renderModelItems(words);
+			})
+		});
+		this.modalSearchInput.addEventListener('keydown', async ev => {
+			if (['Enter', 'Escape'].includes(ev.key)) {
+				const cards = Object.values(this.modalItems);
+				if (cards.length) focusElem(cards[0]);
+			}
+		});
+		this.modalCancel.onclick = eventHandler(() => {
+			this.cancel();
+		});
+		this.modalConfirm.onclick = eventHandler(async () => {
+			await this.confirm();
+		});
+		this.modalConfirm.disabled = true;
+	}
+	async open(w_basic_form, wt_name) {
+		this.modalTargetWord.textContent = `${w_basic_form} [${wt_name}]`;
+		this.modalSelectedWord.textContent = '';
+		this.w_basic_form = w_basic_form;
+		this.wt_name = wt_name;
+		await asyncHandler('MERGE MODAL OPEN', async () => {
+			const words = await CleanedBuffer.find();
+			if (!words) throw new Error('Failed to open merge modal. Unable to find words');
+
+			this.renderModelItems(words);
+
+			if (!this.mergeModal.classList.contains('open')) this.mergeModal.classList.add('open');
+			const cards = Object.values(this.modalItems);
+			if (cards.length) {
+				focusElem(cards[0]);
+				cards[0].click();
+			}
+		});
+	}
+	cancel() {
+		this.modalTargetWord.textContent = '';
+		this.modalSelectedWord.textContent = '';
+		this.modalList.innerHTML = '';
+		this.modalItems = {};
+		this.w_basic_form = null;
+		this.wt_name = null;
+		this.selectedWord = null;
+
+		if (this.mergeModal.classList.contains('open')) this.mergeModal.classList.remove('open');
+
+		focusElem(buffer.buttons[0]);
+	}
+	async confirm() {
+		if (!this.selectedWord) return;
+
+		const ss_key = wordId(this.w_basic_form, this.wt_name);
+		const merged_with = wordId(this.selectedWord);
+		const updatedSenseState = await SenseState.update(ss_key, { merged_with });
+		if (!updatedSenseState) return;
+
+		buffer.senseStates[ss_key].merged_with = merged_with;
+		buffer.syncButtonState(ss_key);
+
+		this.cancel();
+	}
+	renderModelItems(words) {
+		this.modalList.innerHTML = '';
+		this.modalItems = {};
+		words.filter(word => word.w_basic_form !== this.w_basic_form || word.wt_name !== this.wt_name).forEach(word => {
+			const ss_key = wordId(word.w_basic_form, word.wt_name);
+			this.modalItems[ss_key] = this.createModalItem(word);
+			this.modalList.appendChild(this.modalItems[ss_key]);
+		});
+	}
+	createModalItem(word) {
+		const card = createElement('div', 'modal-item');
+		card.appendChild(createElement('div', 'modal-item-word', word.w_basic_form));
+		card.appendChild(createElement('div', 'modal-item-type', word.wt_name));
+		card.tabIndex = 0;
+		const clickHandler = eventHandler(async () => {
+			const cards = document.getElementsByClassName('modal-item');
+			if (!cards) return;
+
+			this.selectedWord = word;
+			this.modalSelectedWord.textContent = `${word.w_basic_form} [${word.wt_name}]`;
+			this.modalConfirm.disabled = false;
+
+			Object.values(cards).forEach(card => {
+				if (card.classList.contains('selected')) card.classList.remove('selected');
+			});
+
+			card.classList.add('selected');
+		});
+		card.onclick = clickHandler
+		card.addEventListener('keydown', eventHandler(async ev => {
+			switch (ev.key) { // Merge modal
+				case 's':
+					this.modalSearchInput.focus();
+					break;
+				case 'j':
+					focusElem(nextElem(card));
+					break;
+				case 'k':
+					focusElem(prevElem(card));
+					break;
+				case 'q':
+				case 'Escape':
+					this.cancel();
+					break
+				case 'm':
+					console.log(this.selectedWord);
+					break;
+				case 'Enter':
+					if (ev.ctrlKey) {
+						await this.confirm();
+						break;
+					}
+					clickHandler(ev);
+					break;
+			}
+		}));
+
+		return card;
+	}
+}
+
 const buffer = new Buffer();
 const sidebar = new Sidebar();
+const mergeModal = new MergeModal();
 
 asyncHandler('MAIN INIT', async () => {
 	await buffer.loadSenses()
