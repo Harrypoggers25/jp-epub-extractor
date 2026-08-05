@@ -1,5 +1,5 @@
 import { SenseState, CleanedBuffer } from "./api.helper.js";
-import { asyncHandler, eventHandler, createElement, wordId, focusCard, focusModifiedCard, focusUnmodifiedCard } from "./tools.helper.js";
+import { asyncHandler, eventHandler, createElement, wordId, nextElem, prevElem, focusElem, focusModifiedCard, focusUnmodifiedCard } from "./tools.helper.js";
 
 class Sidebar {
 	constructor() {
@@ -23,7 +23,7 @@ class Sidebar {
 				const cards = document.getElementsByClassName('search-item');
 				if (!cards || !cards.length) return;
 
-				focusCard(cards[0]);
+				focusElem(cards[0]);
 			}
 		});
 	}
@@ -36,7 +36,7 @@ class Sidebar {
 		this.selectedWord = word;
 		const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
 		card?.classList?.add('active');
-		focusCard(card);
+		focusElem(card);
 
 		const params = new URLSearchParams(window.location.search);
 		params.set('select', word.w_basic_form);
@@ -48,14 +48,14 @@ class Sidebar {
 	focus() {
 		const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
 		if (card) {
-			focusCard(card);
+			focusElem(card);
 			return;
 		}
 
 		const cards = document.getElementsByClassName('search-item');
 		if (!cards.length) return;
 
-		focusCard(cards[0]);
+		focusElem(cards[0]);
 	}
 	renderSearchResults(words) {
 		this.words = words;
@@ -92,15 +92,15 @@ class Sidebar {
 		}
 		card.tabIndex = 0;
 		card.addEventListener('keydown', eventHandler(async ev => {
-			switch (ev.key) {
+			switch (ev.key) { // Sidebar
 				case 's':
 					this.searchInput.focus();
 					break;
 				case 'j':
-					focusCard(card.nextElementSibling);
+					focusElem(nextElem(card));
 					break;
 				case 'k':
-					focusCard(card.previousElementSibling);
+					focusElem(prevElem(card));
 					break;
 				case 'l':
 				case 'h':
@@ -108,21 +108,17 @@ class Sidebar {
 					break;
 				case 'w':
 				case 'e':
-					focusUnmodifiedCard(card, card => card.nextElementSibling);
-
+					focusUnmodifiedCard(card, nextElem);
 					break;
 				case 'W':
 				case 'E':
-					focusModifiedCard(card, card => card.nextElementSibling);
-
+					focusModifiedCard(card, nextElem);
 					break;
 				case 'b':
-					focusUnmodifiedCard(card, card => card.previousElementSibling);
-
+					focusUnmodifiedCard(card, prevElem);
 					break;
 				case 'B':
-					focusModifiedCard(card, card => card.previousElementSibling);
-
+					focusModifiedCard(card, prevElem);
 					break;
 				case 'Enter':
 					card.click();
@@ -191,7 +187,7 @@ class Buffer {
 		const cards = document.getElementsByClassName('entry');
 		if (!cards.length) return;
 
-		focusCard(cards[0]);
+		focusElem(cards[0]);
 	}
 	renderHeader() {
 		this.basicForm.textContent = this.w_basic_form;
@@ -246,14 +242,11 @@ class Buffer {
 		btnMergeWith.onclick = eventHandler(async () => {
 			if (!this.initSenseState(ss_key)) return;
 
-			const merged_with = !this.senseStates[ss_key].merged_with ? true : false;
 
-			this.senseStates[ss_key].merged_with = merged_with ? 'kaka' : null;
-			syncButtonState(this.senseStates[ss_key]);
 		});
 
 		const btnUnsure = createElement('button', 'header-btn', 'Unsure');
-		btnUnsure.onclick = eventHandler(async ev => {
+		btnUnsure.onclick = eventHandler(async () => {
 			if (!this.initSenseState(ss_key)) return;
 
 			const unsure = !this.senseStates[ss_key].unsure;
@@ -332,12 +325,12 @@ class Buffer {
 		card.onclick = clickHandler;
 		card.tabIndex = 0;
 		card.addEventListener('keydown', eventHandler(async ev => {
-			switch (ev.key) {
+			switch (ev.key) { // Buffer Entry
 				case 'j':
-					focusCard(card.nextElementSibling);
+					focusElem(nextElem(card));
 					break;
 				case 'k':
-					focusCard(card.previousElementSibling);
+					focusElem(prevElem(card));
 					break;
 				case 'Escape':
 				case 'q':
