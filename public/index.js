@@ -27,7 +27,6 @@ function wordId(a, b) {
 	return `${a.w_basic_form}_${a.wt_name}`;
 }
 
-
 function focusCard(card) {
 	card?.focus();
 	card?.scrollIntoView({
@@ -75,10 +74,10 @@ const CleanedBuffer = {
 
 class Sidebar {
 	constructor() {
-		this.words = null;
 		this.searchInput = document.getElementById('searchInput')
 		this.searchResults = document.getElementById('searchResults')
 
+		this.words = null;
 		this.selectedWord = null;
 
 		this.searchInput.oninput = eventHandler(async ev => {
