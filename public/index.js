@@ -162,6 +162,7 @@ class Buffer {
 		this.tokenId = document.getElementById("tokenId");
 		this.wordType = document.getElementById("wordType");
 		this.count = document.getElementById("count");
+		this.occurrence = document.getElementById("occurrence");
 		this.container = document.getElementById("entries");
 		this.headerActions = document.getElementById("headerActions");
 		this.buttons = [];
@@ -169,6 +170,7 @@ class Buffer {
 		this.w_basic_form = '';
 		this.token_ids = '';
 		this.wt_name = '';
+		this.occurrence_count = '';
 		this.j_response = '[]';
 
 		this.senseStates = {};
@@ -198,6 +200,7 @@ class Buffer {
 		this.w_basic_form = word.w_basic_form;
 		this.token_ids = word.token_ids;
 		this.wt_name = word.wt_name;
+		this.occurrence_count = word.count;
 		this.j_response = JSON.parse(word.j_response);
 
 		this.renderHeader();
@@ -249,6 +252,7 @@ class Buffer {
 		this.tokenId.textContent = `Token: ${this.token_ids}`;
 		this.wordType.textContent = this.wt_name;
 		this.count.textContent = `${this.j_response.length} Dictionary Entries`;
+		this.occurrence.textContent = `${this.occurrence_count} Occurrences`;
 
 		this.headerActions.innerHTML = '';
 		for (const button of this.createHeaderActions()) {
