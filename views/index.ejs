@@ -297,6 +297,81 @@
             align-items: center;
         }
 
+        .entry.disabled {
+            background: #1a1c1d;
+            border-color: #2a2c2d;
+            cursor: default;
+            box-shadow: none;
+        }
+
+        .entry.disabled .slug {
+            color: #5a5c5d;
+        }
+
+        .entry.disabled:is(:hover, :focus) {
+            background: #1a1c1d;
+            border-color: #2a2c2d;
+            box-shadow: none;
+        }
+
+        .entry.disabled:is(:hover, :focus) .slug {
+            color: #5a5c5d;
+        }
+
+        .entry.disabled.selected {
+            border-color: #2f4a31;
+            box-shadow: none;
+        }
+
+        .entry.disabled.selected:is(:hover, :focus) {
+            border-color: #2f4a31;
+            box-shadow: none;
+        }
+
+        .entry.disabled.selected:is(:hover, :focus) .slug {
+            color: #5a5c5d;
+        }
+
+        .entry.disabled .section h3 {
+            color: #4a4c4d;
+        }
+
+        .entry.disabled .word {
+            background: #1f2122;
+        }
+
+        .entry.disabled .word strong {
+            color: #5a5c5d;
+        }
+
+        .entry.disabled .word span {
+            color: #4a4c4d;
+        }
+
+        .entry.disabled .sense {
+            background: #131415;
+            border-left-color: #3a3d47;
+        }
+
+        .entry.disabled .definitions {
+            color: #5a5c5d;
+        }
+
+        .entry.disabled .tags .tag {
+            background: #202122;
+            color: #6a6c6d;
+        }
+
+        .entry.disabled .common {
+            background: #2f4a31;
+            color: #5a5c5d;
+        }
+
+        .entry.disabled .jlpt {
+            background: #4a3b1f;
+            color: #5a5c5d;
+        }
+
         .slug {
             font-size: 30px;
             font-weight: bold;
@@ -565,6 +640,7 @@
                             <div id="tokenId" class="badge"></div>
                             <div id="wordType" class="badge"></div>
                             <div id="count" class="badge"></div>
+                            <div id="occurrence" class="badge"></div>
                         </div>
                     </div>
                     <div id="headerActions" class="header-actions">

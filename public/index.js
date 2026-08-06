@@ -43,7 +43,7 @@ class Sidebar {
 		params.set('wt_name', word.wt_name);
 		window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
 
-		buffer.setWord(word);
+		await buffer.setWord(word);
 	}
 	focus() {
 		const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
@@ -196,7 +196,8 @@ class Buffer {
 
 		return true
 	}
-	setWord(word) {
+	async setWord(word) {
+		const ss_key = wordId(word);
 		this.w_basic_form = word.w_basic_form;
 		this.token_ids = word.token_ids;
 		this.wt_name = word.wt_name;
@@ -204,48 +205,16 @@ class Buffer {
 		this.j_response = JSON.parse(word.j_response);
 
 		this.renderHeader();
-		this.renderEntries();
-	}
-	focus() {
-		const cards = document.getElementsByClassName('entry');
-		if (cards.length) {
-			focusElem(cards[0]);
+		if (this.senseStates[ss_key]?.merged_with) {
+			this.container.innerHTML = '';
+			const [w_basic_form, wt_name] = this.senseStates[ss_key]?.merged_with.split('_');
+			const word = await CleanedBuffer.findOne(w_basic_form, wt_name);
+			if (!word) return;
+
+			this.renderEntries(JSON.parse(word.j_response), true);
 			return;
 		}
-
-		for (const button of this.buttons) {
-			if (!button.disabled) {
-				focusElem(button);
-				return;
-			}
-		}
-	}
-	async keyDownHandler(ev) {
-		switch (ev.key) {
-			case 'Escape':
-			case 'q':
-			case 'l':
-			case 'h':
-				sidebar.focus();
-				break;
-			case 'm':
-				if (!this.buttons[0].disabled) {
-					this.buttons[0].click();
-				}
-				break;
-			case 'u':
-				if (!this.buttons[1].disabled) {
-					this.buttons[1].click();
-					focusElem(this.buttons[1]);
-				}
-				break;
-			case 'i':
-				if (!this.buttons[2].disabled) {
-					this.buttons[2].click();
-					focusElem(this.buttons[2]);
-				}
-				break;
-		}
+		this.renderEntries(this.j_response);
 	}
 	renderHeader() {
 		this.basicForm.textContent = this.w_basic_form;
@@ -259,11 +228,11 @@ class Buffer {
 			this.headerActions.appendChild(button);
 		}
 	}
-	renderEntries() {
+	renderEntries(entries, disabled) {
 		this.container.innerHTML = '';
-		for (let i = 0; i < this.j_response.length; i++) {
-			const entry = this.j_response[i];
-			this.container.appendChild(this.createEntry(entry, i));
+		for (let i = 0; i < entries.length; i++) {
+			const entry = entries[i];
+			this.container.appendChild(this.createEntry(entry, i, disabled));
 		}
 	}
 	syncButtonState(ss_key) {
@@ -316,7 +285,10 @@ class Buffer {
 				if (!updatedSenseState) return;
 
 				this.senseStates[ss_key].merged_with = merged_with;
+				sidebar.renderSearchResults(sidebar.words);
 				this.syncButtonState(ss_key);
+				this.renderEntries(this.j_response);
+				focusElem(btnMergeWith);
 				return;
 			}
 
@@ -333,6 +305,7 @@ class Buffer {
 
 			this.senseStates[ss_key].unsure = unsure;
 			this.syncButtonState(ss_key);
+			focusElem(btnUnsure);
 		});
 
 		const btnIgnore = createElement('button', 'header-btn', 'Ignore');
@@ -344,7 +317,9 @@ class Buffer {
 			if (!updatedSenseState) return;
 
 			this.senseStates[ss_key].ignore = ignore;
+			sidebar.renderSearchResults(sidebar.words);
 			this.syncButtonState(ss_key);
+			focusElem(btnIgnore);
 		});
 
 		this.buttons = [btnMergeWith, btnUnsure, btnIgnore];
@@ -378,9 +353,6 @@ class Buffer {
 						break;
 					case 'Enter':
 						button.click();
-						if (!ev.shiftKey) {
-							sidebar.focus();
-						}
 						break;
 					default:
 						await this.keyDownHandler(ev);
@@ -423,7 +395,7 @@ class Buffer {
 		card.classList.add('selected');
 		this.senseStates[ss_key].state = state;
 	}
-	createEntry(entry, i) {
+	createEntry(entry, i, disabled) {
 		const card = createElement("div", "entry");
 		card.appendChild(this.createEntryHeader(entry));
 		card.appendChild(this.createJapaneseSection(entry.japanese));
@@ -431,6 +403,11 @@ class Buffer {
 		const senseState = this.senseStates[wordId(this.w_basic_form, this.wt_name)];
 		if (senseState?.state && senseState.state.has(i)) card.classList.add('selected');
 		if (entry.tags.length > 0) card.appendChild(this.createDictionaryTags(entry.tags));
+
+		if (disabled) {
+			card.classList.add('disabled');
+			return card;
+		}
 
 		const clickHandler = eventHandler(async () => {
 			await this.toggleEntry(card, i);
@@ -550,6 +527,48 @@ class Buffer {
 
 		return section;
 	}
+	focus() {
+		const ss_key = wordId(this.w_basic_form, this.wt_name);
+		if (!this.senseStates[ss_key]?.merged_with) {
+			const cards = document.getElementsByClassName('entry');
+			if (cards.length) {
+				focusElem(cards[0]);
+				return;
+			}
+		}
+
+		for (const button of this.buttons) {
+			if (!button.disabled) {
+				focusElem(button);
+				return;
+			}
+		}
+	}
+	async keyDownHandler(ev) {
+		switch (ev.key) {
+			case 'Escape':
+			case 'q':
+			case 'l':
+			case 'h':
+				sidebar.focus();
+				break;
+			case 'm':
+				if (!this.buttons[0].disabled) {
+					this.buttons[0].click();
+				}
+				break;
+			case 'u':
+				if (!this.buttons[1].disabled) {
+					this.buttons[1].click();
+				}
+				break;
+			case 'i':
+				if (!this.buttons[2].disabled) {
+					this.buttons[2].click();
+				}
+				break;
+		}
+	}
 }
 
 class MergeModal {
@@ -631,7 +650,9 @@ class MergeModal {
 		if (!updatedSenseState) return;
 
 		buffer.senseStates[ss_key].merged_with = merged_with;
+		sidebar.renderSearchResults(sidebar.words);
 		buffer.syncButtonState(ss_key);
+		buffer.renderEntries(JSON.parse(this.selectedWord.j_response), true);
 
 		this.cancel();
 	}
@@ -679,9 +700,6 @@ class MergeModal {
 				case 'Escape':
 					this.cancel();
 					break
-				case 'm':
-					console.log(this.selectedWord);
-					break;
 				case 'Enter':
 					if (ev.ctrlKey) {
 						await this.confirm();
@@ -720,5 +738,4 @@ asyncHandler('MAIN INIT', async () => {
 
 	const word = words[0];
 	sidebar.selectWord(word);
-	buffer.setWord(word);
 });
