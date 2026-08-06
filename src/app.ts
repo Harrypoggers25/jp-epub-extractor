@@ -1,6 +1,5 @@
 // CONFIGS
 import env from "./configs/env.config";
-import { db, JishoBuffer } from "./configs/db.config";
 
 // HELPERS
 import { asyncHandler } from "./helpers";
@@ -39,7 +38,6 @@ App.listen({
 			const buffers = await JishoBuffer.find();
 			if (!buffers) throw new Error(Message.failed(['find', 'jisho buffers']));
 
-			await Jisho.filterWord(buffers);
 		});
 	},
 });

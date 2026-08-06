@@ -161,8 +161,8 @@ class Buffer {
 		this.basicForm = document.getElementById("basicForm");
 		this.tokenId = document.getElementById("tokenId");
 		this.wordType = document.getElementById("wordType");
-		this.count = document.getElementById("count");
-		this.occurrence = document.getElementById("occurrence");
+		this.entryCount = document.getElementById("count");
+		this.occurrenceCount = document.getElementById("occurrence");
 		this.container = document.getElementById("entries");
 		this.headerActions = document.getElementById("headerActions");
 		this.buttons = [];
@@ -171,7 +171,8 @@ class Buffer {
 		this.token_ids = '';
 		this.wt_name = '';
 		this.occurrence_count = '';
-		this.j_response = '[]';
+		this.entry_count = '';
+		this.word = null;
 
 		this.senseStates = {};
 	}
@@ -202,7 +203,7 @@ class Buffer {
 		this.token_ids = word.token_ids;
 		this.wt_name = word.wt_name;
 		this.occurrence_count = word.count;
-		this.j_response = JSON.parse(word.j_response);
+		this.entry_count = JSON.parse(word.j_response).length;
 
 		this.renderHeader();
 		if (this.senseStates[ss_key]?.merged_with) {
@@ -211,24 +212,27 @@ class Buffer {
 			const word = await CleanedBuffer.findOne(w_basic_form, wt_name);
 			if (!word) return;
 
-			this.renderEntries(JSON.parse(word.j_response), true);
+			this.word = word;
+			this.renderEntries(true);
 			return;
 		}
-		this.renderEntries(this.j_response);
+		this.word = word;
+		this.renderEntries();
 	}
 	renderHeader() {
 		this.basicForm.textContent = this.w_basic_form;
 		this.tokenId.textContent = `Token: ${this.token_ids}`;
 		this.wordType.textContent = this.wt_name;
-		this.count.textContent = `${this.j_response.length} Dictionary Entries`;
-		this.occurrence.textContent = `${this.occurrence_count} Occurrences`;
+		this.occurrenceCount.textContent = `${this.occurrence_count} Occurrences`;
+		this.entryCount.textContent = `${this.entry_count} Dictionary Entries`;
 
 		this.headerActions.innerHTML = '';
 		for (const button of this.createHeaderActions()) {
 			this.headerActions.appendChild(button);
 		}
 	}
-	renderEntries(entries, disabled) {
+	renderEntries(disabled) {
+		const entries = JSON.parse(this.word.j_response);
 		this.container.innerHTML = '';
 		for (let i = 0; i < entries.length; i++) {
 			const entry = entries[i];
@@ -287,7 +291,8 @@ class Buffer {
 				this.senseStates[ss_key].merged_with = merged_with;
 				sidebar.renderSearchResults(sidebar.words);
 				this.syncButtonState(ss_key);
-				this.renderEntries(this.j_response);
+				this.word = sidebar.selectedWord;
+				this.renderEntries();
 				focusElem(btnMergeWith);
 				return;
 			}
@@ -400,7 +405,7 @@ class Buffer {
 		card.appendChild(this.createEntryHeader(entry));
 		card.appendChild(this.createJapaneseSection(entry.japanese));
 		card.appendChild(this.createMeaningSection(entry.senses));
-		const senseState = this.senseStates[wordId(this.w_basic_form, this.wt_name)];
+		const senseState = this.senseStates[wordId(this.word)];
 		if (senseState?.state && senseState.state.has(i)) card.classList.add('selected');
 		if (entry.tags.length > 0) card.appendChild(this.createDictionaryTags(entry.tags));
 
@@ -631,6 +636,7 @@ class MergeModal {
 	cancel() {
 		this.modalTargetWord.textContent = '';
 		this.modalSelectedWord.textContent = '';
+		this.modalSearchInput.value = '';
 		this.modalList.innerHTML = '';
 		this.modalItems = {};
 		this.w_basic_form = null;
@@ -652,7 +658,8 @@ class MergeModal {
 		buffer.senseStates[ss_key].merged_with = merged_with;
 		sidebar.renderSearchResults(sidebar.words);
 		buffer.syncButtonState(ss_key);
-		buffer.renderEntries(JSON.parse(this.selectedWord.j_response), true);
+		buffer.word = this.selectedWord;
+		buffer.renderEntries(true);
 
 		this.cancel();
 	}

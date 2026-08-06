@@ -90,20 +90,19 @@
             border-left: 4px solid #d9b64c;
         }
 
+        .search-item.error {
+            background: #2b1414;
+            border-left: 4px solid #e05c5c;
+        }
+
         .search-item.active {
             background: #1b2038;
             border-left: 4px solid #7c8aff;
         }
 
-
         .search-item.modified {
             background: #14211a;
             border-left: 4px solid #5cbf60;
-        }
-
-        .search-item.error {
-            background: #2b1414;
-            border-left: 4px solid #e05c5c;
         }
 
         .search-item:is(:hover, :focus) {
@@ -118,23 +117,22 @@
             color: #d9b64c;
         }
 
+        .search-item.error:is(:hover, :focus) {
+            background: #331a1a;
+            border-left: 4px solid #e05c5c;
+            color: #e05c5c;
+        }
+
         .search-item.active:is(:hover, :focus) {
             background: #232b4d;
             border-left: 4px solid #7c8aff;
             color: #7c8aff;
         }
 
-
         .search-item.modified:is(:hover, :focus) {
             background: #1b2d23;
             border-left: 4px solid #5cbf60;
             color: #5cbf60;
-        }
-
-        .search-item.error:is(:hover, :focus) {
-            background: #331a1a;
-            border-left: 4px solid #e05c5c;
-            color: #e05c5c;
         }
 
         .search-word {
