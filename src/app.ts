@@ -1,12 +1,12 @@
 // CONFIGS
 import env from "./configs/env.config";
+import { db } from "./configs/db.config";
 
 // HELPERS
 import { asyncHandler } from "./helpers";
 
 // MODULES
 import App from "@harrypoggers25/app-express";
-import Message from "@harrypoggers25/message";
 import path from "node:path";
 import express from "express";
 
@@ -14,7 +14,6 @@ import express from "express";
 import router from "./routers";
 
 // SERVICES
-import Jisho from "./services/jisho.service";
 
 // const filteredPos: Array<PosType> = ['感動詞', '連体詞', '助動詞', '助詞', '記号', 'フィラー', 'その他'];
 // const fileName = 'epubs/book.epub';
@@ -35,9 +34,6 @@ App.listen({
 	},
 	callback: async () => {
 		asyncHandler('app', async () => {
-			const buffers = await JishoBuffer.find();
-			if (!buffers) throw new Error(Message.failed(['find', 'jisho buffers']));
-
 		});
 	},
 });
