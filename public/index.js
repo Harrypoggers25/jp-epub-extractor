@@ -294,9 +294,12 @@ class Buffer {
 				this.word = sidebar.selectedWord;
 				this.renderEntries();
 				focusElem(btnMergeWith);
+				this.focus();
 				return;
 			}
 
+			focusElem(btnMergeWith);
+			this.focus();
 			await mergeModal.open(this.w_basic_form, this.wt_name);
 		});
 
@@ -311,6 +314,7 @@ class Buffer {
 			this.senseStates[ss_key].unsure = unsure;
 			this.syncButtonState(ss_key);
 			focusElem(btnUnsure);
+			this.focus()
 		});
 
 		const btnIgnore = createElement('button', 'header-btn', 'Ignore');
@@ -324,7 +328,8 @@ class Buffer {
 			this.senseStates[ss_key].ignore = ignore;
 			sidebar.renderSearchResults(sidebar.words);
 			this.syncButtonState(ss_key);
-			focusElem(btnIgnore);
+			focusElem(btnIgnore); // Ensure button is visible
+			this.focus();
 		});
 
 		this.buttons = [btnMergeWith, btnUnsure, btnIgnore];
@@ -671,6 +676,8 @@ class MergeModal {
 			this.modalItems[ss_key] = this.createModalItem(word);
 			this.modalList.appendChild(this.modalItems[ss_key]);
 		});
+		const firstModalItem = Object.values(this.modalItems)?.[0];
+		if (firstModalItem) firstModalItem.click();
 	}
 	createModalItem(word) {
 		const card = createElement('div', 'modal-item');
