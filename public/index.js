@@ -223,8 +223,8 @@ class Buffer {
 		this.basicForm.textContent = this.w_basic_form;
 		this.tokenId.textContent = `Token: ${this.token_ids}`;
 		this.wordType.textContent = this.wt_name;
-		this.occurrenceCount.textContent = `${this.occurrence_count} Occurrences`;
-		this.entryCount.textContent = `${this.entry_count} Dictionary Entries`;
+		this.occurrenceCount.textContent = this.occurrence_count === 1 ? `1 Book occurrence` : `${this.occurrence_count} Book occurrences`;
+		this.entryCount.textContent = this.entry_count === 1 ? `1 Dictionary Entry` : `${this.entry_count} Dictionary Entries`;
 
 		this.headerActions.innerHTML = '';
 		for (const button of this.createHeaderActions()) {
@@ -422,7 +422,7 @@ class Buffer {
 		card.onclick = clickHandler;
 		card.tabIndex = 0;
 		card.addEventListener('keydown', eventHandler(async ev => {
-			switch (ev.key) { // Buffer Entry
+			switch (ev.key) { // Buffer entry
 				case 'j':
 					if (!nextElem(card)) {
 						for (let i = this.buttons.length - 1; i >= 0; i--) {
