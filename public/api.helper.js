@@ -5,12 +5,23 @@ export const CleanedBuffer = {
 		return await asyncHandler('FIND WORDS', async () => {
 			const url = !w_basic_form ? '/api/cleaned-buffers' : `/api/cleaned-buffers/${w_basic_form}`
 			const response = await fetch(url, { method: 'GET' });
-			if (!response) throw new Error('Failed to find words. Internal error');
+			if (!response.ok) throw new Error('Failed to find words. Internal error');
 
 			const words = await response.json();
 			if (!words) throw new Error('Failed to find words. Unable to find data');
 
 			return words;
+		});
+	},
+	findOne: async (w_basic_form, wt_name) => {
+		return await asyncHandler('FIND WORD', async () => {
+			const response = await fetch(`/api/cleaned-buffers/${w_basic_form}/${wt_name}`, { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to find word. Internal error');
+
+			const word = await response.json();
+			if (!word) throw new Error('Failed to find word. Unable to find data');
+
+			return word;
 		});
 	}
 }
