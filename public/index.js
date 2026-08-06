@@ -20,16 +20,19 @@ const KeydownHandlers = {
 				const cards = document.getElementsByClassName('search-item');
 				return cards[cards.length - 1];
 			}
-			switch (ev.key) { // Sidebar
+			switch (ev.key) {
 				case 's':
 					sidebar.searchInput.focus();
 					break;
+				case 'g':
 				case 'Home':
 					focusElem(firstCard());
 					break;
+				case 'G':
 				case 'End':
 					focusElem(lastCard());
 					break;
+				case 'ArrowDown':
 				case 'j':
 					if (!nextElem(card)) {
 						focusElem(firstCard());
@@ -37,6 +40,7 @@ const KeydownHandlers = {
 					}
 					focusElem(nextElem(card));
 					break;
+				case 'ArrowUp':
 				case 'k':
 					if (!prevElem(card)) {
 						focusElem(lastCard());
@@ -44,6 +48,8 @@ const KeydownHandlers = {
 					}
 					focusElem(prevElem(card));
 					break;
+				case 'ArrowRight':
+				case 'ArrowLeft':
 				case 'l':
 				case 'h':
 					buffer.focus();
@@ -73,6 +79,7 @@ const KeydownHandlers = {
 		button: (button, ev) => {
 			const canFocus = button => button && !button.disabled;
 			switch (ev.key) {
+				case 'ArrowDown':
 				case 'j':
 					if (!canFocus(nextElem(button))) {
 						const cards = document.getElementsByClassName('entry');
@@ -83,6 +90,7 @@ const KeydownHandlers = {
 					}
 					focusElem(nextElem(button));
 					break;
+				case 'ArrowUp':
 				case 'k':
 					if (!canFocus(prevElem(button))) {
 						const cards = document.getElementsByClassName('entry');
@@ -103,7 +111,8 @@ const KeydownHandlers = {
 		},
 		card: async (card, ev, clickHandler) => {
 			const buttons = buffer.buttons;
-			switch (ev.key) { // Buffer entry
+			switch (ev.key) {
+				case 'ArrowDown':
 				case 'j':
 					if (!nextElem(card)) {
 						for (let i = buttons.length - 1; i >= 0; i--) {
@@ -113,6 +122,7 @@ const KeydownHandlers = {
 					}
 					focusElem(nextElem(card));
 					break;
+				case 'ArrowUp':
 				case 'k':
 					if (!prevElem(card)) {
 						for (let i = 0; i < buttons.length; i++) {
@@ -133,6 +143,8 @@ const KeydownHandlers = {
 		},
 		generic: ev => {
 			switch (ev.key) {
+				case 'ArrowLeft':
+				case 'ArrowRight':
 				case 'Escape':
 				case 'q':
 				case 'l':
@@ -172,9 +184,11 @@ const KeydownHandlers = {
 				case 's':
 					mergeModal.modalSearchInput.focus();
 					break;
+				case 'ArrowDown':
 				case 'j':
 					focusElem(nextElem(card));
 					break;
+				case 'ArrowUp':
 				case 'k':
 					focusElem(prevElem(card));
 					break;
