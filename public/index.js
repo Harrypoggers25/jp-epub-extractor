@@ -1,6 +1,196 @@
 import { SenseState, CleanedBuffer } from "./api.helper.js";
 import { asyncHandler, eventHandler, createElement, wordId, nextElem, prevElem, focusElem, focusModifiedCard, focusUnmodifiedCard } from "./tools.helper.js";
 
+const KeydownHandlers = {
+	sidebar: {
+		searchInput: ev => {
+			switch (ev.key) {
+				case 'Enter':
+				case 'Escape':
+					const cards = document.getElementsByClassName('search-item');
+					if (!cards || !cards.length) break;
+
+					focusElem(cards[0]);
+					break;
+			}
+		},
+		card: (card, ev) => {
+			const firstCard = () => document.getElementsByClassName('search-item')[0];
+			const lastCard = () => {
+				const cards = document.getElementsByClassName('search-item');
+				return cards[cards.length - 1];
+			}
+			switch (ev.key) { // Sidebar
+				case 's':
+					sidebar.searchInput.focus();
+					break;
+				case 'Home':
+					focusElem(firstCard());
+					break;
+				case 'End':
+					focusElem(lastCard());
+					break;
+				case 'j':
+					if (!nextElem(card)) {
+						focusElem(firstCard());
+						break;
+					}
+					focusElem(nextElem(card));
+					break;
+				case 'k':
+					if (!prevElem(card)) {
+						focusElem(lastCard());
+						break;
+					}
+					focusElem(prevElem(card));
+					break;
+				case 'l':
+				case 'h':
+					buffer.focus();
+					break;
+				case 'w':
+				case 'e':
+					focusUnmodifiedCard(card, nextElem);
+					break;
+				case 'W':
+				case 'E':
+					focusModifiedCard(card, nextElem);
+					break;
+				case 'b':
+					focusUnmodifiedCard(card, prevElem);
+					break;
+				case 'B':
+					focusModifiedCard(card, prevElem);
+					break;
+				case 'Enter':
+					card.click();
+					buffer.focus();
+					break;
+			}
+		},
+	},
+	buffer: {
+		button: (button, ev) => {
+			const canFocus = button => button && !button.disabled;
+			switch (ev.key) {
+				case 'j':
+					if (!canFocus(nextElem(button))) {
+						const cards = document.getElementsByClassName('entry');
+						if (!cards) break;
+
+						focusElem(cards[0]);
+						break;
+					}
+					focusElem(nextElem(button));
+					break;
+				case 'k':
+					if (!canFocus(prevElem(button))) {
+						const cards = document.getElementsByClassName('entry');
+						if (!cards) break;
+
+						focusElem(cards[cards.length - 1]);
+						break;
+					}
+					focusElem(prevElem(button));
+					break;
+				case 'Enter':
+					button.click();
+					break;
+				default:
+					KeydownHandlers.buffer.generic(ev);
+					break;
+			}
+		},
+		card: async (card, ev, clickHandler) => {
+			const buttons = buffer.buttons;
+			switch (ev.key) { // Buffer entry
+				case 'j':
+					if (!nextElem(card)) {
+						for (let i = buttons.length - 1; i >= 0; i--) {
+							if (!buttons[i].disabled) focusElem(buttons[i]);
+						}
+						break;
+					}
+					focusElem(nextElem(card));
+					break;
+				case 'k':
+					if (!prevElem(card)) {
+						for (let i = 0; i < buttons.length; i++) {
+							if (!buttons[i].disabled) focusElem(buttons[i]);
+						}
+						break;
+					}
+					focusElem(prevElem(card));
+					break;
+				case 'Enter':
+					await clickHandler();
+					if (!ev.shiftKey) sidebar.focus();
+					break;
+				default:
+					KeydownHandlers.buffer.generic(ev);
+					break;
+			}
+		},
+		generic: ev => {
+			switch (ev.key) {
+				case 'Escape':
+				case 'q':
+				case 'l':
+				case 'h':
+					sidebar.focus();
+					break;
+				case 'm':
+					if (!buffer.buttons[0].disabled) {
+						buffer.buttons[0].click();
+					}
+					break;
+				case 'u':
+					if (!buffer.buttons[1].disabled) {
+						buffer.buttons[1].click();
+					}
+					break;
+				case 'i':
+					if (!buffer.buttons[2].disabled) {
+						buffer.buttons[2].click();
+					}
+					break;
+			}
+		}
+	},
+	mergeModal: {
+		searchInput: ev => {
+			switch (ev.key) {
+				case 'Enter':
+				case 'Escape':
+					const cards = Object.values(mergeModal.modalItems);
+					if (cards.length) focusElem(cards[0]);
+					break;
+			}
+		},
+		card: async (card, ev, clickHandler) => {
+			switch (ev.key) {
+				case 's':
+					mergeModal.modalSearchInput.focus();
+					break;
+				case 'j':
+					focusElem(nextElem(card));
+					break;
+				case 'k':
+					focusElem(prevElem(card));
+					break;
+				case 'q':
+				case 'Escape':
+					mergeModal.cancel();
+					break
+				case 'Enter':
+					if (ev.ctrlKey) await mergeModal.confirm();
+					else clickHandler(ev);
+					break;
+			}
+		}
+	}
+}
+
 class Sidebar {
 	constructor() {
 		this.searchInput = document.getElementById('searchInput')
@@ -18,13 +208,8 @@ class Sidebar {
 				this.renderSearchResults(words);
 			})
 		});
-		this.searchInput.addEventListener('keydown', async ev => {
-			if (['Enter', 'Escape'].includes(ev.key)) {
-				const cards = document.getElementsByClassName('search-item');
-				if (!cards || !cards.length) return;
-
-				focusElem(cards[0]);
-			}
+		this.searchInput.addEventListener('keydown', ev => {
+			KeydownHandlers.sidebar.searchInput(ev);
 		});
 	}
 	async selectWord(word) {
@@ -91,59 +276,8 @@ class Sidebar {
 			this.selectWord(word);
 		}
 		card.tabIndex = 0;
-		card.addEventListener('keydown', eventHandler(async ev => {
-			const firstCard = () => document.getElementsByClassName('search-item')[0];
-			const lastCard = () => {
-				const cards = document.getElementsByClassName('search-item');
-				return cards[cards.length - 1];
-			}
-			switch (ev.key) { // Sidebar
-				case 's':
-					this.searchInput.focus();
-					break;
-				case 'Home':
-					focusElem(firstCard());
-					break;
-				case 'End':
-					focusElem(lastCard());
-					break;
-				case 'j':
-					if (!nextElem(card)) {
-						focusElem(firstCard());
-						break;
-					}
-					focusElem(nextElem(card));
-					break;
-				case 'k':
-					if (!prevElem(card)) {
-						focusElem(lastCard());
-						break;
-					}
-					focusElem(prevElem(card));
-					break;
-				case 'l':
-				case 'h':
-					buffer.focus();
-					break;
-				case 'w':
-				case 'e':
-					focusUnmodifiedCard(card, nextElem);
-					break;
-				case 'W':
-				case 'E':
-					focusModifiedCard(card, nextElem);
-					break;
-				case 'b':
-					focusUnmodifiedCard(card, prevElem);
-					break;
-				case 'B':
-					focusModifiedCard(card, prevElem);
-					break;
-				case 'Enter':
-					card.click();
-					buffer.focus();
-					break;
-			}
+		card.addEventListener('keydown', eventHandler(ev => {
+			KeydownHandlers.sidebar.card(card, ev);
 		}));
 
 		return card;
@@ -335,39 +469,8 @@ class Buffer {
 		this.buttons = [btnMergeWith, btnUnsure, btnIgnore];
 		this.buttons.forEach(button => {
 			button.tabIndex = 0;
-			button.addEventListener('keydown', eventHandler(async ev => {
-				const canFocus = (button) => {
-					if (!button || button.disabled) return false;
-					return true;
-				}
-				switch (ev.key) { // Buffer buttons
-					case 'j':
-						if (!canFocus(nextElem(button))) {
-							const cards = document.getElementsByClassName('entry');
-							if (!cards) break;
-
-							focusElem(cards[0]);
-							break;
-						}
-						focusElem(nextElem(button));
-						break;
-					case 'k':
-						if (!canFocus(prevElem(button))) {
-							const cards = document.getElementsByClassName('entry');
-							if (!cards) break;
-
-							focusElem(cards[cards.length - 1]);
-							break;
-						}
-						focusElem(prevElem(button));
-						break;
-					case 'Enter':
-						button.click();
-						break;
-					default:
-						await this.keyDownHandler(ev);
-						break;
-				}
+			button.addEventListener('keydown', eventHandler(ev => {
+				KeydownHandlers.buffer.button(button, ev);
 			}));
 		})
 
@@ -419,43 +522,14 @@ class Buffer {
 			return card;
 		}
 
-		const clickHandler = eventHandler(async () => {
+		const clickHandler = async () => {
 			await this.toggleEntry(card, i);
-
 			sidebar.renderSearchResults(sidebar.words);
-		});
-		card.onclick = clickHandler;
+		}
+		card.onclick = eventHandler(clickHandler);
 		card.tabIndex = 0;
 		card.addEventListener('keydown', eventHandler(async ev => {
-			switch (ev.key) { // Buffer entry
-				case 'j':
-					if (!nextElem(card)) {
-						for (let i = this.buttons.length - 1; i >= 0; i--) {
-							if (!this.buttons[i].disabled) focusElem(this.buttons[i]);
-						}
-						break;
-					}
-					focusElem(nextElem(card));
-					break;
-				case 'k':
-					if (!prevElem(card)) {
-						for (let i = 0; i < this.buttons.length; i++) {
-							if (!this.buttons[i].disabled) focusElem(this.buttons[i]);
-						}
-						break;
-					}
-					focusElem(prevElem(card));
-					break;
-				case 'Enter':
-					await clickHandler(ev);
-					if (!ev.shiftKey) {
-						sidebar.focus();
-					}
-					break;
-				default:
-					await this.keyDownHandler(ev);
-					break;
-			}
+			await KeydownHandlers.buffer.card(card, ev, clickHandler);
 		}));
 
 		return card;
@@ -554,31 +628,6 @@ class Buffer {
 			}
 		}
 	}
-	async keyDownHandler(ev) {
-		switch (ev.key) {
-			case 'Escape':
-			case 'q':
-			case 'l':
-			case 'h':
-				sidebar.focus();
-				break;
-			case 'm':
-				if (!this.buttons[0].disabled) {
-					this.buttons[0].click();
-				}
-				break;
-			case 'u':
-				if (!this.buttons[1].disabled) {
-					this.buttons[1].click();
-				}
-				break;
-			case 'i':
-				if (!this.buttons[2].disabled) {
-					this.buttons[2].click();
-				}
-				break;
-		}
-	}
 }
 
 class MergeModal {
@@ -606,10 +655,7 @@ class MergeModal {
 			})
 		});
 		this.modalSearchInput.addEventListener('keydown', async ev => {
-			if (['Enter', 'Escape'].includes(ev.key)) {
-				const cards = Object.values(this.modalItems);
-				if (cards.length) focusElem(cards[0]);
-			}
+			KeydownHandlers.mergeModal.searchInput(ev);
 		});
 		this.modalCancel.onclick = eventHandler(() => {
 			this.cancel();
@@ -684,7 +730,7 @@ class MergeModal {
 		card.appendChild(createElement('div', 'modal-item-word', word.w_basic_form));
 		card.appendChild(createElement('div', 'modal-item-type', word.wt_name));
 		card.tabIndex = 0;
-		const clickHandler = eventHandler(async () => {
+		const clickHandler = () => {
 			const cards = document.getElementsByClassName('modal-item');
 			if (!cards) return;
 
@@ -697,31 +743,10 @@ class MergeModal {
 			});
 
 			card.classList.add('selected');
-		});
-		card.onclick = clickHandler
+		};
+		card.onclick = eventHandler(clickHandler);
 		card.addEventListener('keydown', eventHandler(async ev => {
-			switch (ev.key) { // Merge modal
-				case 's':
-					this.modalSearchInput.focus();
-					break;
-				case 'j':
-					focusElem(nextElem(card));
-					break;
-				case 'k':
-					focusElem(prevElem(card));
-					break;
-				case 'q':
-				case 'Escape':
-					this.cancel();
-					break
-				case 'Enter':
-					if (ev.ctrlKey) {
-						await this.confirm();
-						break;
-					}
-					clickHandler(ev);
-					break;
-			}
+			await KeydownHandlers.mergeModal.card(card, ev, clickHandler);
 		}));
 
 		return card;
