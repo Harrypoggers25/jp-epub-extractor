@@ -193,8 +193,9 @@ const KeydownHandlers = {
 
 class Sidebar {
 	constructor() {
-		this.searchInput = document.getElementById('searchInput')
-		this.searchResults = document.getElementById('searchResults')
+		this.searchInput = document.getElementById('searchInput');
+		this.searchResults = document.getElementById('searchResults');
+		this.searchResultCount = document.getElementById('searchResultCount');
 
 		this.words = null;
 		this.selectedWord = null;
@@ -245,15 +246,15 @@ class Sidebar {
 	renderSearchResults(words) {
 		this.words = words;
 		this.searchResults.innerHTML = '';
-		for (const word of words) {
-			this.searchResults.appendChild(this.createSearchItem(word));
+		for (let i = 0; i < words.length; i++) {
+			this.searchResults.appendChild(this.createSearchItem(i + 1, words[i]));
 		}
 		if (this.selectedWord) {
 			const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
 			card?.classList?.add('active');
 		}
 	}
-	createSearchItem(word) {
+	createSearchItem(index, word) {
 		const senseCount = JSON.parse(word.j_response).length;
 
 		const card = createElement('div', 'search-item');
@@ -275,6 +276,11 @@ class Sidebar {
 			e.preventDefault();
 			this.selectWord(word);
 		}
+		const countUpdateHandler = () => {
+			this.searchResultCount.textContent = `${index} / ${this.words.length}`
+		}
+		card.onfocus = countUpdateHandler;
+		card.onmouseenter = countUpdateHandler;
 		card.tabIndex = 0;
 		card.addEventListener('keydown', eventHandler(ev => {
 			KeydownHandlers.sidebar.card(card, ev);
