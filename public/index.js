@@ -273,10 +273,19 @@ class Sidebar {
 
 		const card = createElement('div', 'search-item');
 		card.dataset.id = wordId(word);
-		card.appendChild(this.createSearchWord(word.w_basic_form));
-		card.appendChild(this.createSearchWordType(word.wt_name));
-		const isModified = (word) => {
-			const senseState = buffer.senseStates[wordId(word)];
+		const searchItemContents = createElement('div', 'search-item-contents');
+		searchItemContents.appendChild(this.createSearchWord(word.w_basic_form));
+		searchItemContents.appendChild(this.createSearchWordType(word.wt_name));
+		card.appendChild(searchItemContents);
+		const searchItemTags = createElement('div', 'search-item-tags');
+		[['M', 'merged'], ['U', 'unsure'], ['I', 'ignore']].forEach(([text, className]) => {
+			const tag = createElement('div', `search-tag-${className}`, text);
+			searchItemTags.appendChild(tag);
+		});
+		card.appendChild(searchItemTags);
+
+		const senseState = buffer.senseStates[wordId(word)];
+		const isModified = () => {
 			if (!senseState) return false;
 
 			const { state, ignore, merged_with } = senseState;
@@ -284,6 +293,18 @@ class Sidebar {
 		}
 
 		if (isModified(word)) card.classList.add('modified');
+		(() => {
+			if (!senseState) return;
+			if (senseState.ignore) {
+				card.classList.add('ignore');
+				return;
+			}
+			if (senseState.merged_with) {
+				card.classList.add('merged');
+				return;
+			}
+			if (senseState.unsure) card.classList.add('unsure');
+		})();
 		if (senseCount === 1) card.classList.add('unique');
 		if (senseCount === 0) card.classList.add('error');
 		card.onclick = async e => {
@@ -466,6 +487,7 @@ class Buffer {
 			if (!updatedSenseState) return;
 
 			this.senseStates[ss_key].unsure = unsure;
+			sidebar.renderSearchResults(sidebar.words);
 			this.syncButtonState(ss_key);
 			focusElem(btnUnsure);
 			this.focus()

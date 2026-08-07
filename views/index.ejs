@@ -69,6 +69,8 @@
         }
 
         .search-item {
+            display: flex;
+            justify-content: space-between;
             padding: 14px 20px;
             padding-left: 16px;
             border-bottom: 1px solid #262829;
@@ -135,6 +137,18 @@
             color: #5cbf60;
         }
 
+        .search-item.merged .search-tag-merged {
+            color: #e8e6e3;
+        }
+
+        .search-item.unsure .search-tag-unsure {
+            color: #e8e6e3;
+        }
+
+        .search-item.ignore .search-tag-ignore {
+            color: #e8e6e3;
+        }
+
         .search-word {
             font-size: 20px;
             font-weight: bold;
@@ -144,6 +158,18 @@
             color: #999;
             margin-top: 3px;
             font-size: 14px;
+        }
+
+        .search-item-tags {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .search-item-tags>div {
+            align-self: center;
+            color: #444;
+            font-size: 12px;
+            font-weight: bold;
         }
 
         .sidebar-footer {
@@ -625,18 +651,10 @@
                     autocomplete="off">
             </div>
             <div id="searchResults" class="search-results">
-                <!-- Search results inserted here -->
-                <!-- Example -->
-                <!--
-                <div class="search-item active">
-                    <div class="search-word">買い物</div>
-                    <div class="search-word-type">かいもの</div>
-                </div>
-                <div class="search-item">
-                    <div class="search-word">買い物帰り</div>
-                    <div class="search-word-type">かいものがえり</div>
-                </div>
-                -->
+                <!-- <div class="search-item"> -->
+                <!--     <div class="search-word">買い物帰り</div> -->
+                <!--     <div class="search-word-type">かいものがえり</div> -->
+                <!-- </div> -->
             </div>
             <div class="sidebar-footer">
                 <span id="searchResultCount"></span>
