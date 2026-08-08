@@ -1,5 +1,19 @@
 import { asyncHandler } from "./tools.helper.js";
 
+export const WordType = {
+	find: async () => {
+		return await asyncHandler('FIND WORD TYPES', async () => {
+			const response = await fetch('/api/word-types', { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to find word types. Internal error');
+
+			const wordTypes = await response.json();
+			if (!wordTypes) throw new Error('Failed to find word types. Unable to find data');
+
+			return wordTypes;
+		});
+	}
+}
+
 export const CleanedBuffer = {
 	find: async (w_basic_form) => {
 		return await asyncHandler('FIND WORDS', async () => {

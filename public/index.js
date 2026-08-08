@@ -1,4 +1,4 @@
-import { SenseState, CleanedBuffer } from "./api.helper.js";
+import { SenseState, CleanedBuffer, WordType } from "./api.helper.js";
 import { asyncHandler, eventHandler, createElement, wordId, nextElem, prevElem, focusElem, focusModifiedCard, focusUnmodifiedCard } from "./tools.helper.js";
 
 const KeydownHandlers = {
@@ -239,6 +239,7 @@ class Sidebar {
 		this.searchResults = document.getElementById('searchResults');
 		this.searchResultCount = document.getElementById('searchResultCount');
 
+		this.wordTypes = {};
 		this.words = null;
 		this.selectedWord = null;
 
@@ -253,6 +254,16 @@ class Sidebar {
 		});
 		this.searchInput.addEventListener('keydown', ev => {
 			KeydownHandlers.sidebar.searchInput(ev);
+		});
+	}
+	async loadWordTypes() {
+		const wordTypes = await asyncHandler('SIDEBAR LOAD WORD TYPES', async () => {
+			return await WordType.find();
+		});
+		if (!wordTypes) return;
+
+		wordTypes.forEach(({ wt_name, wt_description }) => {
+			this.wordTypes[wt_name] = wt_description ? ` - ${wt_description}` : '';
 		});
 	}
 	async selectWord(word) {
@@ -303,8 +314,8 @@ class Sidebar {
 		const ss_key = wordId(word);
 		card.dataset.id = ss_key;
 		const searchItemContents = createElement('div', 'search-item-contents');
-		searchItemContents.appendChild(this.createSearchWord(word.w_basic_form));
-		searchItemContents.appendChild(this.createSearchWordType(word.wt_name));
+		searchItemContents.appendChild(createElement('div', 'search-word', word.w_basic_form));
+		searchItemContents.appendChild(createElement('div', 'search-word-type', `${word.wt_name}${this.wordTypes[word.wt_name]}`));
 		card.appendChild(searchItemContents);
 		const searchItemTags = createElement('div', 'search-item-tags');
 		[['M', 'merged'], ['U', 'unsure'], ['I', 'ignore']].forEach(([text, className]) => {
@@ -351,12 +362,6 @@ class Sidebar {
 		}));
 
 		return card;
-	}
-	createSearchWord(word) {
-		return createElement('div', 'search-word', word);
-	}
-	createSearchWordType(wordType) {
-		return createElement('div', 'search-word-type', wordType);
 	}
 }
 
@@ -754,7 +759,33 @@ class MergeModal {
 			const words = await CleanedBuffer.find();
 			if (!words) throw new Error('Failed to open merge modal. Unable to find words');
 
-			this.renderModelItems(words);
+			const isTargetWord = word => word.w_basic_form === this.w_basic_form && word.wt_name === this.wt_name;
+			const getSenseState = (w_basic_form, wt_name) => buffer.senseStates?.[wordId(w_basic_form, wt_name)];
+			const getEntries = (word) => {
+				const { w_basic_form, wt_name } = word;
+				const senseState = getSenseState(w_basic_form, wt_name);
+				if (!senseState) return undefined;
+
+				return JSON.parse(word.j_response).filter((_, i) => Array.from(senseState.state).sort().includes(i));
+			}
+			const [targetWord] = words.filter(isTargetWord);
+			const targetEntries = getEntries(targetWord);
+
+			const filteredWords = words.filter(word => !isTargetWord(word));
+			const isTopWord = word => {
+				const { w_basic_form, wt_name } = word;
+				const senseState = getSenseState(w_basic_form, wt_name);
+				if (senseState && senseState.merged_with) return false;
+
+				const entries = getEntries(word);
+				if (!entries) return false;
+
+				return targetEntries.every(targetEntry => entries.some(entry => entry.slug === targetEntry.slug));
+			};
+			const topWords = filteredWords.filter(isTopWord);
+			const sortedWords = [...topWords, ...filteredWords.filter(word => !isTopWord(word))];
+
+			this.renderModelItems(sortedWords);
 
 			if (!this.mergeModal.classList.contains('open')) this.mergeModal.classList.add('open');
 			const cards = Object.values(this.modalItems);
@@ -797,7 +828,7 @@ class MergeModal {
 	renderModelItems(words) {
 		this.modalList.innerHTML = '';
 		this.modalItems = {};
-		words.filter(word => word.w_basic_form !== this.w_basic_form || word.wt_name !== this.wt_name).forEach(word => {
+		words.forEach(word => {
 			const ss_key = wordId(word.w_basic_form, word.wt_name);
 			this.modalItems[ss_key] = this.createModalItem(word);
 			this.modalList.appendChild(this.modalItems[ss_key]);
@@ -838,6 +869,7 @@ const sidebar = new Sidebar();
 const mergeModal = new MergeModal();
 
 asyncHandler('MAIN INIT', async () => {
+	await sidebar.loadWordTypes();
 	await buffer.loadSenses()
 	const words = await asyncHandler('SIDEBAR INIT', async () => {
 		const words = await CleanedBuffer.find();
