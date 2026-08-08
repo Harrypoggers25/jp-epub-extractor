@@ -255,6 +255,10 @@ class Sidebar {
 		this.searchInput.addEventListener('keydown', ev => {
 			KeydownHandlers.sidebar.searchInput(ev);
 		});
+
+		document.querySelector('div.sidebar-header').onclick = eventHandler(ev => {
+			if (ev.target !== this.searchInput) this.focus();
+		});
 	}
 	async loadWordTypes() {
 		const wordTypes = await asyncHandler('SIDEBAR LOAD WORD TYPES', async () => {
@@ -263,7 +267,7 @@ class Sidebar {
 		if (!wordTypes) return;
 
 		wordTypes.forEach(({ wt_name, wt_description }) => {
-			this.wordTypes[wt_name] = wt_description ? ` - ${wt_description}` : '';
+			this.wordTypes[wt_name] = wt_description ? `${wt_name} - ${wt_description}` : wt_name;
 		});
 	}
 	async selectWord(word) {
@@ -315,7 +319,7 @@ class Sidebar {
 		card.dataset.id = ss_key;
 		const searchItemContents = createElement('div', 'search-item-contents');
 		searchItemContents.appendChild(createElement('div', 'search-word', word.w_basic_form));
-		searchItemContents.appendChild(createElement('div', 'search-word-type', `${word.wt_name}${this.wordTypes[word.wt_name]}`));
+		searchItemContents.appendChild(createElement('div', 'search-word-type', `${this.wordTypes[word.wt_name]}`));
 		card.appendChild(searchItemContents);
 		const searchItemTags = createElement('div', 'search-item-tags');
 		[['M', 'merged'], ['U', 'unsure'], ['I', 'ignore']].forEach(([text, className]) => {
@@ -384,6 +388,11 @@ class Buffer {
 		this.word = null;
 
 		this.senseStates = {};
+
+		const mainContent = document.querySelector('main.content');
+		mainContent.onclick = eventHandler(ev => {
+			if (ev.target === mainContent) this.focus();
+		});
 	}
 	async loadSenses() {
 		const senseStates = await SenseState.findAll();
@@ -431,7 +440,7 @@ class Buffer {
 	renderHeader() {
 		this.basicForm.textContent = this.w_basic_form;
 		this.tokenId.textContent = `Token: ${this.token_ids}`;
-		this.wordType.textContent = this.wt_name;
+		this.wordType.textContent = sidebar.wordTypes[this.wt_name];
 		this.occurrenceCount.textContent = this.occurrence_count === 1 ? `1 Book occurrence` : `${this.occurrence_count} Book occurrences`;
 		this.entryCount.textContent = this.entry_count === 1 ? `1 Dictionary Entry` : `${this.entry_count} Dictionary Entries`;
 
@@ -736,7 +745,10 @@ class MergeModal {
 				const words = await CleanedBuffer.find(text);
 				if (!words) throw new Error(`Failed to search word '${text}'`);
 
-				this.renderModelItems(words);
+				const isTargetWord = word => word.w_basic_form === this.w_basic_form && word.wt_name === this.wt_name;
+				const filteredWords = words.filter(word => !isTargetWord(word));
+
+				this.renderModelItems(filteredWords);
 			})
 		});
 		this.modalSearchInput.addEventListener('keydown', async ev => {
