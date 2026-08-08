@@ -328,7 +328,7 @@ class Sidebar {
 		});
 		card.appendChild(searchItemTags);
 
-		const senseState = buffer.senseStates[ss_key];
+		const senseState = buffer.senseStates.get(ss_key);
 		const isModified = () => {
 			if (!senseState) return false;
 
@@ -369,6 +369,62 @@ class Sidebar {
 	}
 }
 
+class SenseStates {
+	constructor() {
+		this.states = {};
+	}
+	toModel(db_senseState) {
+		const state = new Set(JSON.parse(db_senseState.state));
+		delete db_senseState.ss_key;
+		return { ...db_senseState, state };
+	}
+	async load() {
+		await asyncHandler('SENSE STATE LOAD', async () => {
+			const senseStates = await SenseState.findAll();
+			if (!senseStates) throw new Error('Failed to load sense states');
+			if (!senseStates.length) return;
+
+			for (const senseState of senseStates) {
+				const ss_key = senseState.ss_key;
+				this.states[ss_key] = this.toModel(senseState);
+			}
+		})
+	}
+	async init(ss_key) {
+		return await asyncHandler('SENSE STATE INIT', async () => {
+			if (!this.states[ss_key]) {
+				const createdSenseState = await SenseState.create({ ss_key });
+				if (!createdSenseState) throw new Error('Failed to initialize sense state');
+
+				this.states[ss_key] = this.toModel(createdSenseState);
+			}
+
+			return this.get(ss_key);
+		});
+	}
+	get(ss_key) {
+		return this.states[ss_key];
+	}
+	async set(ss_key, body) {
+		return await asyncHandler('SENSE STATE SET', async () => {
+			if (!this.states[ss_key]) throw new Error('Failed to set sense state. Sense state must be initialized');
+
+			const senseState = this.states[ss_key];
+			for (const [key, val] of Object.entries(body)) {
+				if (senseState[key] === undefined) throw new Error(`Failed to set sense state. key '${key}' is invalid`);
+				senseState[key] = val;
+			}
+
+			const updateBody = { ...body, ...{ state: body.state ? Array.from(body.state) : body.state } };
+			const updatedSenseState = await SenseState.update(ss_key, updateBody);
+			if (!updatedSenseState) throw new Error('Failed to set sense state');
+
+			this.states[ss_key] = senseState;
+			return senseState;
+		})
+	}
+}
+
 class Buffer {
 	constructor() {
 		this.basicForm = document.getElementById("basicForm");
@@ -387,33 +443,12 @@ class Buffer {
 		this.entry_count = '';
 		this.word = null;
 
-		this.senseStates = {};
+		this.senseStates = new SenseStates();
 
 		const mainContent = document.querySelector('main.content');
 		mainContent.onclick = eventHandler(ev => {
 			if (ev.target === mainContent) this.focus();
 		});
-	}
-	async loadSenses() {
-		const senseStates = await SenseState.findAll();
-		if (!senseStates || !senseStates.length) {
-			this.senseStates = {};
-			return;
-		}
-
-		for (const { ss_key, state, unsure, ignore, merged_with } of senseStates) {
-			this.senseStates[ss_key] = { state: new Set(JSON.parse(state)), unsure, ignore, merged_with };
-		}
-	}
-	async initSenseState(ss_key) {
-		if (!this.senseStates[ss_key]) {
-			const createdSenseState = await SenseState.create({ ss_key });
-			if (!createdSenseState) return false;
-
-			this.senseStates[ss_key] = SenseState.init();
-		}
-
-		return true
 	}
 	async setWord(word) {
 		const ss_key = wordId(word);
@@ -424,9 +459,10 @@ class Buffer {
 		this.entry_count = JSON.parse(word.j_response).length;
 
 		this.renderHeader();
-		if (this.senseStates[ss_key]?.merged_with) {
+		const senseState = this.senseStates.get(ss_key);
+		if (senseState?.merged_with) {
 			this.container.innerHTML = '';
-			const [w_basic_form, wt_name] = this.senseStates[ss_key]?.merged_with.split('_');
+			const [w_basic_form, wt_name] = senseState.merged_with.split('_');
 			const word = await CleanedBuffer.findOne(w_basic_form, wt_name);
 			if (!word) return;
 
@@ -458,7 +494,7 @@ class Buffer {
 		}
 	}
 	syncButtonState(ss_key, buttons) {
-		const senseState = this.senseStates[ss_key];
+		const senseState = this.senseStates.get(ss_key);
 		if (!senseState) return;
 
 		const [btnMergeWith, btnUnsure, btnIgnore] = buttons ?? this.buttons;
@@ -510,14 +546,14 @@ class Buffer {
 	createButtons(ss_key) {
 		const btnMergeWith = createElement('button', 'header-btn', 'Merge');
 		const btnMergeWithHandler = async () => {
-			if (!(await this.initSenseState(ss_key))) return;
+			const senseState = await this.senseStates.init(ss_key);
+			if (!senseState) return;
 
-			if (this.senseStates[ss_key].merged_with) {
+			if (senseState.merged_with) {
 				const merged_with = null;
-				const updatedSenseState = await SenseState.update(ss_key, { merged_with });
+				const updatedSenseState = await this.senseStates.set(ss_key, { merged_with });
 				if (!updatedSenseState) return;
 
-				this.senseStates[ss_key].merged_with = merged_with;
 				sidebar.renderSearchResults(sidebar.words);
 				this.syncButtonState(ss_key, buttons);
 				this.word = sidebar.selectedWord;
@@ -535,13 +571,13 @@ class Buffer {
 
 		const btnUnsure = createElement('button', 'header-btn', 'Unsure');
 		const btnUnsureHandler = async () => {
-			if (!(await this.initSenseState(ss_key))) return;
+			const senseState = await this.senseStates.init(ss_key);
+			if (!senseState) return;
 
-			const unsure = !this.senseStates[ss_key].unsure;
-			const updatedSenseState = await SenseState.update(ss_key, { unsure });
+			const unsure = !senseState.unsure;
+			const updatedSenseState = this.senseStates.set(ss_key, { unsure });
 			if (!updatedSenseState) return;
 
-			this.senseStates[ss_key].unsure = unsure;
 			sidebar.renderSearchResults(sidebar.words);
 			this.syncButtonState(ss_key, buttons);
 			focusElem(btnUnsure);
@@ -551,13 +587,13 @@ class Buffer {
 
 		const btnIgnore = createElement('button', 'header-btn', 'Ignore');
 		const btnIgnorHandler = async () => {
-			if (!(await this.initSenseState(ss_key))) return;
+			const senseState = await this.senseStates.init(ss_key);
+			if (!senseState) return;
 
-			const ignore = !this.senseStates[ss_key].ignore;
-			const updatedSenseState = await SenseState.update(ss_key, { ignore });
+			const ignore = !senseState.ignore;
+			const updatedSenseState = this.senseStates.set(ss_key, { ignore });
 			if (!updatedSenseState) return;
 
-			this.senseStates[ss_key].ignore = ignore;
 			sidebar.renderSearchResults(sidebar.words);
 			this.syncButtonState(ss_key, buttons);
 			focusElem(btnIgnore); // Ensure button is visible
@@ -574,9 +610,10 @@ class Buffer {
 	}
 	async toggleEntry(card, i) {
 		const ss_key = wordId(this.w_basic_form, this.wt_name);
-		if (!(await this.initSenseState(ss_key))) return;
+		const senseState = await this.senseStates.init(ss_key);
+		if (!senseState) return;
 
-		const state = new Set(this.senseStates[ss_key].state);
+		const state = new Set(senseState.state);
 
 		// Toggle off
 		if (card.classList.contains('selected')) {
@@ -586,28 +623,27 @@ class Buffer {
 			}
 
 			state.delete(i);
-			const updatedSenseState = await SenseState.update(ss_key, { state: Array.from(state) });
+			const updatedSenseState = await this.senseStates.set(ss_key, { state });
 			if (!updatedSenseState) return;
 
 			card.classList.remove('selected');
-			this.senseStates[ss_key].state = state;
 			return;
 		}
 
 		// Toggle on
 		state.add(i);
-		const updatedSenseState = await SenseState.update(ss_key, { state: Array.from(state) });
+		const updatedSenseState = await this.senseStates.set(ss_key, { state });
 		if (!updatedSenseState) return;
 
 		card.classList.add('selected');
-		this.senseStates[ss_key].state = state;
 	}
 	createEntry(entry, i, disabled) {
 		const card = createElement("div", "entry");
 		card.appendChild(this.createEntryHeader(entry));
 		card.appendChild(this.createJapaneseSection(entry.japanese));
 		card.appendChild(this.createMeaningSection(entry.senses));
-		const senseState = this.senseStates[wordId(this.word)];
+
+		const senseState = this.senseStates.get(wordId(this.word));
 		if (senseState?.state && senseState.state.has(i)) card.classList.add('selected');
 		if (entry.tags.length > 0) card.appendChild(this.createDictionaryTags(entry.tags));
 
@@ -707,7 +743,7 @@ class Buffer {
 	}
 	focus() {
 		const ss_key = wordId(this.w_basic_form, this.wt_name);
-		if (!this.senseStates[ss_key]?.merged_with) {
+		if (!this.senseStates.get(ss_key)?.merged_with) {
 			const cards = document.getElementsByClassName('entry');
 			if (cards.length) {
 				focusElem(cards[0]);
@@ -746,7 +782,13 @@ class MergeModal {
 				if (!words) throw new Error(`Failed to search word '${text}'`);
 
 				const isTargetWord = word => word.w_basic_form === this.w_basic_form && word.wt_name === this.wt_name;
-				const filteredWords = words.filter(word => !isTargetWord(word));
+				const isMergedWord = word => {
+					const ss_key = wordId(word);
+					const senseState = buffer.senseStates.get(ss_key);
+
+					return senseState && senseState.merged_with;
+				};
+				const filteredWords = words.filter(word => !isTargetWord(word) && !isMergedWord(word));
 
 				this.renderModelItems(filteredWords);
 			})
@@ -772,10 +814,9 @@ class MergeModal {
 			if (!words) throw new Error('Failed to open merge modal. Unable to find words');
 
 			const isTargetWord = word => word.w_basic_form === this.w_basic_form && word.wt_name === this.wt_name;
-			const getSenseState = (w_basic_form, wt_name) => buffer.senseStates?.[wordId(w_basic_form, wt_name)];
 			const getEntries = (word) => {
-				const { w_basic_form, wt_name } = word;
-				const senseState = getSenseState(w_basic_form, wt_name);
+				const ss_key = wordId(word);
+				const senseState = buffer.senseStates.get(ss_key);
 				if (!senseState) return undefined;
 
 				return JSON.parse(word.j_response).filter((_, i) => Array.from(senseState.state).sort().includes(i));
@@ -784,10 +825,13 @@ class MergeModal {
 			const targetEntries = getEntries(targetWord);
 
 			const filteredWords = words.filter(word => !isTargetWord(word));
+			const isMergedWord = word => {
+				const ss_key = wordId(word);
+				const senseState = buffer.senseStates.get(ss_key);
+				return senseState && senseState.merged_with;
+			}
 			const isTopWord = word => {
-				const { w_basic_form, wt_name } = word;
-				const senseState = getSenseState(w_basic_form, wt_name);
-				if (senseState && senseState.merged_with) return false;
+				if (isMergedWord(word)) return false;
 
 				const entries = getEntries(word);
 				if (!entries) return false;
@@ -826,10 +870,9 @@ class MergeModal {
 
 		const ss_key = wordId(this.w_basic_form, this.wt_name);
 		const merged_with = wordId(this.selectedWord);
-		const updatedSenseState = await SenseState.update(ss_key, { merged_with });
+		const updatedSenseState = await buffer.senseStates.set(ss_key, { merged_with });
 		if (!updatedSenseState) return;
 
-		buffer.senseStates[ss_key].merged_with = merged_with;
 		sidebar.renderSearchResults(sidebar.words);
 		buffer.syncButtonState(ss_key);
 		buffer.word = this.selectedWord;
@@ -882,7 +925,7 @@ const mergeModal = new MergeModal();
 
 asyncHandler('MAIN INIT', async () => {
 	await sidebar.loadWordTypes();
-	await buffer.loadSenses()
+	await buffer.senseStates.load();
 	const words = await asyncHandler('SIDEBAR INIT', async () => {
 		const words = await CleanedBuffer.find();
 		if (!words) throw new Error('Failed to initialize sidebar. Unable to find words');
