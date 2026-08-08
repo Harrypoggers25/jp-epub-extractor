@@ -41,7 +41,6 @@ export const CleanedBuffer = {
 }
 
 export const SenseState = {
-	init: () => ({ state: new Set(), ignore: false, unsure: false, merged_with: null }),
 	create: async (body) => {
 		return await asyncHandler('CREATE SENSE STATE', async () => {
 			const response = await fetch('/api/sense-states', {

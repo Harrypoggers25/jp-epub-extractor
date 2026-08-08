@@ -65,6 +65,7 @@ export const SenseState = db.define('sense_states', {
 	unsure: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 	ignore: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 	merged_with: { type: DataTypes.VARCHAR(1023), allowNull: true },
+	can_merge: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 });
 export interface ISenseState extends ReturnType<typeof CleanedBuffer.getEmptyModel> { };
 
