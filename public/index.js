@@ -14,11 +14,20 @@ const KeydownHandlers = {
 					break;
 			}
 		},
-		card: (card, ev) => {
+		card: async (card, ev, ss_key) => {
 			const firstCard = () => document.getElementsByClassName('search-item')[0];
 			const lastCard = () => {
 				const cards = document.getElementsByClassName('search-item');
 				return cards[cards.length - 1];
+			}
+			const buttonHandler = async (ss_key, i) => {
+				const { buttons, handlers } = buffer.createButtons(ss_key);
+				if (!buttons[i].disabled) {
+					await handlers[i]();
+					buffer.syncButtonState(wordId(buffer.w_basic_form, buffer.wt_name));
+					focusElem(document.querySelector(`[data-id="${ss_key}"]`))
+				}
+				return;
 			}
 			switch (ev.key) {
 				case 's':
@@ -40,6 +49,15 @@ const KeydownHandlers = {
 					}
 					focusElem(nextElem(card));
 					break;
+				case 'J':
+					if (!nextElem(card)) {
+						focusElem(firstCard());
+						firstCard().click();
+						break;
+					}
+					focusElem(nextElem(card));
+					nextElem(card).click();
+					break;
 				case 'ArrowUp':
 				case 'k':
 					if (!prevElem(card)) {
@@ -47,6 +65,15 @@ const KeydownHandlers = {
 						break;
 					}
 					focusElem(prevElem(card));
+					break;
+				case 'K':
+					if (!prevElem(card)) {
+						focusElem(lastCard());
+						lastCard().click();
+						break;
+					}
+					focusElem(prevElem(card));
+					prevElem(card).click();
 					break;
 				case 'ArrowRight':
 				case 'ArrowLeft':
@@ -71,6 +98,12 @@ const KeydownHandlers = {
 				case 'Enter':
 					card.click();
 					buffer.focus();
+					break;
+				case 'u':
+					await buttonHandler(ss_key, 1);
+					break;
+				case 'i':
+					await buttonHandler(ss_key, 2);
 					break;
 			}
 		},
@@ -142,6 +175,7 @@ const KeydownHandlers = {
 			}
 		},
 		generic: ev => {
+			const buttons = buffer.buttons;
 			switch (ev.key) {
 				case 'ArrowLeft':
 				case 'ArrowRight':
@@ -152,19 +186,13 @@ const KeydownHandlers = {
 					sidebar.focus();
 					break;
 				case 'm':
-					if (!buffer.buttons[0].disabled) {
-						buffer.buttons[0].click();
-					}
+					if (!buttons[0].disabled) buttons[0].click();
 					break;
 				case 'u':
-					if (!buffer.buttons[1].disabled) {
-						buffer.buttons[1].click();
-					}
+					if (!buttons[1].disabled) buttons[1].click();
 					break;
 				case 'i':
-					if (!buffer.buttons[2].disabled) {
-						buffer.buttons[2].click();
-					}
+					if (!buttons[2].disabled) buttons[2].click();
 					break;
 			}
 		}
@@ -272,7 +300,8 @@ class Sidebar {
 		const senseCount = JSON.parse(word.j_response).length;
 
 		const card = createElement('div', 'search-item');
-		card.dataset.id = wordId(word);
+		const ss_key = wordId(word);
+		card.dataset.id = ss_key;
 		const searchItemContents = createElement('div', 'search-item-contents');
 		searchItemContents.appendChild(this.createSearchWord(word.w_basic_form));
 		searchItemContents.appendChild(this.createSearchWordType(word.wt_name));
@@ -284,7 +313,7 @@ class Sidebar {
 		});
 		card.appendChild(searchItemTags);
 
-		const senseState = buffer.senseStates[wordId(word)];
+		const senseState = buffer.senseStates[ss_key];
 		const isModified = () => {
 			if (!senseState) return false;
 
@@ -317,8 +346,8 @@ class Sidebar {
 		card.onfocus = countUpdateHandler;
 		card.onmouseenter = countUpdateHandler;
 		card.tabIndex = 0;
-		card.addEventListener('keydown', eventHandler(ev => {
-			KeydownHandlers.sidebar.card(card, ev);
+		card.addEventListener('keydown', eventHandler(async ev => {
+			await KeydownHandlers.sidebar.card(card, ev, ss_key);
 		}));
 
 		return card;
@@ -414,11 +443,11 @@ class Buffer {
 			this.container.appendChild(this.createEntry(entry, i, disabled));
 		}
 	}
-	syncButtonState(ss_key) {
+	syncButtonState(ss_key, buttons) {
 		const senseState = this.senseStates[ss_key];
 		if (!senseState) return;
 
-		const [btnMergeWith, btnUnsure, btnIgnore] = this.buttons;
+		const [btnMergeWith, btnUnsure, btnIgnore] = buttons ?? this.buttons;
 		const { merged_with, unsure, ignore } = senseState;
 		if (ignore) {
 			if (!btnIgnore.classList.contains('selected')) btnIgnore.classList.add('selected');
@@ -454,8 +483,19 @@ class Buffer {
 	createHeaderActions() {
 		const ss_key = wordId(this.w_basic_form, this.wt_name);
 
+		this.buttons = this.createButtons(ss_key).buttons;
+		this.buttons.forEach(button => {
+			button.tabIndex = 0;
+			button.addEventListener('keydown', eventHandler(ev => {
+				KeydownHandlers.buffer.button(button, ev);
+			}));
+		})
+
+		return this.buttons;
+	}
+	createButtons(ss_key) {
 		const btnMergeWith = createElement('button', 'header-btn', 'Merge');
-		btnMergeWith.onclick = eventHandler(async () => {
+		const btnMergeWithHandler = async () => {
 			if (!(await this.initSenseState(ss_key))) return;
 
 			if (this.senseStates[ss_key].merged_with) {
@@ -465,7 +505,7 @@ class Buffer {
 
 				this.senseStates[ss_key].merged_with = merged_with;
 				sidebar.renderSearchResults(sidebar.words);
-				this.syncButtonState(ss_key);
+				this.syncButtonState(ss_key, buttons);
 				this.word = sidebar.selectedWord;
 				this.renderEntries();
 				focusElem(btnMergeWith);
@@ -476,10 +516,11 @@ class Buffer {
 			focusElem(btnMergeWith);
 			this.focus();
 			await mergeModal.open(this.w_basic_form, this.wt_name);
-		});
+		}
+		btnMergeWith.onclick = eventHandler(btnMergeWithHandler);
 
 		const btnUnsure = createElement('button', 'header-btn', 'Unsure');
-		btnUnsure.onclick = eventHandler(async () => {
+		const btnUnsureHandler = async () => {
 			if (!(await this.initSenseState(ss_key))) return;
 
 			const unsure = !this.senseStates[ss_key].unsure;
@@ -488,13 +529,14 @@ class Buffer {
 
 			this.senseStates[ss_key].unsure = unsure;
 			sidebar.renderSearchResults(sidebar.words);
-			this.syncButtonState(ss_key);
+			this.syncButtonState(ss_key, buttons);
 			focusElem(btnUnsure);
 			this.focus()
-		});
+		}
+		btnUnsure.onclick = eventHandler(btnUnsureHandler);
 
 		const btnIgnore = createElement('button', 'header-btn', 'Ignore');
-		btnIgnore.onclick = eventHandler(async () => {
+		const btnIgnorHandler = async () => {
 			if (!(await this.initSenseState(ss_key))) return;
 
 			const ignore = !this.senseStates[ss_key].ignore;
@@ -503,22 +545,18 @@ class Buffer {
 
 			this.senseStates[ss_key].ignore = ignore;
 			sidebar.renderSearchResults(sidebar.words);
-			this.syncButtonState(ss_key);
+			this.syncButtonState(ss_key, buttons);
 			focusElem(btnIgnore); // Ensure button is visible
 			this.focus();
-		});
+		}
+		btnIgnore.onclick = eventHandler(btnIgnorHandler);
 
-		this.buttons = [btnMergeWith, btnUnsure, btnIgnore];
-		this.buttons.forEach(button => {
-			button.tabIndex = 0;
-			button.addEventListener('keydown', eventHandler(ev => {
-				KeydownHandlers.buffer.button(button, ev);
-			}));
-		})
+		const buttons = [btnMergeWith, btnUnsure, btnIgnore];
+		const handlers = [btnMergeWithHandler, btnUnsureHandler, btnIgnorHandler];
 
-		this.syncButtonState(ss_key);
+		this.syncButtonState(ss_key, buttons);
 
-		return this.buttons;
+		return { buttons, handlers };
 	}
 	async toggleEntry(card, i) {
 		const ss_key = wordId(this.w_basic_form, this.wt_name);
