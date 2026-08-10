@@ -624,10 +624,14 @@ class Buffer {
 			if (!senseState) return;
 
 			if (senseState.merged_with) {
-				const merged_with = null;
-				const can_merge = InputHandler.mergeModal.searchInput(ss_key, sidebar.allWords, { sort: true }).topWords.length;
-				const updatedSenseState = await this.senseStates.set(ss_key, { merged_with, can_merge });
+				const ss_key2 = senseState.merged_with;
+				const can_merge1 = InputHandler.mergeModal.searchInput(ss_key, sidebar.allWords, { sort: true }).topWords.length;
+				const updatedSenseState = await this.senseStates.set(ss_key, { merged_with: null, can_merge: can_merge1 });
 				if (!updatedSenseState) return;
+
+				const can_merge2 = InputHandler.mergeModal.searchInput(ss_key2, sidebar.allWords, { sort: true }).topWords.length;
+				const updatedSenseState2 = await buffer.senseStates.set(ss_key2, { can_merge: can_merge2 });
+				if (!updatedSenseState2) return;
 
 				sidebar.renderSearchResults(sidebar.words);
 				this.syncButtonState(ss_key, buttons);
@@ -923,13 +927,17 @@ class MergeModal {
 	async confirm() {
 		if (!this.selectedWord) return;
 
-		const ss_key = wordId(this);
-		const merged_with = wordId(this.selectedWord);
-		const updatedSenseState = await buffer.senseStates.set(ss_key, { merged_with, can_merge: 0 });
-		if (!updatedSenseState) return;
+		const ss_key1 = wordId(this);
+		const ss_key2 = wordId(this.selectedWord);
+		const updatedSenseState1 = await buffer.senseStates.set(ss_key1, { merged_with: ss_key2, can_merge: 0 });
+		if (!updatedSenseState1) return;
+
+		const can_merge = InputHandler.mergeModal.searchInput(ss_key2, sidebar.allWords, { sort: true }).topWords.length;
+		const updatedSenseState2 = await buffer.senseStates.set(ss_key2, { can_merge });
+		if (!updatedSenseState2) return;
 
 		sidebar.renderSearchResults(sidebar.words);
-		buffer.syncButtonState(ss_key);
+		buffer.syncButtonState(ss_key1);
 		buffer.word = this.selectedWord;
 		buffer.renderMergeBadges()
 		buffer.renderEntries(true);
@@ -980,8 +988,8 @@ const sidebar = new Sidebar();
 const mergeModal = new MergeModal();
 
 asyncHandler('MAIN INIT', async () => {
-	await sidebar.load();
 	await buffer.senseStates.load();
+	await sidebar.load();
 	const words = await asyncHandler('SIDEBAR INIT', async () => {
 		const words = sidebar.allWords;
 		sidebar.renderSearchResults(words);
