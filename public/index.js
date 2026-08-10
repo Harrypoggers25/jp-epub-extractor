@@ -315,6 +315,18 @@ class Sidebar {
 		});
 		if (!words) return;
 
+		// for (const word of words) {
+		// 	const ss_key = wordId(word);
+		// 	const senseState = buffer.senseStates.get(ss_key);
+		// 	if (!senseState || senseState.merged_with) continue;
+		//
+		// 	const can_merge = InputHandler.mergeModal.searchInput(ss_key, words, { sort: true }).topWords.length;
+		// 	if (can_merge) {
+		// 		await buffer.senseStates.set(ss_key, { can_merge });
+		// 		console.log(ss_key, can_merge);
+		// 	}
+		// }
+
 		this.allWords = words;
 		this.words = words;
 	}

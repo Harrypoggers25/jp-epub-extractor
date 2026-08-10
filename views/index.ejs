@@ -253,11 +253,13 @@
             box-shadow: 0 8px 30px rgba(76, 175, 80, .22);
         }
 
-        .header-btn:disabled {
+        .header-btn:disabled,
+        .header-btn:disabled:is(:hover, :focus) {
             background: #1a1c1d;
             color: #5a5c5d;
             border-color: #2a2c2d;
             cursor: default;
+            box-shadow: none;
         }
 
         .header-content {
