@@ -38,10 +38,10 @@ export function focusElem(card) {
 	});
 };
 
-export function focusModifiedCard(card, cardHandler) {
+export function focusOnClassCard(card, className, cardHandler) {
 	let newCard = cardHandler(card);
 	while (newCard) {
-		if (newCard.classList.contains('modified')) {
+		if (newCard.classList.contains(className)) {
 			focusElem(newCard);
 			break;
 		}
@@ -49,10 +49,10 @@ export function focusModifiedCard(card, cardHandler) {
 	}
 }
 
-export function focusUnmodifiedCard(card, cardHandler) {
+export function focusOffClassCard(card, className, cardHandler) {
 	let newCard = cardHandler(card);
 	while (newCard) {
-		if (!newCard.classList.contains('modified')) {
+		if (!newCard.classList.contains(className)) {
 			focusElem(newCard);
 			break;
 		}

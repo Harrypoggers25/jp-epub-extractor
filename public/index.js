@@ -1,5 +1,5 @@
 import { SenseState, CleanedBuffer, WordType } from "./api.helper.js";
-import { asyncHandler, eventHandler, createElement, wordId, nextElem, prevElem, focusElem, focusModifiedCard, focusUnmodifiedCard } from "./tools.helper.js";
+import { asyncHandler, eventHandler, createElement, wordId, nextElem, prevElem, focusElem, focusOnClassCard, focusOffClassCard } from "./tools.helper.js";
 
 const KeydownHandlers = {
 	sidebar: {
@@ -7,10 +7,7 @@ const KeydownHandlers = {
 			switch (ev.key) {
 				case 'Enter':
 				case 'Escape':
-					const cards = document.getElementsByClassName('search-item');
-					if (!cards || !cards.length) break;
-
-					focusElem(cards[0]);
+					sidebar.focus();
 					break;
 			}
 		},
@@ -83,17 +80,17 @@ const KeydownHandlers = {
 					break;
 				case 'w':
 				case 'e':
-					focusUnmodifiedCard(card, nextElem);
+					focusOffClassCard(card, 'modified', nextElem);
 					break;
 				case 'W':
 				case 'E':
-					focusModifiedCard(card, nextElem);
+					focusOnClassCard(card, 'modified', nextElem);
 					break;
 				case 'b':
-					focusUnmodifiedCard(card, prevElem);
+					focusOffClassCard(card, 'modified', prevElem);
 					break;
 				case 'B':
-					focusModifiedCard(card, prevElem);
+					focusOnClassCard(card, 'modified', prevElem);
 					break;
 				case 'Enter':
 					card.click();
@@ -260,7 +257,7 @@ class Sidebar {
 			if (ev.target !== this.searchInput) this.focus();
 		});
 	}
-	async loadWordTypes() {
+	async load() {
 		const wordTypes = await asyncHandler('SIDEBAR LOAD WORD TYPES', async () => {
 			return await WordType.find();
 		});
@@ -924,7 +921,7 @@ const sidebar = new Sidebar();
 const mergeModal = new MergeModal();
 
 asyncHandler('MAIN INIT', async () => {
-	await sidebar.loadWordTypes();
+	await sidebar.load();
 	await buffer.senseStates.load();
 	const words = await asyncHandler('SIDEBAR INIT', async () => {
 		const words = await CleanedBuffer.find();
