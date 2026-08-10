@@ -117,12 +117,16 @@ const KeydownHandlers = {
 					buffer.focus(true);
 					break;
 				case 'w':
-				case 'e':
 					focusOffClassCard(card, 'modified', nextElem);
 					break;
 				case 'W':
-				case 'E':
 					focusOnClassCard(card, 'modified', nextElem);
+					break;
+				case 'e':
+					focusOnClassCard(card, 'can_merge', nextElem)
+					break;
+				case 'E':
+					focusOnClassCard(card, 'can_merge', prevElem)
 					break;
 				case 'b':
 					focusOffClassCard(card, 'modified', prevElem);
@@ -395,6 +399,7 @@ class Sidebar {
 		})();
 		if (senseCount === 1) card.classList.add('unique');
 		if (senseCount === 0) card.classList.add('error');
+		if (senseState?.can_merge) card.classList.add('can_merge');
 		card.onclick = async e => {
 			e.preventDefault();
 			this.selectWord(word);
