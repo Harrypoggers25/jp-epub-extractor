@@ -287,6 +287,20 @@
             align-content: center;
         }
 
+        .badge.hidden {
+            display: none;
+        }
+
+        #mergeCount {
+            background: #332b0f;
+            color: #d9b64c;
+        }
+
+        #mergeWith {
+            background: #1b2d23;
+            color: #5cbf60;
+        }
+
         .entry {
             background: #1e2021;
             border-radius: 14px;
@@ -670,6 +684,10 @@
                             <div id="wordType" class="badge"></div>
                             <div id="count" class="badge"></div>
                             <div id="occurrence" class="badge"></div>
+                        </div>
+                        <div class="meta">
+                            <div id="mergeCount" class="badge hidden"></div>
+                            <div id="mergeWith" class="badge hidden"></div>
                         </div>
                     </div>
                     <div id="headerActions" class="header-actions">
