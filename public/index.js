@@ -1,22 +1,23 @@
 import { SenseState, CleanedBuffer, WordType } from "./api.helper.js";
 import { asyncHandler, eventHandler, createElement, wordId, nextElem, prevElem, focusElem, focusOnClassCard, focusOffClassCard } from "./tools.helper.js";
+
 const InputHandler = {
 	mergeModal: {
-		searchInput: (w_basic_form, wt_name, words, sort) => {
-			const isTargetWord = word => word.w_basic_form === w_basic_form && word.wt_name === wt_name;
-			const getEntries = (word) => {
-				const ss_key = wordId(word);
-				const senseState = buffer.senseStates.get(ss_key);
-				if (!senseState) return undefined;
+		searchInput: (ss_key, words, opts) => {
+			const [w_basic_form, wt_name] = ss_key.split('_');
 
-				return JSON.parse(word.j_response).filter((_, i) => Array.from(senseState.state).sort().includes(i));
-			}
+			const isTargetWord = word => word.w_basic_form === w_basic_form && word.wt_name === wt_name;
 			const filteredWords = words.filter(word => !isTargetWord(word));
 
-			if (!sort) return { topWords: [], bottomWords: filteredWords };
+			if (!opts?.sort) return { topWords: [], bottomWords: filteredWords };
 
+			const getEntries = (word, state) => {
+				if (!state) return undefined;
+				return JSON.parse(word.j_response).filter((_, i) => Array.from(state).includes(i));
+			}
 			const [targetWord] = words.filter(isTargetWord);
-			const targetEntries = getEntries(targetWord);
+			const targetState = opts?.targetState ?? buffer.senseStates.get(wordId(targetWord))?.state;
+			const targetEntries = getEntries(targetWord, targetState);
 			if (!targetEntries?.length) return { topWords: [], bottomWords: filteredWords };
 
 			const isMergedWord = word => {
@@ -27,8 +28,9 @@ const InputHandler = {
 			const isTopWord = word => {
 				if (isMergedWord(word)) return false;
 
-				const entries = getEntries(word);
-				if (!entries) return false;
+				const state = buffer.senseStates.get(wordId(word))?.state;
+				const entries = getEntries(word, state);
+				if (!entries?.length) return false;
 
 				return targetEntries.every(targetEntry => entries.some(entry => entry.slug === targetEntry.slug));
 			};
@@ -57,7 +59,7 @@ const KeydownHandlers = {
 				const { buttons, handlers } = buffer.createButtons(ss_key);
 				if (!buttons[i].disabled) {
 					await handlers[i]();
-					buffer.syncButtonState(wordId(buffer.w_basic_form, buffer.wt_name));
+					buffer.syncButtonState(wordId(buffer));
 					focusElem(document.querySelector(`[data-id="${ss_key}"]`))
 				}
 				return;
@@ -532,7 +534,7 @@ class Buffer {
 		}
 	}
 	renderMergeBadges() {
-		const senseState = this.senseStates.get(wordId(this.w_basic_form, this.wt_name));
+		const senseState = this.senseStates.get(wordId(this));
 		const showBadge = (badge, text) => {
 			badge.textContent = text;
 			badge.classList.remove('hidden');
@@ -549,9 +551,7 @@ class Buffer {
 		}
 		hideBadge(this.mergeWith);
 
-		const words = sidebar.allWords;
-		const { topWords } = InputHandler.mergeModal.searchInput(this.w_basic_form, this.wt_name, words, true);
-		if (topWords.length) showBadge(this.mergeCount, `Merge possibilities: ${topWords.length}`);
+		if (senseState.can_merge) showBadge(this.mergeCount, `Merge possibilities: ${senseState.can_merge}`);
 		else hideBadge(this.mergeCount);
 	}
 	renderEntries(disabled) {
@@ -600,7 +600,7 @@ class Buffer {
 		if (btnUnsure.classList.contains('selected')) btnUnsure.classList.remove('selected');
 	}
 	createHeaderActions() {
-		const ss_key = wordId(this.w_basic_form, this.wt_name);
+		const ss_key = wordId(this);
 
 		this.buttons = this.createButtons(ss_key).buttons;
 		this.buttons.forEach(button => {
@@ -620,7 +620,8 @@ class Buffer {
 
 			if (senseState.merged_with) {
 				const merged_with = null;
-				const updatedSenseState = await this.senseStates.set(ss_key, { merged_with });
+				const can_merge = InputHandler.mergeModal.searchInput(ss_key, sidebar.allWords, { sort: true }).topWords.length;
+				const updatedSenseState = await this.senseStates.set(ss_key, { merged_with, can_merge });
 				if (!updatedSenseState) return;
 
 				sidebar.renderSearchResults(sidebar.words);
@@ -679,7 +680,7 @@ class Buffer {
 		return { buttons, handlers };
 	}
 	async toggleEntry(card, i) {
-		const ss_key = wordId(this.w_basic_form, this.wt_name);
+		const ss_key = wordId(this);
 		const senseState = await this.senseStates.init(ss_key);
 		if (!senseState) return;
 
@@ -693,7 +694,8 @@ class Buffer {
 			}
 
 			state.delete(i);
-			const updatedSenseState = await this.senseStates.set(ss_key, { state });
+			const can_merge = InputHandler.mergeModal.searchInput(ss_key, sidebar.allWords, { sort: true, targetState: state }).topWords.length;
+			const updatedSenseState = await this.senseStates.set(ss_key, { state, can_merge });
 			if (!updatedSenseState) return;
 
 			card.classList.remove('selected');
@@ -702,7 +704,8 @@ class Buffer {
 
 		// Toggle on
 		state.add(i);
-		const updatedSenseState = await this.senseStates.set(ss_key, { state });
+		const can_merge = InputHandler.mergeModal.searchInput(ss_key, sidebar.allWords, { sort: true, targetState: state }).topWords.length;
+		const updatedSenseState = await this.senseStates.set(ss_key, { state, can_merge });
 		if (!updatedSenseState) return;
 
 		card.classList.add('selected');
@@ -814,7 +817,7 @@ class Buffer {
 		return section;
 	}
 	focus(selected) {
-		const ss_key = wordId(this.w_basic_form, this.wt_name);
+		const ss_key = wordId(this);
 		if (!this.senseStates.get(ss_key)?.merged_with) {
 			if (selected) {
 				const cards = document.querySelectorAll('.entry.selected');
@@ -860,7 +863,7 @@ class MergeModal {
 				const words = !text ? sidebar.allWords : await CleanedBuffer.find(text);
 				if (!words) throw new Error(`Failed to search word '${text}'`);
 
-				const { bottomWords } = InputHandler.mergeModal.searchInput(this.w_basic_form, this.wt_name, words, false);
+				const { bottomWords } = InputHandler.mergeModal.searchInput(wordId(this), words);
 
 				this.renderModelItems(bottomWords);
 			})
@@ -885,7 +888,7 @@ class MergeModal {
 			const words = sidebar.allWords;
 			if (!words) throw new Error('Failed to open merge modal. Unable to find words');
 
-			const { topWords, bottomWords } = InputHandler.mergeModal.searchInput(this.w_basic_form, this.wt_name, words, true);
+			const { topWords, bottomWords } = InputHandler.mergeModal.searchInput(wordId(this), words, { sort: true });
 			const sortedWords = [...topWords, ...bottomWords];
 
 			this.renderModelItems(sortedWords);
@@ -915,9 +918,9 @@ class MergeModal {
 	async confirm() {
 		if (!this.selectedWord) return;
 
-		const ss_key = wordId(this.w_basic_form, this.wt_name);
+		const ss_key = wordId(this);
 		const merged_with = wordId(this.selectedWord);
-		const updatedSenseState = await buffer.senseStates.set(ss_key, { merged_with });
+		const updatedSenseState = await buffer.senseStates.set(ss_key, { merged_with, can_merge: 0 });
 		if (!updatedSenseState) return;
 
 		sidebar.renderSearchResults(sidebar.words);
@@ -932,7 +935,7 @@ class MergeModal {
 		this.modalList.innerHTML = '';
 		this.modalItems = {};
 		words.forEach(word => {
-			const ss_key = wordId(word.w_basic_form, word.wt_name);
+			const ss_key = wordId(word);
 			this.modalItems[ss_key] = this.createModalItem(word);
 			this.modalList.appendChild(this.modalItems[ss_key]);
 		});
