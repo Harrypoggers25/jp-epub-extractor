@@ -15,6 +15,37 @@ import Message from "@harrypoggers25/message";
 import { toHiragana } from "wanakana";
 
 namespace Book {
+	export async function extractEpubFile(path: string, options?: ExtractEpubFileOptions): Promise<IBook> {
+		const file = await fs.readFile(path);
+		const zip = await JSZip.loadAsync(file);
+		const sections = options?.sections;
+
+		const result: IBook = [];
+		for (const filename of Object.keys(zip.files)) {
+			if (sections && !sections.includes(filename)) continue;
+			if (filename.endsWith(".xhtml") || filename.endsWith(".html")) {
+				const content = await zip.files[filename].async("string");
+				result.push({ filename, content });
+			}
+		}
+
+		return result;
+	}
+
+	export function parseBook(book: IBook): { count: number, parsedBook: IParsedBook } {
+		let count = 0;
+		const formatText = (text?: string) => !text ? '' : text.replace(/\s+/g, '').replace(/\(\)/g, '').trim();
+		const parsedBook: IParsedBook = [];
+		for (const { filename, content } of book) {
+			const $ = cheerio.load(content);
+			$("rt").remove();
+			const sentences = Array.from($('.calibre1').map((_, el) => formatText($(el).text()))).filter(val => val !== '');
+			parsedBook.push({ filename, sentences });
+			count += sentences.length;
+		}
+		return { count, parsedBook };
+	}
+
 	export function parseToken(token: IToken): IParsedToken {
 		const token_id = token.word_id;
 		const wt_name = token.pos;
@@ -33,41 +64,6 @@ namespace Book {
 		const surface_form = token.surface_form;
 
 		return { token_id, wt_name, w_basic_form, w_reading, w_pos_details, wt_description, surface_form };
-	}
-
-	export async function extractEpubFile(path: string, options?: ExtractEpubFileOptions): Promise<IBook> {
-		const file = await fs.readFile(path);
-		const zip = await JSZip.loadAsync(file);
-		const sections = options?.sections;
-
-		const result: IBook = [];
-		for (const filename of Object.keys(zip.files)) {
-			if (sections && !sections.includes(filename)) continue;
-			if (filename.endsWith(".xhtml") || filename.endsWith(".html")) {
-				const content = await zip.files[filename].async("string");
-				result.push({ filename, content });
-			}
-		}
-
-		return result;
-	}
-
-	function formatText(text?: string): string {
-		if (!text) return '';
-		return text.replace(/\s+/g, '').replace(/\(\)/g, '').trim();
-	}
-
-	export function parseBook(book: IBook): { count: number, parsedBook: IParsedBook } {
-		let count = 0;
-		const parsedBook: IParsedBook = [];
-		for (const { filename, content } of book) {
-			const $ = cheerio.load(content);
-			$("rt").remove();
-			const sentences = Array.from($('.calibre1').map((_, el) => formatText($(el).text()))).filter(val => val !== '');
-			parsedBook.push({ filename, sentences });
-			count += sentences.length;
-		}
-		return { count, parsedBook };
 	}
 
 	export async function parseSentence(sentence: string, filterOut: Array<string> = []) {
