@@ -1,28 +1,35 @@
+// CONFIGS
+import { BookBuffer, SentenceBuffer, WordType, TokenBuffer, JishoBuffer, WordBuffer, EntryState } from "../configs/db.config";
+
+// MODULES
 import ch from "@harrypoggers25/color-utils";
-import { CleanedBuffer, JishoBuffer, JishoResponseState, SenseState, WordBuffer, WordType } from "../configs/db.config";
+import env from "../configs/env.config";
 
 (async () => {
-	const path = './database/epub-extractor-v1.json';
+	const path = env.DB_BACKUP_DIR;
 	const append = true;
 	const format = 'json';
 
 	const wordTypes = await WordType.backup(path, { orderBy: { created_at: 'ASC' }, format });
 	if (!wordTypes) return;
 
-	const jishoResponseStates = await JishoResponseState.backup(path, { orderBy: { j_response_state: 'ASC' }, format, append });
-	if (!jishoResponseStates) return;
+	const bookBuffers = await BookBuffer.backup(path, { format, append });
+	if (!bookBuffers) return;
 
-	const wordBuffers = await WordBuffer.backup(path, { orderBy: { created_at: 'ASC' }, format, append });
-	if (!wordBuffers) return;
+	const sentenceBuffers = await SentenceBuffer.backup(path, { orderBy: { section_no: 'ASC', sentence_no: 'ASC' }, format, append });
+	if (!sentenceBuffers) return;
+
+	const tokenBuffer = await TokenBuffer.backup(path, { orderBy: { created_at: 'ASC' }, format, append });
+	if (!tokenBuffer) return;
 
 	const jishoBuffers = await JishoBuffer.backup(path, { orderBy: { created_at: 'ASC' }, format, append });
 	if (!jishoBuffers) return;
 
-	const cleanedBuffers = await CleanedBuffer.backup(path, { orderBy: { created_at: 'ASC' }, format, append });
-	if (!cleanedBuffers) return;
+	const wordBuffers = await WordBuffer.backup(path, { orderBy: { created_at: 'ASC' }, format, append });
+	if (!wordBuffers) return;
 
-	const senseStates = await SenseState.backup(path, { format, append });
-	if (!senseStates) return;
+	const entryStates = await EntryState.backup(path, { format, append });
+	if (!entryStates) return;
 
 	console.log(ch.green('SCRIPT:'), 'All db data has been', ch.green('successfully'), 'backed up');
 })()

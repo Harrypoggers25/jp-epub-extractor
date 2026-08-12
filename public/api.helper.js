@@ -14,94 +14,124 @@ export const WordType = {
 	}
 }
 
-export const CleanedBuffer = {
+export const WordBuffer = {
 	find: async (w_basic_form) => {
-		return await asyncHandler('FIND WORDS', async () => {
-			const url = !w_basic_form ? '/api/cleaned-buffers' : `/api/cleaned-buffers/${w_basic_form}`
+		return await asyncHandler('FIND WORD BUFFERS', async () => {
+			const url = !w_basic_form ? '/api/word-buffers' : `/api/word-buffers/${w_basic_form}`
 			const response = await fetch(url, { method: 'GET' });
-			if (!response.ok) throw new Error('Failed to find words. Internal error');
+			if (!response.ok) throw new Error('Failed to find word buffers. Internal error');
 
-			const words = await response.json();
-			if (!words) throw new Error('Failed to find words. Unable to find data');
+			const wordBuffers = await response.json();
+			if (!wordBuffers) throw new Error('Failed to find word buffers. Unable to find data');
 
-			return words;
+			return wordBuffers.map(wordBuffer => {
+				wordBuffer.j_response = JSON.parse(wordBuffer.j_response);
+				return wordBuffer;
+			});
 		});
 	},
 	findOne: async (w_basic_form, wt_name) => {
-		return await asyncHandler('FIND WORD', async () => {
-			const response = await fetch(`/api/cleaned-buffers/${w_basic_form}/${wt_name}`, { method: 'GET' });
-			if (!response.ok) throw new Error('Failed to find word. Internal error');
+		return await asyncHandler('FIND WORD BUFFER', async () => {
+			const response = await fetch(`/api/word-buffers/${w_basic_form}/${wt_name}`, { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to find word buffer. Internal error');
 
-			const word = await response.json();
-			if (!word) throw new Error('Failed to find word. Unable to find data');
+			const wordBuffer = await response.json();
+			if (!wordBuffer) throw new Error('Failed to find word buffer. Unable to find data');
 
-			return word;
+			wordBuffer.j_response = JSON.parse(wordBuffer.j_response);
+			return wordBuffer;
 		});
 	}
 }
 
-export const SenseState = {
+export const SentenceBuffer = {
+	find: async (w_basic_form, wt_name) => {
+		return await asyncHandler('FIND SENTENCE BUFFERS', async () => {
+			const response = await fetch(`/api/sentence-buffers/word-buffer/${w_basic_form}/${wt_name}`, { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to find sentence buffers. Internal error');
+
+			const sentenceBuffers = await response.json();
+			if (!sentenceBuffers) throw new Error('Failed to find sentence buffers. Unable to find data');
+
+			return sentenceBuffers;
+		});
+	}
+}
+
+export const EntryState = {
 	create: async (body) => {
-		return await asyncHandler('CREATE SENSE STATE', async () => {
-			const response = await fetch('/api/sense-states', {
+		body.state = body.state ? Array.from(body.state) : body.state;
+		return await asyncHandler('CREATE ENTRY STATE', async () => {
+			const response = await fetch('/api/entry-states', {
 				method: 'POST',
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(body),
 			});
-			if (!response.ok) throw new Error(`Failed to create sense state. Internal error`);
+			if (!response.ok) throw new Error(`Failed to create entry state. Internal error`);
 
-			const senseState = await response.json();
-			if (!senseState) throw new Error(`Failed to create sense state. Unable to create data`);
+			const entryState = await response.json();
+			if (!entryState) throw new Error(`Failed to create entry state. Unable to create data`);
 
-			return senseState;
+			entryState.state = new Set(JSON.parse(entryState.state));
+			return entryState;
 		});
 	},
 	findAll: async () => {
-		return await asyncHandler('FIND ALL SENSE STATES', async () => {
-			const response = await fetch('/api/sense-states', { method: 'GET', });
-			if (!response.ok) throw new Error(`Failed to find all sense states. Internal error`);
+		return await asyncHandler('FIND ALL ENTRY STATES', async () => {
+			const response = await fetch('/api/entry-states', { method: 'GET', });
+			if (!response.ok) throw new Error(`Failed to find all entry states. Internal error`);
 
-			const senseStates = await response.json();
-			if (!senseStates) throw new Error(`Failed to find all sense states. Unable to find data`);
+			const entryStates = await response.json();
+			if (!entryStates) throw new Error(`Failed to find all entry states. Unable to find data`);
 
-			return senseStates;
+			return entryStates.map(entryState => {
+				entryState.state = new Set(JSON.parse(entryState.state));
+				return entryState;
+			});
 		})
 	},
-	update: async (ss_key, body) => {
-		return await asyncHandler('UPDATE SENSE STATE', async () => {
-			const response = await fetch(`/api/sense-states/${ss_key}`, {
+	update: async (es_id, body) => {
+		body.state = body.state ? Array.from(body.state) : body.state;
+		return await asyncHandler('UPDATE ENTRY STATE', async () => {
+			const response = await fetch(`/api/entry-states/${es_id}`, {
 				method: 'PATCH',
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(body),
 			});
-			if (!response.ok) throw new Error(`Failed to update sense state [${ss_key}]. Internal error`);
+			if (!response.ok) throw new Error(`Failed to update entry state [${es_id}]. Internal error`);
 
-			const senseState = await response.json();
-			if (!senseState) throw new Error(`Failed to update sense state [${ss_key}]. Unable to update data`);
+			const entryState = await response.json();
+			if (!entryState) throw new Error(`Failed to update entry state [${es_id}]. Unable to update data`);
 
-			return senseState;
+			entryState.state = new Set(JSON.parse(entryState.state));
+			return entryState;
 		});
 	},
 	removeAll: async () => {
-		return await asyncHandler('DELETE ALL SENSE STATE', async () => {
-			const response = await fetch('/api/sense-states', { method: 'DELETE' });
-			if (!response.ok) throw new Error(`Failed to delete all sense states. Internal error`);
+		return await asyncHandler('DELETE ALL ENTRY STATE', async () => {
+			const response = await fetch('/api/entry-states', { method: 'DELETE' });
+			if (!response.ok) throw new Error(`Failed to delete all entry states. Internal error`);
 
-			const senseStates = await response.json();
-			if (!senseStates) throw new Error(`Failed to delete all sense states. Unable to delete data`);
+			const entryStates = await response.json();
+			if (!entryStates) throw new Error(`Failed to delete all entry states. Unable to delete data`);
 
-			return senseStates;
+			return entryStates.map(entryState => {
+				entryState.state = new Set(JSON.parse(entryState.state));
+				return entryState;
+			});
 		});
 	},
-	remove: async (ss_key) => {
-		return await asyncHandler('DELETE SENSE STATE', async () => {
-			const response = await fetch(`/api/sense-states/${ss_key}`, { method: 'DELETE' });
-			if (!response.ok) throw new Error(`Failed to delete sense state [${ss_key}]. Internal error`);
+	remove: async (es_id) => {
+		return await asyncHandler('DELETE ENTRY STATE', async () => {
+			const response = await fetch(`/api/entry-states/${es_id}`, { method: 'DELETE' });
+			if (!response.ok) throw new Error(`Failed to delete entry state [${es_id}]. Internal error`);
 
-			const senseState = await response.json();
-			if (!senseState) throw new Error(`Failed to delete sense state [${ss_key}]. Unable to delete data`);
+			const entryState = await response.json();
+			if (!entryState) throw new Error(`Failed to delete entry state [${es_id}]. Unable to delete data`);
 
-			return senseState;
+			entryState.state = new Set(JSON.parse(entryState.state));
+			return entryState;
 		});
 	},
 }
+

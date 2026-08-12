@@ -165,4 +165,3 @@ export const MapWordType: Record<string, Array<string>> = {
 	// '記号': 'Symbols',
 	// 'その他': 'Others',
 };
-

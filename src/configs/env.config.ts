@@ -5,6 +5,7 @@ const env = Env.define({
 	ORIGIN_URL: { type: 'string', default: 'http://localhost:3005' },
 	PORT: { type: 'number', default: 3005 },
 	AXIOS_USER_AGENT: { type: 'string' },
+	DB_BACKUP_DIR: { type: 'string' },
 	DB_HOST: { type: 'string', default: 'localhost' },
 	DB_USER: { type: 'string' },
 	DB_PASSWORD: { type: 'string' },

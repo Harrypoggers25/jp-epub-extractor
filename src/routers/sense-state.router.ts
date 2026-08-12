@@ -1,18 +1,18 @@
 // CONTROLLERS
-import { SenseStateHandler } from '../controllers/sense-state.controller';
+import { EntryStateHandler } from '../controllers/entry-state.controller';
 
 // MODULES
 import { Router } from 'express';
 
-const senseStateRouter = Router();
+const entryStateRouter = Router();
 
-senseStateRouter.route('/')
-	.post(SenseStateHandler.create)
-	.get(SenseStateHandler.findAll)
-	.delete(SenseStateHandler.removeAll)
-senseStateRouter.route('/:ss_key')
-	.get(SenseStateHandler.find)
-	.patch(SenseStateHandler.update)
-	.delete(SenseStateHandler.remove);
+entryStateRouter.route('/')
+	.post(EntryStateHandler.create)
+	.get(EntryStateHandler.findAll)
+	.delete(EntryStateHandler.removeAll)
+entryStateRouter.route('/:es_id')
+	.get(EntryStateHandler.find)
+	.patch(EntryStateHandler.update)
+	.delete(EntryStateHandler.remove);
 
-export default senseStateRouter;
+export default entryStateRouter;

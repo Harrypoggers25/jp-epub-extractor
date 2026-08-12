@@ -1,43 +1,18 @@
-import { SenseState, CleanedBuffer, WordType } from "./api.helper.js";
-import { asyncHandler, eventHandler, createElement, wordId, nextElem, prevElem, focusElem, focusOnClassCard, focusOffClassCard } from "./tools.helper.js";
-
-const InputHandler = {
-	mergeModal: {
-		searchInput: (ss_key, words, opts) => {
-			const [w_basic_form, wt_name] = ss_key.split('_');
-
-			const isTargetWord = word => word.w_basic_form === w_basic_form && word.wt_name === wt_name;
-			const filteredWords = words.filter(word => !isTargetWord(word));
-
-			if (!opts?.sort) return { topWords: [], bottomWords: filteredWords };
-
-			const getEntries = (word, state) => {
-				if (!state) return undefined;
-				return JSON.parse(word.j_response).filter((_, i) => Array.from(state).includes(i));
-			}
-			const [targetWord] = words.filter(isTargetWord);
-			const targetState = opts?.targetState ?? buffer.senseStates.get(wordId(targetWord))?.state;
-			const targetEntries = getEntries(targetWord, targetState);
-			if (!targetEntries?.length) return { topWords: [], bottomWords: filteredWords };
-
-			const isMergedWord = word => {
-				const ss_key = wordId(word);
-				const senseState = buffer.senseStates.get(ss_key);
-				return senseState && senseState.merged_with;
-			}
-			const isTopWord = word => {
-				if (isMergedWord(word)) return false;
-
-				const state = buffer.senseStates.get(wordId(word))?.state;
-				const entries = getEntries(word, state);
-				if (!entries?.length) return false;
-
-				return targetEntries.every(targetEntry => entries.some(entry => entry.slug === targetEntry.slug));
-			};
-			return { topWords: filteredWords.filter(isTopWord), bottomWords: filteredWords.filter(word => !isTopWord(word)) };
-		}
-	}
-}
+import { EntryState, SentenceBuffer, WordBuffer, WordType } from "./api.helper.js";
+import {
+	asyncHandler,
+	createElement,
+	eventHandler,
+	focusElem,
+	focusable,
+	focusOffClassCard,
+	focusOnClassCard,
+	hasClass,
+	nextElem,
+	prevElem,
+	setClass,
+	wordId,
+} from "./tools.helper.js";
 
 const KeydownHandlers = {
 	sidebar: {
@@ -49,24 +24,24 @@ const KeydownHandlers = {
 					break;
 			}
 		},
-		card: async (card, ev, ss_key) => {
+		card: async (card, ev, es_id, clickHandler) => {
 			const firstCard = () => document.getElementsByClassName('search-item')[0];
 			const lastCard = () => {
 				const cards = document.getElementsByClassName('search-item');
 				return cards[cards.length - 1];
 			}
-			const buttonHandler = async (ss_key, i) => {
-				const { buttons, handlers } = buffer.createButtons(ss_key);
+			const buttonHandler = async (es_id, i) => {
+				const { buttons, handlers } = buffer.createButtons(es_id);
 				if (!buttons[i].disabled) {
 					await handlers[i]();
-					buffer.syncButtonState(wordId(buffer));
-					focusElem(document.querySelector(`[data-id="${ss_key}"]`))
+					buffer.syncButtonState(wordId(buffer.selected));
+					focusElem(document.querySelector(`[data-id="${es_id}"]`))
 				}
 				return;
 			}
 			switch (ev.key) {
 				case 's':
-					sidebar.searchInput.focus();
+					sidebar.elems.searchInput.focus();
 					break;
 				case 'g':
 				case 'Home':
@@ -78,37 +53,17 @@ const KeydownHandlers = {
 					break;
 				case 'ArrowDown':
 				case 'j':
-					if (!nextElem(card)) {
-						focusElem(firstCard());
-						break;
-					}
-					focusElem(nextElem(card));
-					break;
 				case 'J':
-					if (!nextElem(card)) {
-						focusElem(firstCard());
-						firstCard().click();
-						break;
-					}
-					focusElem(nextElem(card));
-					nextElem(card).click();
+					const cardUp = nextElem(card) ?? firstCard();
+					focusElem(cardUp);
+					if (ev.shiftKey) cardUp.click();
 					break;
 				case 'ArrowUp':
 				case 'k':
-					if (!prevElem(card)) {
-						focusElem(lastCard());
-						break;
-					}
-					focusElem(prevElem(card));
-					break;
 				case 'K':
-					if (!prevElem(card)) {
-						focusElem(lastCard());
-						lastCard().click();
-						break;
-					}
-					focusElem(prevElem(card));
-					prevElem(card).click();
+					const cardDown = prevElem(card) ?? lastCard();
+					focusElem(cardDown);
+					if (ev.shiftKey) cardDown.click();
 					break;
 				case 'ArrowRight':
 				case 'ArrowLeft':
@@ -135,86 +90,79 @@ const KeydownHandlers = {
 					focusOnClassCard(card, 'modified', prevElem);
 					break;
 				case 'Enter':
-					card.click();
+					await clickHandler();
 					buffer.focus();
 					break;
 				case 'u':
-					await buttonHandler(ss_key, 1);
+					await buttonHandler(es_id, 1);
 					break;
 				case 'i':
-					await buttonHandler(ss_key, 2);
+					await buttonHandler(es_id, 2);
 					break;
 			}
 		},
 	},
 	buffer: {
-		button: (button, ev) => {
+		button: async (button, ev) => {
 			const canFocus = button => button && !button.disabled;
+			const cards = () => document.getElementsByClassName('entry');
 			switch (ev.key) {
 				case 'ArrowDown':
 				case 'j':
-					if (!canFocus(nextElem(button))) {
-						const cards = document.getElementsByClassName('entry');
-						if (!cards) break;
-
-						focusElem(cards[0]);
-						break;
-					}
-					focusElem(nextElem(button));
+					const nextTarget = canFocus(nextElem(button)) ? nextElem(button) : cards()[0];
+					if (!nextTarget) break;
+					focusElem(nextTarget);
 					break;
 				case 'ArrowUp':
 				case 'k':
-					if (!canFocus(prevElem(button))) {
-						const cards = document.getElementsByClassName('entry');
-						if (!cards) break;
-
-						focusElem(cards[cards.length - 1]);
-						break;
-					}
-					focusElem(prevElem(button));
+					const prevTarget = canFocus(prevElem(button)) ? prevElem(button) : cards()[cards().length - 1];
+					if (!prevTarget) break;
+					focusElem(prevTarget);
 					break;
 				case 'Enter':
 					button.click();
 					break;
 				default:
-					KeydownHandlers.buffer.generic(ev);
+					await KeydownHandlers.buffer.generic(ev);
 					break;
 			}
 		},
 		card: async (card, ev, clickHandler) => {
-			const buttons = buffer.buttons;
+			const canFocus = (card) => card && !card.classList.contains('disabled');
+			const buttons = buffer.buttons.filter(button => !button.disabled);
 			switch (ev.key) {
 				case 'ArrowDown':
 				case 'j':
-					if (!nextElem(card)) {
-						for (let i = buttons.length - 1; i >= 0; i--) {
-							if (!buttons[i].disabled) focusElem(buttons[i]);
-						}
+					const nextTarget = nextElem(card);
+					if (canFocus(nextTarget)) {
+						focusElem(nextTarget);
 						break;
 					}
-					focusElem(nextElem(card));
+					if (buttons[0]) focusElem(buttons[0]);
 					break;
 				case 'ArrowUp':
 				case 'k':
-					if (!prevElem(card)) {
-						for (let i = 0; i < buttons.length; i++) {
-							if (!buttons[i].disabled) focusElem(buttons[i]);
-						}
+					const prevTarget = prevElem(card);
+					if (canFocus(prevTarget)) {
+						focusElem(prevTarget);
 						break;
 					}
-					focusElem(prevElem(card));
+					if (buttons.at(-1)) focusElem(buttons.at(-1));
 					break;
 				case 'Enter':
 					await clickHandler();
 					if (!ev.shiftKey) sidebar.focus();
 					break;
 				default:
-					KeydownHandlers.buffer.generic(ev);
+					await KeydownHandlers.buffer.generic(ev);
 					break;
 			}
 		},
-		generic: ev => {
+		generic: async ev => {
 			const buttons = buffer.buttons;
+			const clickButton = (i) => {
+				if (!buttons[i].disabled) buttons[i].click();
+			}
 			switch (ev.key) {
 				case 'ArrowLeft':
 				case 'ArrowRight':
@@ -225,13 +173,16 @@ const KeydownHandlers = {
 					sidebar.focus();
 					break;
 				case 'm':
-					if (!buttons[0].disabled) buttons[0].click();
+					clickButton(0);
 					break;
 				case 'u':
-					if (!buttons[1].disabled) buttons[1].click();
+					clickButton(1);
 					break;
 				case 'i':
-					if (!buttons[2].disabled) buttons[2].click();
+					clickButton(2);
+					break;
+				case 'o':
+					await sentenceModal.open();
 					break;
 			}
 		}
@@ -269,118 +220,104 @@ const KeydownHandlers = {
 					break;
 			}
 		}
+	},
+	sentenceModal: {
+		modal: (ev) => {
+			switch (ev.key) {
+				case 'o':
+				case 'Escape':
+					sentenceModal.close();
+					break;
+			}
+		}
 	}
 }
 
 class Sidebar {
 	constructor() {
-		this.searchInput = document.getElementById('searchInput');
-		this.searchResults = document.getElementById('searchResults');
-		this.searchResultCount = document.getElementById('searchResultCount');
+		this.elems = {
+			searchInput: document.getElementById('searchInput'),
+			searchResults: document.getElementById('searchResults'),
+			searchResultCount: document.getElementById('searchResultCount')
+		}
 
 		this.wordTypes = {};
-		this.allWords = null
-		this.words = null;
-		this.selectedWord = null;
+		this.allWordBuffers = null
+		this.wordBuffers = null;
+		this.selected = null;
 
-		this.searchInput.oninput = eventHandler(async ev => {
+		this.elems.searchInput.oninput = eventHandler(async ev => {
 			await asyncHandler('SIDEBAR SEARCH', async () => {
 				const text = ev.target.value;
-				const words = !text ? this.allWords : await CleanedBuffer.find(text);
-				if (!words) throw new Error(`Failed to search word '${text}'`);
+				const wordBuffers = !text ? this.allWordBuffers : await WordBuffer.find(text);
+				if (!wordBuffers) throw new Error(`Failed to search word '${text}'`);
 
-				this.renderSearchResults(words);
+				this.wordBuffers = wordBuffers;
+				this.renderSearchResults();
 			})
 		});
-		this.searchInput.addEventListener('keydown', ev => {
+		this.elems.searchInput.addEventListener('keydown', ev => {
 			KeydownHandlers.sidebar.searchInput(ev);
 		});
 
 		document.querySelector('div.sidebar-header').onclick = eventHandler(ev => {
-			if (ev.target !== this.searchInput) this.focus();
+			if (ev.target !== this.elems.searchInput) this.focus();
 		});
 	}
 	async load() {
-		const wordTypes = await asyncHandler('SIDEBAR LOAD WORD TYPES', async () => {
-			return await WordType.find();
-		});
+		const wordTypes = await asyncHandler('SIDEBAR LOAD WORD TYPES', async () => await WordType.find());
 		if (!wordTypes) return;
 
 		wordTypes.forEach(({ wt_name, wt_description }) => {
 			this.wordTypes[wt_name] = wt_description ? `${wt_name} - ${wt_description}` : wt_name;
 		});
 
-		const words = await asyncHandler('SIDEBAR LOAD ALL WORDS', async () => {
-			return await CleanedBuffer.find();
-		});
-		if (!words) return;
+		const wordBuffers = await asyncHandler('SIDEBAR LOAD ALL WORDS', async () => await WordBuffer.find());
+		if (!wordBuffers) return;
 
-		// for (const word of words) {
-		// 	const ss_key = wordId(word);
-		// 	const senseState = buffer.senseStates.get(ss_key);
-		// 	if (!senseState || senseState.merged_with) continue;
-		//
-		// 	const can_merge = InputHandler.mergeModal.searchInput(ss_key, words, { sort: true }).topWords.length;
-		// 	if (can_merge) {
-		// 		await buffer.senseStates.set(ss_key, { can_merge });
-		// 		console.log(ss_key, can_merge);
-		// 	}
-		// }
-
-		this.allWords = words;
-		this.words = words;
+		this.allWordBuffers = wordBuffers;
+		this.wordBuffers = wordBuffers;
 	}
-	async selectWord(word) {
-		if (this.selectedWord) {
-			const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
+	async selectWord(wordBuffer) {
+		if (this.selected) {
+			const card = document.querySelector(`[data-id="${wordId(this.selected)}"]`);
 			card?.classList?.remove('active');
 		}
 
-		this.selectedWord = word;
-		const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
+		this.selected = wordBuffer;
+		const card = document.querySelector(`[data-id="${wordId(this.selected)}"]`);
 		card?.classList?.add('active');
 		focusElem(card);
 
 		const params = new URLSearchParams(window.location.search);
-		params.set('select', word.w_basic_form);
-		params.set('wt_name', word.wt_name);
+		params.set('select', this.selected.w_basic_form);
+		params.set('wt_name', this.selected.wt_name);
 		window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
 
-		await buffer.setWord(word);
+		await buffer.setWord(this.selected);
 	}
-	focus() {
-		const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
-		if (card) {
-			focusElem(card);
-			return;
+	renderSearchResults() {
+		this.elems.searchResults.innerHTML = '';
+		for (let i = 0; i < this.wordBuffers.length; i++) {
+			this.elems.searchResults.appendChild(this.createSearchItem(i + 1, this.wordBuffers[i]));
 		}
-
-		const cards = document.getElementsByClassName('search-item');
-		if (!cards.length) return;
-
-		focusElem(cards[0]);
-	}
-	renderSearchResults(words) {
-		this.words = words;
-		this.searchResults.innerHTML = '';
-		for (let i = 0; i < words.length; i++) {
-			this.searchResults.appendChild(this.createSearchItem(i + 1, words[i]));
-		}
-		if (this.selectedWord) {
-			const card = document.querySelector(`[data-id="${wordId(this.selectedWord)}"]`);
+		if (this.selected) {
+			const card = document.querySelector(`[data-id="${wordId(this.selected)}"]`);
 			card?.classList?.add('active');
 		}
 	}
-	createSearchItem(index, word) {
-		const senseCount = JSON.parse(word.j_response).length;
+	createSearchItem(index, wordBuffer) {
+		const { w_basic_form, wt_name, j_response } = wordBuffer;
+		const es_id = wordId(wordBuffer);
 
 		const card = createElement('div', 'search-item');
-		const ss_key = wordId(word);
-		card.dataset.id = ss_key;
+		card.dataset.id = es_id;
+
 		const searchItemContents = createElement('div', 'search-item-contents');
-		searchItemContents.appendChild(createElement('div', 'search-word', word.w_basic_form));
-		searchItemContents.appendChild(createElement('div', 'search-word-type', `${this.wordTypes[word.wt_name]}`));
+		searchItemContents.appendChild(createElement('div', 'search-word', w_basic_form));
+		searchItemContents.appendChild(createElement('div', 'search-word-type', `${this.wordTypes[wt_name]}`));
 		card.appendChild(searchItemContents);
+
 		const searchItemTags = createElement('div', 'search-item-tags');
 		[['M', 'merged'], ['U', 'unsure'], ['I', 'ignore']].forEach(([text, className]) => {
 			const tag = createElement('div', `search-tag-${className}`, text);
@@ -388,266 +325,250 @@ class Sidebar {
 		});
 		card.appendChild(searchItemTags);
 
-		const senseState = buffer.senseStates.get(ss_key);
-		const isModified = () => {
-			if (!senseState) return false;
-
-			const { state, ignore, merged_with } = senseState;
-			return state.size || ignore || merged_with;
-		}
-
-		if (isModified(word)) card.classList.add('modified');
+		const entryState = buffer.entryStates.get(es_id);
 		(() => {
-			if (!senseState) return;
-			if (senseState.ignore) {
-				card.classList.add('ignore');
-				return;
-			}
-			if (senseState.merged_with) {
-				card.classList.add('merged');
-				return;
-			}
-			if (senseState.unsure) card.classList.add('unsure');
+			if (!entryState) return;
+
+			const { state, ignore, merged_with, can_merge } = entryState;
+			if (state.size || ignore || merged_with) setClass(card, 'modified', true);
+			if (can_merge) setClass(card, 'can_merge', true);
+			if (entryState.ignore) return setClass(card, 'ignore', true);
+			if (entryState.merged_with) return setClass(card, 'merged', true);
+			if (entryState.unsure) setClass(card, 'unsure', true);
 		})();
-		if (senseCount === 1) card.classList.add('unique');
-		if (senseCount === 0) card.classList.add('error');
-		if (senseState?.can_merge) card.classList.add('can_merge');
-		card.onclick = async e => {
-			e.preventDefault();
-			this.selectWord(word);
+		if (j_response.length === 1) setClass(card, 'unique', true);
+		if (j_response.length === 0) setClass(card, 'error', true);
+
+		const clickHandler = async () => {
+			await this.selectWord(wordBuffer);
 		}
+		card.onclick = eventHandler(async () => await clickHandler());
+		card.addEventListener('keydown', eventHandler(async ev => {
+			await KeydownHandlers.sidebar.card(card, ev, es_id, clickHandler);
+		}));
+
 		const countUpdateHandler = () => {
-			this.searchResultCount.textContent = `${index} / ${this.words.length}`
+			this.elems.searchResultCount.textContent = `${index} / ${this.wordBuffers.length}`
 		}
 		card.onfocus = countUpdateHandler;
 		card.onmouseenter = countUpdateHandler;
-		card.tabIndex = 0;
-		card.addEventListener('keydown', eventHandler(async ev => {
-			await KeydownHandlers.sidebar.card(card, ev, ss_key);
-		}));
+		focusable(card);
 
 		return card;
 	}
+	focus() {
+		const card = document.querySelector(`[data-id="${wordId(this.selected)}"]`);
+		if (card) return focusElem(card);
+
+		const cards = document.getElementsByClassName('search-item');
+		if (!cards.length) return;
+
+		focusElem(cards[0]);
+	}
 }
 
-class SenseStates {
+class EntryStates {
 	constructor() {
-		this.states = {};
-	}
-	toModel(db_senseState) {
-		const state = new Set(JSON.parse(db_senseState.state));
-		delete db_senseState.ss_key;
-		return { ...db_senseState, state };
+		this.entryStates = {};
 	}
 	async load() {
-		await asyncHandler('SENSE STATE LOAD', async () => {
-			const senseStates = await SenseState.findAll();
-			if (!senseStates) throw new Error('Failed to load sense states');
-			if (!senseStates.length) return;
+		await asyncHandler('ENTRY STATE LOAD', async () => {
+			const entryStates = await EntryState.findAll();
+			if (!entryStates) throw new Error('Failed to load entry states');
+			if (!entryStates.length) return;
 
-			for (const senseState of senseStates) {
-				const ss_key = senseState.ss_key;
-				this.states[ss_key] = this.toModel(senseState);
+			for (const entryState of entryStates) {
+				const es_id = entryState.es_id;
+				this.entryStates[es_id] = this.toModel(entryState);
 			}
 		})
 	}
-	async init(ss_key) {
-		return await asyncHandler('SENSE STATE INIT', async () => {
-			if (!this.states[ss_key]) {
-				const createdSenseState = await SenseState.create({ ss_key });
-				if (!createdSenseState) throw new Error('Failed to initialize sense state');
+	async init(es_id) {
+		return await asyncHandler('ENTRY STATE INIT', async () => {
+			if (!this.entryStates[es_id]) {
+				const entryState = await EntryState.create({ es_id });
+				if (!entryState) throw new Error('Failed to initialize entry state');
 
-				this.states[ss_key] = this.toModel(createdSenseState);
+				this.entryStates[es_id] = this.toModel(entryState);
 			}
 
-			return this.get(ss_key);
+			return this.get(es_id);
 		});
 	}
-	get(ss_key) {
-		return this.states[ss_key];
+	get(es_id) {
+		return this.entryStates[es_id];
 	}
-	async set(ss_key, body) {
-		return await asyncHandler('SENSE STATE SET', async () => {
-			if (!this.states[ss_key]) throw new Error('Failed to set sense state. Sense state must be initialized');
+	async set(es_id, body) {
+		return await asyncHandler('ENTRY STATE SET', async () => {
+			if (!this.entryStates[es_id]) throw new Error('Failed to set entry state. Entry state must be initialized');
 
-			const senseState = this.states[ss_key];
-			for (const [key, val] of Object.entries(body)) {
-				if (senseState[key] === undefined) throw new Error(`Failed to set sense state. key '${key}' is invalid`);
-				senseState[key] = val;
-			}
+			const updatedEntryState = await EntryState.update(es_id, body);
+			if (!updatedEntryState) throw new Error(`Failed to set entry state [${es_id}]`);
 
-			const updateBody = { ...body, ...{ state: body.state ? Array.from(body.state) : body.state } };
-			const updatedSenseState = await SenseState.update(ss_key, updateBody);
-			if (!updatedSenseState) throw new Error('Failed to set sense state');
-
-			this.states[ss_key] = senseState;
-			return senseState;
+			this.entryStates[es_id] = this.toModel(updatedEntryState);
+			return this.entryStates[es_id];
 		})
+	}
+	toModel(entryState) {
+		delete entryState.es_id;
+		return entryState;
 	}
 }
 
 class Buffer {
 	constructor() {
-		this.basicForm = document.getElementById("basicForm");
-		this.tokenId = document.getElementById("tokenId");
-		this.wordType = document.getElementById("wordType");
-		this.entryCount = document.getElementById("count");
-		this.occurrenceCount = document.getElementById("occurrence");
-		this.mergeCount = document.getElementById("mergeCount");
-		this.mergeWith = document.getElementById("mergeWith");
-		this.container = document.getElementById("entries");
-		this.headerActions = document.getElementById("headerActions");
+		this.elems = {
+			mainContent: document.querySelector('main.content'),
+			basicForm: document.getElementById("basicForm"),
+			tokenId: document.getElementById("tokenId"),
+			wordType: document.getElementById("wordType"),
+			entryCount: document.getElementById("count"),
+			occurrenceCount: document.getElementById("occurrence"),
+			mergeCount: document.getElementById("mergeCount"),
+			mergeWith: document.getElementById("mergeWith"),
+			container: document.getElementById("entries"),
+			headerActions: document.getElementById("headerActions")
+		}
+
+		this.selected = null;
+		this.wordBuffer = null;
+		this.entryStates = new EntryStates();
 		this.buttons = [];
 
-		this.w_basic_form = '';
-		this.token_ids = '';
-		this.wt_name = '';
-		this.occurrence_count = '';
-		this.entry_count = '';
-		this.word = null;
-
-		this.senseStates = new SenseStates();
-
-		const mainContent = document.querySelector('main.content');
-		mainContent.onclick = eventHandler(ev => {
-			if (ev.target === mainContent) this.focus();
+		this.elems.mainContent.onclick = eventHandler(ev => {
+			if (ev.target === this.elems.mainContent) this.focus();
 		});
 	}
-	async setWord(word) {
-		const ss_key = wordId(word);
-		this.w_basic_form = word.w_basic_form;
-		this.token_ids = word.token_ids;
-		this.wt_name = word.wt_name;
-		this.occurrence_count = word.count;
-		this.entry_count = JSON.parse(word.j_response).length;
+	async setWord(wordBuffer) {
+		this.selected = wordBuffer;
+		const es_id = wordId(this.selected);
 
-		this.renderHeader();
-		const senseState = this.senseStates.get(ss_key);
-		if (senseState?.merged_with) {
-			this.container.innerHTML = '';
-			const [w_basic_form, wt_name] = senseState.merged_with.split('_');
-			const word = await CleanedBuffer.findOne(w_basic_form, wt_name);
-			if (!word) return;
+		const entryState = this.entryStates.get(es_id);
+		if (entryState?.merged_with) {
+			this.elems.container.innerHTML = '';
+			const [w_basic_form, wt_name] = entryState.merged_with.split('_');
+			const wordBuffer = await WordBuffer.findOne(w_basic_form, wt_name);
+			if (!wordBuffer) return;
 
-			this.word = word;
+			this.wordBuffer = wordBuffer;
+			this.renderHeader();
 			this.renderEntries(true);
 			return;
 		}
-		this.word = word;
+		this.wordBuffer = this.selected;
+		this.renderHeader();
 		this.renderEntries();
 	}
 	renderHeader() {
-		this.basicForm.textContent = this.w_basic_form;
-		this.tokenId.textContent = `Token: ${this.token_ids}`;
-		this.wordType.textContent = sidebar.wordTypes[this.wt_name];
-		this.occurrenceCount.textContent = this.occurrence_count === 1 ? `1 Book occurrence` : `${this.occurrence_count} Book occurrences`;
-		this.entryCount.textContent = this.entry_count === 1 ? `1 Dictionary Entry` : `${this.entry_count} Dictionary Entries`;
+		const { token_ids, w_basic_form, wt_name, j_response, occurrence_count } = this.selected;
+		const { basicForm, tokenId, wordType, occurrenceCount, entryCount, headerActions } = this.elems;
+		basicForm.textContent = w_basic_form;
+		tokenId.textContent = `Tokens: ${token_ids}`;
+		wordType.textContent = sidebar.wordTypes[wt_name];
+		occurrenceCount.textContent = `Book occurrences: ${occurrence_count}`;
+		entryCount.textContent = `Dictionary entries: ${j_response.length}`;
 
 		this.renderMergeBadges();
 
-		this.headerActions.innerHTML = '';
+		headerActions.innerHTML = '';
 		for (const button of this.createHeaderActions()) {
-			this.headerActions.appendChild(button);
+			headerActions.appendChild(button);
 		}
 	}
 	renderMergeBadges() {
-		const senseState = this.senseStates.get(wordId(this));
+		const { w_basic_form, wt_name } = this.wordBuffer;
+		const { mergeCount, mergeWith } = this.elems;
+		const entryState = this.entryStates.get(wordId(this.selected));
+
 		const showBadge = (badge, text) => {
+			setClass(badge, 'hidden', false);
 			badge.textContent = text;
-			badge.classList.remove('hidden');
 		}
 		const hideBadge = (badge) => {
+			setClass(badge, 'hidden', true);
 			badge.textContent = '';
-			badge.classList.add('hidden');
 		}
-		if (senseState?.merged_with) {
-			const [w_basic_form, wt_name] = senseState.merged_with.split('_');
-			hideBadge(this.mergeCount);
-			showBadge(this.mergeWith, `Merged with: ${w_basic_form}  [ ${wt_name} ]`);
+
+		if (entryState?.merged_with) {
+			hideBadge(mergeCount);
+			showBadge(mergeWith, `Merged with: ${w_basic_form}  [ ${wt_name} ]`);
 			return;
 		}
-		hideBadge(this.mergeWith);
+		hideBadge(mergeWith);
 
-		if (senseState.can_merge) showBadge(this.mergeCount, `Merge possibilities: ${senseState.can_merge}`);
-		else hideBadge(this.mergeCount);
+		if (entryState?.can_merge) showBadge(mergeCount, `Merge possibilities: ${entryState.can_merge}`);
+		else hideBadge(mergeCount);
 	}
 	renderEntries(disabled) {
-		const entries = JSON.parse(this.word.j_response);
-		this.container.innerHTML = '';
-		for (let i = 0; i < entries.length; i++) {
-			const entry = entries[i];
-			this.container.appendChild(this.createEntry(entry, i, disabled));
+		const { j_response } = this.wordBuffer;
+		this.elems.container.innerHTML = '';
+		for (let i = 0; i < j_response.length; i++) {
+			const entry = j_response[i];
+			this.elems.container.appendChild(this.createEntry(entry, i, disabled));
 		}
 	}
-	syncButtonState(ss_key, buttons) {
-		const senseState = this.senseStates.get(ss_key);
-		if (!senseState) return;
+	syncButtonState(es_id, buttons) {
+		if (es_id !== wordId(this.selected)) return;
+
+		const entryState = this.entryStates.get(es_id);
+		if (!entryState) return;
 
 		const [btnMergeWith, btnUnsure, btnIgnore] = buttons ?? this.buttons;
-		const { merged_with, unsure, ignore } = senseState;
+		const { merged_with, unsure, ignore } = entryState;
 		if (ignore) {
-			if (!btnIgnore.classList.contains('selected')) btnIgnore.classList.add('selected');
+			setClass(btnIgnore, 'selected', true);
 			btnMergeWith.disabled = true;
 			btnUnsure.disabled = true;
 			return;
 		}
-		if (btnIgnore.classList.contains('selected')) btnIgnore.classList.remove('selected');
+		setClass(btnIgnore, 'selected', false);
 		btnMergeWith.disabled = false;
 
 		if (merged_with) {
-			if (!btnMergeWith.classList.contains('selected')) {
-				btnMergeWith.classList.add('selected');
-				btnMergeWith.textContent = 'Unmerge';
-			}
+			if (setClass(btnMergeWith, 'selected', true)) btnMergeWith.textContent = 'Unmerge';
 			btnUnsure.disabled = true;
 			btnIgnore.disabled = true;
 			return;
 		}
-		if (btnMergeWith.classList.contains('selected')) {
-			btnMergeWith.classList.remove('selected');
-			btnMergeWith.textContent = 'Merge';
-		}
+		if (setClass(btnMergeWith, 'selected', false)) btnMergeWith.textContent = 'Merge';
 		btnUnsure.disabled = false
 		btnIgnore.disabled = false;
 
-		if (unsure) {
-			if (!btnUnsure.classList.contains('selected')) btnUnsure.classList.add('selected');
-			return;
-		}
-		if (btnUnsure.classList.contains('selected')) btnUnsure.classList.remove('selected');
+		if (unsure) return setClass(btnUnsure, 'selected', true);
+		setClass(btnUnsure, 'selected', false);
 	}
 	createHeaderActions() {
-		const ss_key = wordId(this);
+		const es_id = wordId(this.selected);
 
-		this.buttons = this.createButtons(ss_key).buttons;
+		this.buttons = this.createButtons(es_id).buttons;
 		this.buttons.forEach(button => {
-			button.tabIndex = 0;
-			button.addEventListener('keydown', eventHandler(ev => {
-				KeydownHandlers.buffer.button(button, ev);
+			focusable(button);
+			button.addEventListener('keydown', eventHandler(async ev => {
+				await KeydownHandlers.buffer.button(button, ev);
 			}));
-		})
+		});
 
 		return this.buttons;
 	}
-	createButtons(ss_key) {
+	createButtons(es_id) {
 		const btnMergeWith = createElement('button', 'header-btn', 'Merge');
 		const btnMergeWithHandler = async () => {
-			const senseState = await this.senseStates.init(ss_key);
-			if (!senseState) return;
+			const entryState = await this.entryStates.init(es_id);
+			if (!entryState) return;
 
-			if (senseState.merged_with) {
-				const ss_key2 = senseState.merged_with;
-				const can_merge1 = InputHandler.mergeModal.searchInput(ss_key, sidebar.allWords, { sort: true }).topWords.length;
-				const updatedSenseState = await this.senseStates.set(ss_key, { merged_with: null, can_merge: can_merge1 });
-				if (!updatedSenseState) return;
+			if (entryState.merged_with) {
+				const es_id2 = entryState.merged_with;
+				const can_merge1 = mergeModal.transformWords(es_id, sidebar.allWordBuffers).top.length;
+				const updatedEntryState = await this.entryStates.set(es_id, { merged_with: null, can_merge: can_merge1 });
+				if (!updatedEntryState) return;
 
-				const can_merge2 = InputHandler.mergeModal.searchInput(ss_key2, sidebar.allWords, { sort: true }).topWords.length;
-				const updatedSenseState2 = await buffer.senseStates.set(ss_key2, { can_merge: can_merge2 });
-				if (!updatedSenseState2) return;
+				const can_merge2 = mergeModal.transformWords(es_id2, sidebar.allWordBuffers).top.length;
+				const updatedEntryState2 = await buffer.entryStates.set(es_id2, { can_merge: can_merge2 });
+				if (!updatedEntryState2) return;
 
-				sidebar.renderSearchResults(sidebar.words);
-				this.syncButtonState(ss_key, buttons);
-				this.word = sidebar.selectedWord;
+				sidebar.renderSearchResults(sidebar.wordBuffers);
+				this.syncButtonState(es_id, buttons);
+				this.wordBuffer = sidebar.selected;
 				this.renderMergeBadges();
 				this.renderEntries();
 				focusElem(btnMergeWith);
@@ -657,21 +578,21 @@ class Buffer {
 
 			focusElem(btnMergeWith);
 			this.focus();
-			await mergeModal.open(this.w_basic_form, this.wt_name);
+			await mergeModal.open(this.selected);
 		}
 		btnMergeWith.onclick = eventHandler(btnMergeWithHandler);
 
 		const btnUnsure = createElement('button', 'header-btn', 'Unsure');
 		const btnUnsureHandler = async () => {
-			const senseState = await this.senseStates.init(ss_key);
-			if (!senseState) return;
+			const entryState = await this.entryStates.init(es_id);
+			if (!entryState) return;
 
-			const unsure = !senseState.unsure;
-			const updatedSenseState = this.senseStates.set(ss_key, { unsure });
-			if (!updatedSenseState) return;
+			const unsure = !entryState.unsure;
+			const updatedEntryState = await this.entryStates.set(es_id, { unsure });
+			if (!updatedEntryState) return;
 
-			sidebar.renderSearchResults(sidebar.words);
-			this.syncButtonState(ss_key, buttons);
+			sidebar.renderSearchResults(sidebar.wordBuffers);
+			this.syncButtonState(es_id, buttons);
 			focusElem(btnUnsure);
 			this.focus()
 		}
@@ -679,15 +600,15 @@ class Buffer {
 
 		const btnIgnore = createElement('button', 'header-btn', 'Ignore');
 		const btnIgnorHandler = async () => {
-			const senseState = await this.senseStates.init(ss_key);
-			if (!senseState) return;
+			const entryState = await this.entryStates.init(es_id);
+			if (!entryState) return;
 
-			const ignore = !senseState.ignore;
-			const updatedSenseState = this.senseStates.set(ss_key, { ignore });
-			if (!updatedSenseState) return;
+			const ignore = !entryState.ignore;
+			const updatedEntryState = await this.entryStates.set(es_id, { ignore });
+			if (!updatedEntryState) return;
 
-			sidebar.renderSearchResults(sidebar.words);
-			this.syncButtonState(ss_key, buttons);
+			sidebar.renderSearchResults(sidebar.wordBuffers);
+			this.syncButtonState(es_id, buttons);
 			focusElem(btnIgnore); // Ensure button is visible
 			this.focus();
 		}
@@ -696,40 +617,40 @@ class Buffer {
 		const buttons = [btnMergeWith, btnUnsure, btnIgnore];
 		const handlers = [btnMergeWithHandler, btnUnsureHandler, btnIgnorHandler];
 
-		this.syncButtonState(ss_key, buttons);
+		this.syncButtonState(es_id, buttons);
 
 		return { buttons, handlers };
 	}
 	async toggleEntry(card, i) {
-		const ss_key = wordId(this);
-		const senseState = await this.senseStates.init(ss_key);
-		if (!senseState) return;
+		const es_id = wordId(this.selected);
+		const entryState = await this.entryStates.init(es_id);
+		if (!entryState) return;
 
-		const state = new Set(senseState.state);
+		const state = new Set(Array.from(entryState.state)); // copy of set instead of reference
 
-		// Toggle off
-		if (card.classList.contains('selected')) {
+		if (hasClass(card, 'selected')) {
+			// Toggle off
 			if (!state.size) {
-				card.classList.remove('selected');
+				setClass(card, 'selected', false);
 				return;
 			}
 
 			state.delete(i);
-			const can_merge = InputHandler.mergeModal.searchInput(ss_key, sidebar.allWords, { sort: true, targetState: state }).topWords.length;
-			const updatedSenseState = await this.senseStates.set(ss_key, { state, can_merge });
-			if (!updatedSenseState) return;
+			const can_merge = mergeModal.transformWords(es_id, sidebar.allWordBuffers, { targetState: state }).top.length;
+			const updatedEntryState = await this.entryStates.set(es_id, { state, can_merge });
+			if (!updatedEntryState) return;
 
-			card.classList.remove('selected');
+			setClass(card, 'selected', false);
 			return;
 		}
 
 		// Toggle on
 		state.add(i);
-		const can_merge = InputHandler.mergeModal.searchInput(ss_key, sidebar.allWords, { sort: true, targetState: state }).topWords.length;
-		const updatedSenseState = await this.senseStates.set(ss_key, { state, can_merge });
-		if (!updatedSenseState) return;
+		const can_merge = mergeModal.transformWords(es_id, sidebar.allWordBuffers, { targetState: state }).top.length;
+		const updatedEntryState = await this.entryStates.set(es_id, { state, can_merge });
+		if (!updatedEntryState) return;
 
-		card.classList.add('selected');
+		setClass(card, 'selected', true);
 	}
 	createEntry(entry, i, disabled) {
 		const card = createElement("div", "entry");
@@ -737,12 +658,12 @@ class Buffer {
 		card.appendChild(this.createJapaneseSection(entry.japanese));
 		card.appendChild(this.createMeaningSection(entry.senses));
 
-		const senseState = this.senseStates.get(wordId(this.word));
-		if (senseState?.state && senseState.state.has(i)) card.classList.add('selected');
+		const entryState = this.entryStates.get(wordId(this.wordBuffer));
+		if (entryState?.state && entryState.state.has(i)) setClass(card, 'selected', true);
 		if (entry.tags.length > 0) card.appendChild(this.createDictionaryTags(entry.tags));
 
 		if (disabled) {
-			card.classList.add('disabled');
+			setClass(card, 'disabled', true);
 			return card;
 		}
 
@@ -750,13 +671,13 @@ class Buffer {
 			await this.toggleEntry(card, i);
 
 			this.renderMergeBadges();
-			sidebar.renderSearchResults(sidebar.words);
+			sidebar.renderSearchResults(sidebar.wordBuffers);
 		}
 		card.onclick = eventHandler(clickHandler);
-		card.tabIndex = 0;
 		card.addEventListener('keydown', eventHandler(async ev => {
 			await KeydownHandlers.buffer.card(card, ev, clickHandler);
 		}));
+		focusable(card);
 
 		return card;
 	}
@@ -772,10 +693,10 @@ class Buffer {
 
 		return header;
 	}
-	createJapaneseSection(words) {
+	createJapaneseSection(japaneseWords) {
 		const section = this.createSection("Forms");
 
-		words.forEach((word) => {
+		japaneseWords.forEach((word) => {
 			section.appendChild(this.createJapaneseWord(word));
 		});
 
@@ -838,8 +759,8 @@ class Buffer {
 		return section;
 	}
 	focus(selected) {
-		const ss_key = wordId(this);
-		if (!this.senseStates.get(ss_key)?.merged_with) {
+		const es_id = wordId(this.selected);
+		if (!this.entryStates.get(es_id)?.merged_with) {
 			if (selected) {
 				const cards = document.querySelectorAll('.entry.selected');
 				if (cards.length) {
@@ -865,56 +786,60 @@ class Buffer {
 
 class MergeModal {
 	constructor() {
-		this.mergeModal = document.getElementById('mergeModal');
-		this.modalTargetWord = document.getElementById('modalTargetWord');
-		this.modalSelectedWord = document.getElementById('modalSelectedWord');
-		this.modalSearchInput = document.getElementById('modalSearchInput');
-		this.modalList = document.getElementById('modalList');
-		this.modalCancel = document.getElementById('modalCancel');
-		this.modalConfirm = document.getElementById('modalConfirm');
+		this.elems = {
+			mergeModal: document.getElementById('mergeModal'),
+			mergeModalTargetWord: document.getElementById('mergeModalTargetWord'),
+			mergeModalSelectedWord: document.getElementById('mergeModalSelectedWord'),
+			mergeModalSearchInput: document.getElementById('mergeModalSearchInput'),
+			mergeModalList: document.getElementById('mergeModalList'),
+			mergeModalCancel: document.getElementById('mergeModalCancel'),
+			mergeModalConfirm: document.getElementById('mergeModalConfirm'),
+		}
 
 		this.modalItems = {};
-		this.selectedWord = null;
-		this.w_basic_form = null;
-		this.wt_name = null;
+		this.selected = null;
+		this.target = null
 
-		this.modalSearchInput.oninput = eventHandler(async ev => {
+		this.elems.mergeModalSearchInput.oninput = eventHandler(async ev => {
 			await asyncHandler('MERGE MODAL SEARCH', async () => {
 				const text = ev.target.value;
-				const words = !text ? sidebar.allWords : await CleanedBuffer.find(text);
-				if (!words) throw new Error(`Failed to search word '${text}'`);
+				const wordBuffers = !text ? sidebar.allWordBuffers : await WordBuffer.find(text);
+				if (!wordBuffers) throw new Error(`Failed to search word '${text}'`);
 
-				const { bottomWords } = InputHandler.mergeModal.searchInput(wordId(this), words);
+				const { bottom } = mergeModal.transformWords(wordId(this.target), wordBuffers, { sort: false });
 
-				this.renderModelItems(bottomWords);
+				this.renderModelItems(bottom);
 			})
 		});
-		this.modalSearchInput.addEventListener('keydown', async ev => {
+		this.elems.mergeModalSearchInput.addEventListener('keydown', async ev => {
 			KeydownHandlers.mergeModal.searchInput(ev);
 		});
-		this.modalCancel.onclick = eventHandler(() => {
+		this.elems.mergeModalCancel.onclick = eventHandler(() => {
 			this.cancel();
 		});
-		this.modalConfirm.onclick = eventHandler(async () => {
+		this.elems.mergeModalConfirm.onclick = eventHandler(async () => {
 			await this.confirm();
 		});
-		this.modalConfirm.disabled = true;
+		this.elems.mergeModalConfirm.disabled = true;
 	}
-	async open(w_basic_form, wt_name) {
-		this.modalTargetWord.textContent = `${w_basic_form} [${wt_name}]`;
-		this.modalSelectedWord.textContent = '';
-		this.w_basic_form = w_basic_form;
-		this.wt_name = wt_name;
+	async open(wordBuffer) {
+		const { w_basic_form, wt_name } = wordBuffer;
+		const { mergeModal, mergeModalTargetWord, mergeModalSelectedWord } = this.elems;
+
+		mergeModalTargetWord.textContent = `${w_basic_form} [${wt_name}]`;
+		mergeModalSelectedWord.textContent = '';
+		this.target = wordBuffer;
+
 		await asyncHandler('MERGE MODAL OPEN', () => {
-			const words = sidebar.allWords;
-			if (!words) throw new Error('Failed to open merge modal. Unable to find words');
+			const wordBuffers = sidebar.allWordBuffers;
+			if (!wordBuffers) throw new Error('Failed to open merge modal. Unable to find word buffers');
 
-			const { topWords, bottomWords } = InputHandler.mergeModal.searchInput(wordId(this), words, { sort: true });
-			const sortedWords = [...topWords, ...bottomWords];
+			const { top, bottom } = this.transformWords(wordId(this.target), wordBuffers);
+			const sorted = [...top, ...bottom];
 
-			this.renderModelItems(sortedWords);
+			this.renderModelItems(sorted);
 
-			if (!this.mergeModal.classList.contains('open')) this.mergeModal.classList.add('open');
+			setClass(mergeModal, 'open', true);
 			const cards = Object.values(this.modalItems);
 			if (cards.length) {
 				focusElem(cards[0]);
@@ -923,68 +848,69 @@ class MergeModal {
 		});
 	}
 	cancel() {
-		this.modalTargetWord.textContent = '';
-		this.modalSelectedWord.textContent = '';
-		this.modalSearchInput.value = '';
-		this.modalList.innerHTML = '';
+		const { mergeModal, mergeModalTargetWord, mergeModalSelectedWord, mergeModalSearchInput, mergeModalList } = this.elems;
+
+		mergeModalTargetWord.textContent = '';
+		mergeModalSelectedWord.textContent = '';
+		mergeModalSearchInput.value = '';
+		mergeModalList.innerHTML = '';
+
 		this.modalItems = {};
-		this.w_basic_form = null;
-		this.wt_name = null;
-		this.selectedWord = null;
+		this.target = null;
+		this.selected = null;
 
-		if (this.mergeModal.classList.contains('open')) this.mergeModal.classList.remove('open');
-
+		setClass(mergeModal, 'open', false);
 		focusElem(buffer.buttons[0]);
 	}
 	async confirm() {
-		if (!this.selectedWord) return;
+		if (!this.selected) return;
 
-		const ss_key1 = wordId(this);
-		const ss_key2 = wordId(this.selectedWord);
-		const updatedSenseState1 = await buffer.senseStates.set(ss_key1, { merged_with: ss_key2, can_merge: 0 });
-		if (!updatedSenseState1) return;
+		const [es_id1, es_id2] = [wordId(this.target), wordId(this.selected)];
+		const updatedEntryState1 = await buffer.entryStates.set(es_id1, { merged_with: es_id2, can_merge: 0 });
+		if (!updatedEntryState1) return;
 
-		const can_merge = InputHandler.mergeModal.searchInput(ss_key2, sidebar.allWords, { sort: true }).topWords.length;
-		const updatedSenseState2 = await buffer.senseStates.set(ss_key2, { can_merge });
-		if (!updatedSenseState2) return;
+		const can_merge = mergeModal.transformWords(es_id2, sidebar.allWordBuffers).top.length;
+		const updatedEntryState2 = await buffer.entryStates.set(es_id2, { can_merge });
+		if (!updatedEntryState2) return;
 
-		sidebar.renderSearchResults(sidebar.words);
-		buffer.syncButtonState(ss_key1);
-		buffer.word = this.selectedWord;
+		sidebar.renderSearchResults();
+		buffer.syncButtonState(es_id1);
+		buffer.wordBuffer = this.selected;
 		buffer.renderMergeBadges()
 		buffer.renderEntries(true);
 
 		this.cancel();
 	}
-	renderModelItems(words) {
-		this.modalList.innerHTML = '';
-		this.modalItems = {};
-		words.forEach(word => {
-			const ss_key = wordId(word);
-			this.modalItems[ss_key] = this.createModalItem(word);
-			this.modalList.appendChild(this.modalItems[ss_key]);
+	renderModelItems(wordBuffers) {
+		this.elems.mergeModalList.innerHTML = '';
+		wordBuffers.forEach(wordBuffer => {
+			const es_id = wordId(wordBuffer);
+			this.modalItems[es_id] = this.createModalItem(wordBuffer);
+			this.elems.mergeModalList.appendChild(this.modalItems[es_id]);
 		});
 		const firstModalItem = Object.values(this.modalItems)?.[0];
 		if (firstModalItem) firstModalItem.click();
 	}
-	createModalItem(word) {
+	createModalItem(wordBuffer) {
+		const { w_basic_form, wt_name } = wordBuffer;
+		const { mergeModalSelectedWord, mergeModalConfirm } = this.elems;
 		const card = createElement('div', 'modal-item');
-		card.appendChild(createElement('div', 'modal-item-word', word.w_basic_form));
-		card.appendChild(createElement('div', 'modal-item-type', word.wt_name));
-		card.tabIndex = 0;
+		card.appendChild(createElement('div', 'modal-item-word', w_basic_form));
+		card.appendChild(createElement('div', 'modal-item-type', wt_name));
+		focusable(card);
 		const clickHandler = () => {
 			const cards = document.getElementsByClassName('modal-item');
 			if (!cards) return;
 
-			this.selectedWord = word;
-			this.modalSelectedWord.textContent = `${word.w_basic_form} [${word.wt_name}]`;
-			this.modalConfirm.disabled = false;
+			this.selected = wordBuffer;
+			mergeModalSelectedWord.textContent = `${w_basic_form} [${wt_name}]`;
+			mergeModalConfirm.disabled = false;
 
 			Object.values(cards).forEach(card => {
-				if (card.classList.contains('selected')) card.classList.remove('selected');
+				setClass(card, 'selected', false);
 			});
 
-			card.classList.add('selected');
+			setClass(card, 'selected', true);
 		};
 		card.onclick = eventHandler(clickHandler);
 		card.addEventListener('keydown', eventHandler(async ev => {
@@ -993,29 +919,126 @@ class MergeModal {
 
 		return card;
 	}
+	transformWords(es_id, wordBuffers, opts) {
+		const [w_basic_form, wt_name] = es_id.split('_'); // target word params
+		const isTargetWord = word => word.w_basic_form === w_basic_form && word.wt_name === wt_name;
+		const filteredWords = wordBuffers.filter(word => !isTargetWord(word));
+
+		const sort = opts?.sort ?? true;
+		if (!sort) return { top: [], bottom: filteredWords };
+
+		const getEntries = (word, state) => {
+			if (!state) return undefined;
+			return word.j_response.filter((_, i) => Array.from(state).includes(i));
+		}
+		const [targetWord] = wordBuffers.filter(isTargetWord);
+		const targetState = opts?.targetState ?? buffer.entryStates.get(wordId(targetWord))?.state;
+		const targetEntries = getEntries(targetWord, targetState);
+		if (!targetEntries?.length) return { top: [], bottom: filteredWords };
+
+		const isMergedWord = word => {
+			const es_id = wordId(word);
+			const entryState = buffer.entryStates.get(es_id);
+			return entryState && entryState.merged_with;
+		}
+		const isTopWord = word => {
+			if (isMergedWord(word)) return false;
+
+			const state = buffer.entryStates.get(wordId(word))?.state;
+			const entries = getEntries(word, state);
+			if (!entries?.length) return false;
+
+			return targetEntries.every(targetEntry => entries.some(entry => entry.slug === targetEntry.slug));
+		};
+		return { top: filteredWords.filter(isTopWord), bottom: filteredWords.filter(word => !isTopWord(word)) };
+	}
+}
+
+class SentenceModal {
+	constructor() {
+		this.elems = {
+			sentenceModal: document.getElementById('sentenceModal'),
+			sentenceModalReferenceWord: document.getElementById('sentenceModalReferenceWord'),
+			sentenceModalList: document.getElementById('sentenceModalList'),
+		}
+
+		this.elems.sentenceModal.onclick = eventHandler(ev => {
+			if (ev.target === this.elems.sentenceModal) {
+				this.close();
+				buffer.focus();
+			}
+		});
+		this.elems.sentenceModal.addEventListener('keydown', eventHandler(ev => {
+			KeydownHandlers.sentenceModal.modal(ev);
+		}));
+		focusable(this.elems.sentenceModal);
+
+		this.elems.sentenceModalList.addEventListener('wheel', eventHandler(ev => {
+			if (ev.deltaY === 0) return;
+			this.elems.sentenceModalList.scrollLeft -= ev.deltaY;
+		}));
+	}
+	async open() {
+		const wordBuffer = buffer.selected
+		const { sentenceModalReferenceWord, sentenceModal } = this.elems;
+		await asyncHandler('SENTENCE MODAL OPEN', async () => {
+			const { w_basic_form, wt_name } = wordBuffer;
+			const sentenceBuffers = await SentenceBuffer.find(w_basic_form, wt_name);
+			if (!sentenceBuffers) throw new Error('Failed to open sentence modal. Unable to find sentence buffers');
+
+			this.renderModalItems(sentenceBuffers);
+			sentenceModalReferenceWord.textContent = `${w_basic_form} [ ${wt_name} ]`;
+			setClass(sentenceModal, 'open', true);
+
+			focusElem(sentenceModal);
+		});
+	}
+	close() {
+		const { sentenceModal, sentenceModalReferenceWord, sentenceModalList } = this.elems;
+		setClass(sentenceModal, 'open', false);
+		sentenceModalReferenceWord.textContent = '';
+		sentenceModalList.innerHTML = '';
+
+		buffer.focus();
+	}
+	renderModalItems(sentenceBuffers) {
+		this.elems.sentenceModalList.innerHTML = '';
+		for (const sentenceBuffer of sentenceBuffers) {
+			this.elems.sentenceModalList.appendChild(this.createModalItem(sentenceBuffer));
+		}
+	}
+	createModalItem(sentenceBuffer) {
+		const { section_no, sentence_no, sentence_text } = sentenceBuffer;
+		const card = createElement('div', 'modal-item');
+		card.appendChild(createElement('div', 'modal-item-header', `${section_no}:${sentence_no}`));
+		card.appendChild(createElement('div', 'modal-item-text', sentence_text));
+
+		return card
+	}
 }
 
 const buffer = new Buffer();
 const sidebar = new Sidebar();
 const mergeModal = new MergeModal();
+const sentenceModal = new SentenceModal();
 
 asyncHandler('MAIN INIT', async () => {
-	await buffer.senseStates.load();
+	await buffer.entryStates.load();
 	await sidebar.load();
-	const words = await asyncHandler('SIDEBAR INIT', async () => {
-		const words = sidebar.allWords;
-		sidebar.renderSearchResults(words);
+	const wordBuffers = await asyncHandler('SIDEBAR INIT', async () => {
+		const wordBuffers = sidebar.allWordBuffers;
+		sidebar.renderSearchResults(wordBuffers);
 
-		const params = new URLSearchParams(window.location.search);
-		const select = params.get('select');
-		const wt_name = params.get('wt_name');
+		const params = (() => {
+			const params = new URLSearchParams(window.location.search);
+			return { select: params.get('select'), wt_name: params.get('wt_name') }
+		})();
 
-		if (!select && !wt_name) return words;
-		if (!wt_name) return words.filter(word => word.w_basic_form === select);
-		return words.filter(word => word.w_basic_form === select && word.wt_name === wt_name);
+		if (!params.select && !params.wt_name) return wordBuffers;
+		if (!params.wt_name) return wordBuffers.filter(({ w_basic_form }) => w_basic_form === params.select);
+		return wordBuffers.filter(({ w_basic_form, wt_name }) => w_basic_form === params.select && wt_name === params.wt_name);
 	});
-	if (!words.length) throw new Error(`Failed to load data. No data found`);
+	if (!wordBuffers.length) throw new Error(`Failed to load data. No data found`);
 
-	const word = words[0];
-	sidebar.selectWord(word);
+	sidebar.selectWord(wordBuffers[0]);
 });

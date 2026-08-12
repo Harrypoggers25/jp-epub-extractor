@@ -655,6 +655,63 @@
             border-color: #2a2c2d;
             cursor: default;
         }
+
+        #sentenceModal .modal-box {
+            max-width: 80vw;
+            max-height: 75vh;
+        }
+
+        #sentenceModal .modal-list {
+            display: flex;
+            flex-direction: row-reverse;
+            overflow-x: auto;
+            overflow-y: hidden;
+            height: 50vh;
+            padding: 10px 6px;
+        }
+
+        #sentenceModal .modal-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+            border-bottom: none;
+            border-left: none;
+            border-right: 4px solid #999;
+            padding: 8px 14px;
+            margin-right: 20px;
+            height: 100%;
+        }
+
+        #sentenceModal .modal-item:is(:hover, :focus) {
+            border-right: 4px solid #999;
+        }
+
+        #sentenceModal .modal-item.selected {
+            border-right: 4px solid #7c8aff;
+        }
+
+        #sentenceModal .modal-item.selected:is(:hover, :focus) {
+            border-right: 4px solid #7c8aff;
+        }
+
+        #sentenceModal .modal-item-header {
+            writing-mode: horizontal-tb;
+            color: #999;
+            font-size: 12px;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+        }
+
+        #sentenceModal .modal-item-text {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            font-size: 16px;
+            line-height: 1.9;
+            letter-spacing: 0.05em;
+            height: 100%;
+            color: #e8e6e3;
+        }
     </style>
 </head>
 
@@ -704,19 +761,30 @@
     </div>
     <div class="modal-overlay" id="mergeModal">
         <div class="modal-box">
-            <h3>Selected word: <span id="modalTargetWord"></span></h3>
-            <h3>Merge with: <span id="modalSelectedWord"></span></h3>
-            <input id="modalSearchInput" class="modal-search" type="text" placeholder="Search entries..."
+            <h3>Selected word: <span id="mergeModalTargetWord"></span></h3>
+            <h3>Merge with: <span id="mergeModalSelectedWord"></span></h3>
+            <input id="mergeModalSearchInput" class="modal-search" type="text" placeholder="Search entries..."
                 autocomplete="off">
-            <div class="modal-list" id="modalList">
-                <!-- <div class="modal-item" data-id="1"> -->
-                <!--     <div class="modal-item-word">買い物</div> -->
-                <!--     <div class="modal-item-type">かいもの</div> -->
+            <div class="modal-list" id="mergeModalList">
+                <!-- <div class="modal-item"> -->
+                <!--     <div class="modal-item-word">動く</div> -->
+                <!--     <div class="modal-item-type">動詞</div> -->
                 <!-- </div> -->
             </div>
             <div class="modal-actions">
-                <button class="modal-btn" id="modalCancel">Cancel</button>
-                <button class="modal-btn confirm" id="modalConfirm">Confirm</button>
+                <button class="modal-btn" id="mergeModalCancel">Cancel</button>
+                <button class="modal-btn confirm" id="mergeModalConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="sentenceModal">
+        <div class="modal-box">
+            <h3>Reference word: <span id="sentenceModalReferenceWord"></span></h3>
+            <div class="modal-list" id="sentenceModalList">
+                <!-- <div class="modal-item"> -->
+                <!--     <div class="modal-item-header">1:1</div> -->
+                <!--     <div class="modal-item-text">私はリンゴが好きです</div> -->
+                <!-- </div> -->
             </div>
         </div>
     </div>

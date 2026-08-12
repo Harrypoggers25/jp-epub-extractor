@@ -13,12 +13,6 @@ import express from "express";
 // ROUTERS
 import router from "./routers";
 
-// SERVICES
-
-// const filteredPos: Array<PosType> = ['感動詞', '連体詞', '助動詞', '助詞', '記号', 'フィラー', 'その他'];
-// const fileName = 'epubs/book.epub';
-// const sections = ['text/part0003_split_000.html', 'text/part0003_split_001.html', 'text/part0004.html',];
-
 App.listen({
 	port: env.PORT,
 	version: '1.0.0',
@@ -33,7 +27,7 @@ App.listen({
 		await db.sync({ alter: false });
 	},
 	callback: async () => {
-		asyncHandler('app', async () => {
+		await asyncHandler('app', async () => {
 		});
 	},
 });

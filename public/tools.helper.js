@@ -22,17 +22,39 @@ export function createElement(tag, className = null, text = null) {
 	return element;
 }
 
-export function wordId(a, b) {
-	if (arguments.length === 2) return `${a}_${b}`;
-	return `${a.w_basic_form}_${a.wt_name}`;
+export function hasClass(elem, className) {
+	return elem.classList.contains(className);
+}
+
+export function setClass(elem, className, toggle) {
+	if (toggle) {
+		if (!elem.classList.contains(className)) {
+			elem.classList.add(className);
+			return true;
+		}
+	} else {
+		if (elem.classList.contains(className)) {
+			elem.classList.remove(className);
+			return true;
+		}
+	}
+	return false;
+}
+
+export function unsetClass(elem, className) {
+	if (!elem.classList.contains(className)) elem.classList.add(className);
 }
 
 export const nextElem = elem => elem.nextElementSibling;
 export const prevElem = elem => elem.previousElementSibling;
 
-export function focusElem(card) {
-	card?.focus();
-	card?.scrollIntoView({
+export function focusable(elem) {
+	elem.tabIndex = 0;
+}
+
+export function focusElem(elem) {
+	elem?.focus();
+	elem?.scrollIntoView({
 		behavior: "smooth",
 		block: "nearest"
 	});
@@ -59,3 +81,5 @@ export function focusOffClassCard(card, className, cardHandler) {
 		newCard = cardHandler(newCard);
 	}
 }
+
+export const wordId = (wordBuffer) => `${wordBuffer.w_basic_form}_${wordBuffer.wt_name}`; // returns es_id

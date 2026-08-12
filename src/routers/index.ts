@@ -2,17 +2,25 @@
 import { Router } from "express";
 
 // ROUTERS
+import bookRouter from "./book-buffer.router"
 import wordRouter from "./word.router";
+import wordBufferRouter from "./word-buffer.router";
 import wordTypeRouter from "./word-types.router";
-import cleanedBufferRouter from "./cleaned-buffer.router";
-import senseStateRouter from "./sense-state.router";
+import entryStateRouter from "./sense-state.router";
+import sentenceBufferRouter from "./sentence-buffer.router";
+import jishoBufferRouter from "./jisho-buffer.router";
+import tokenBufferRouter from "./token-buffer.router";
 
 const router = Router();
 
-router.use('/api/words', wordRouter);
 router.use('/api/word-types', wordTypeRouter);
-router.use('/api/cleaned-buffers', cleanedBufferRouter);
-router.use('/api/sense-states', senseStateRouter);
+router.use('/api/book-buffers', bookRouter);
+router.use('/api/token-buffers', tokenBufferRouter);
+router.use('/api/jisho-buffers', jishoBufferRouter);
+router.use('/api/sentence-buffers', sentenceBufferRouter);
+router.use('/api/word-buffers', wordBufferRouter);
+router.use('/api/entry-states', entryStateRouter);
+router.use('/api/words', wordRouter);
 
 router.get('/', (_, res) => {
 	res.render('index');

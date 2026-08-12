@@ -30,6 +30,8 @@ export interface IParsedToken {
 	surface_form: string,
 };
 
+export interface ITokenPositions extends Record<number, Array<number>> { };
+
 export const PosDesc: Record<PosType, string> = {
 	'助動詞': 'Auxiliary verbs',
 	'助詞': 'Particles',
@@ -47,4 +49,20 @@ export const PosDesc: Record<PosType, string> = {
 };
 
 export type ExtractBookOptions = { sections?: Array<string>, filteredPos?: Array<PosType>, showDuplicate?: boolean };
-export type ExtractEpubFileOptions = { sections?: Array<string> };
+
+export function mergeTokenPositions(a: ITokenPositions, b: ITokenPositions): ITokenPositions {
+	const map = new Map<number, number[]>();
+
+	for (const positions of [a, b]) {
+		for (const [key, values] of Object.entries(positions)) {
+			const k = Number(key);
+			map.set(k, [...(map.get(k) ?? []), ...values]);
+		}
+	}
+
+	return Object.fromEntries(
+		[...map.entries()]
+			.sort(([a], [b]) => a - b)
+			.map(([key, values]) => [key, values.sort((a, b) => a - b)]),
+	) as ITokenPositions;
+}
