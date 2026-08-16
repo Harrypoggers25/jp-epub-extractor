@@ -986,10 +986,7 @@ class SentenceModal {
 			const sentenceBuffers = await SentenceBuffer.find(w_basic_form, wt_name);
 			if (!sentenceBuffers) throw new Error('Failed to open sentence modal. Unable to find sentence buffers');
 
-			this.renderModalItems(sentenceBuffers.map(sentenceBuffers => {
-				sentenceBuffers.sentence_text = this.boldWordSentence(w_basic_form, sentenceBuffers.sentence_text);
-				return sentenceBuffers;
-			}));
+			this.renderModalItems(sentenceBuffers);
 			sentenceModalReferenceWord.textContent = `${w_basic_form} [ ${wt_name} ]`;
 			setClass(sentenceModal, 'open', true);
 

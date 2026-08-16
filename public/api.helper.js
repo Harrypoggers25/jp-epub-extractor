@@ -47,7 +47,7 @@ export const WordBuffer = {
 export const SentenceBuffer = {
 	find: async (w_basic_form, wt_name) => {
 		return await asyncHandler('FIND SENTENCE BUFFERS', async () => {
-			const response = await fetch(`/api/sentence-buffers/word-buffer/${w_basic_form}/${wt_name}`, { method: 'GET' });
+			const response = await fetch(`/api/sentence-buffers/word-buffer/${w_basic_form}/${wt_name}?highlight=true`, { method: 'GET' });
 			if (!response.ok) throw new Error('Failed to find sentence buffers. Internal error');
 
 			const sentenceBuffers = await response.json();
