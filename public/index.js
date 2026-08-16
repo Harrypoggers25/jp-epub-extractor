@@ -986,7 +986,10 @@ class SentenceModal {
 			const sentenceBuffers = await SentenceBuffer.find(w_basic_form, wt_name);
 			if (!sentenceBuffers) throw new Error('Failed to open sentence modal. Unable to find sentence buffers');
 
-			this.renderModalItems(sentenceBuffers);
+			this.renderModalItems(sentenceBuffers.map(sentenceBuffers => {
+				sentenceBuffers.sentence_text = this.boldWordSentence(w_basic_form, sentenceBuffers.sentence_text);
+				return sentenceBuffers;
+			}));
 			sentenceModalReferenceWord.textContent = `${w_basic_form} [ ${wt_name} ]`;
 			setClass(sentenceModal, 'open', true);
 
@@ -1011,9 +1014,41 @@ class SentenceModal {
 		const { section_no, sentence_no, sentence_text } = sentenceBuffer;
 		const card = createElement('div', 'modal-item');
 		card.appendChild(createElement('div', 'modal-item-header', `${section_no}:${sentence_no}`));
-		card.appendChild(createElement('div', 'modal-item-text', sentence_text));
+		const modalItemText = createElement('div', 'modal-item-text');
+		modalItemText.innerHTML = sentence_text;
+		card.appendChild(modalItemText);
 
 		return card
+	}
+	boldWordSentence(word, sentence) {
+		if (!word) return sentence;
+
+		const chars = Array.from(sentence);
+		const wordChars = Array.from(word);
+		let result = "";
+		let i = 0;
+
+		while (i < chars.length) {
+			let matched = false;
+
+			for (let len = wordChars.length; len >= 1; len--) {
+				const candidate = chars.slice(i, i + len).join("");
+				const target = wordChars.slice(0, len).join("");
+				if (candidate === target) {
+					result += `<b>${candidate}</b>`;
+					i += len;
+					matched = true;
+					break;
+				}
+			}
+
+			if (!matched) {
+				result += chars[i];
+				i++;
+			}
+		}
+
+		return result;
 	}
 }
 
