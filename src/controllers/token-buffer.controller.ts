@@ -15,7 +15,13 @@ import Book from "../services/book.service";
 
 const filteredOutPos: Array<PosType> = ['感動詞', '連体詞', '助動詞', '助詞', '記号', 'フィラー', 'その他'];
 export namespace TokenBufferHandler {
-	export const removeAll = Route.asyncHandler(async (req, res) => {
+	export const count = Route.asyncHandler(async (_, res) => {
+		const tokenBuffers = await TokenBuffer.find();
+		if (!tokenBuffers) throw new Error(Message.failed(['find', 'sentence buffer count']));
+
+		res.status(200).json({ count: tokenBuffers.length });
+	});
+	export const removeAll = Route.asyncHandler(async (_, res) => {
 		const tokenBuffers = await TokenBuffer.delete();
 		if (!tokenBuffers) throw new Error(Message.failed(['delete', 'all token buffers']));
 

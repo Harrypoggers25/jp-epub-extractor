@@ -8,6 +8,8 @@ const wordBufferRouter = Router();
 
 wordBufferRouter.route('/')
 	.get(WordBufferHandler.findAll);
+wordBufferRouter.route('/count')
+	.get(WordBufferHandler.count);
 wordBufferRouter.route('/filter')
 	.post(WordBufferHandler.filter);
 wordBufferRouter.route('/:w_basic_form')

@@ -1,5 +1,5 @@
 // CONFIGS
-import { BookBuffer, db, ISentenceBuffer, SentenceBuffer, WordBuffer } from "../configs/db.config";
+import { BookBuffer, ISentenceBuffer, SentenceBuffer, WordBuffer } from "../configs/db.config";
 
 // HELPERS
 import { ITokenPositions } from "../helpers/book.helper";
@@ -11,6 +11,12 @@ import Message from "@harrypoggers25/message";
 import Route from "@harrypoggers25/route";
 
 export namespace SentenceBufferHandler {
+	export const count = Route.asyncHandler(async (_, res) => {
+		const sentenceBuffers = await SentenceBuffer.find();
+		if (!sentenceBuffers) throw new Error(Message.failed(['find', 'sentence buffer count']));
+
+		res.status(200).json({ count: sentenceBuffers.length });
+	});
 	export const findBySection = Route.asyncHandler(async (req, res) => {
 		const section_no = +req.params.section_no;
 		const limit = req.query.limit ? +req.query.limit : 50;

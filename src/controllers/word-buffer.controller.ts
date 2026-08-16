@@ -11,6 +11,12 @@ import { IJishoReducedWord, IJishoWord } from "../helpers/jisho.helper";
 import { ITokenPositions } from "../helpers/book.helper";
 
 export namespace WordBufferHandler {
+	export const count = Route.asyncHandler(async (_, res) => {
+		const wordBuffers = await WordBuffer.find();
+		if (!wordBuffers) throw new Error(Message.failed(['find', 'sentence buffer count']));
+
+		res.status(200).json({ count: wordBuffers.length });
+	});
 	export const findAll = Route.asyncHandler(async (_, res) => {
 		const words = await WordBuffer.find({ orderBy: { w_character_type: 'DESC', w_basic_form: 'ASC', wt_name: 'ASC' } });
 		if (!words) throw new Error(Message.failed(['find', 'all words']));
