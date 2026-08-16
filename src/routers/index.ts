@@ -6,7 +6,7 @@ import bookRouter from "./book-buffer.router"
 import wordRouter from "./word.router";
 import wordBufferRouter from "./word-buffer.router";
 import wordTypeRouter from "./word-types.router";
-import entryStateRouter from "./sense-state.router";
+import entryStateRouter from "./entry-state.router";
 import sentenceBufferRouter from "./sentence-buffer.router";
 import jishoBufferRouter from "./jisho-buffer.router";
 import tokenBufferRouter from "./token-buffer.router";
