@@ -41,8 +41,9 @@ export const TokenBuffer = db.define('token_buffers', {
 	token_id: { type: DataTypes.INTEGER, allowNull: false },
 	w_basic_form: { type: DataTypes.VARCHAR(511), allowNull: false },
 	w_reading: { type: DataTypes.VARCHAR(511), allowNull: false },
+	surface_form: { type: DataTypes.VARCHAR(511), allowNull: false },
 	w_pos_details: { type: DataTypes.VARCHAR(1023), allowNull: false },
-	token_positions: { type: DataTypes.TEXT, allowNull: false },
+	token_positions: { type: DataTypes.TEXT, allowNull: false, defaultValue: '{}' },
 	created_at: { type: DataTypes.TIMESTAMP, allowNull: false },
 	wt_name: { type: DataTypes.VARCHAR(511), allowNull: false },
 });

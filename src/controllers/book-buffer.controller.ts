@@ -2,7 +2,6 @@
 import { BookBuffer, db, JishoBuffer, SentenceBuffer, TokenBuffer, WordBuffer, WordType } from "../configs/db.config";
 
 // HELPERS
-import { PosType } from "../helpers/book.helper";
 import { isArrayObj } from "../helpers/json.helper";
 
 // MODULES

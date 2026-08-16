@@ -28,11 +28,7 @@ export namespace JishoBufferHandler {
 			}));
 			if (!jishoBuffers.length) {
 				const token_ids = `${token_id}`;
-				const token_positions = (() => {
-					const [key, val] = tokens[i].token_positions!.split(',');
-
-					return JSON.stringify(Object.fromEntries([[+key, [+val]]]));
-				})();
+				const token_positions = tokens[i].token_positions;
 				const j_response = await (async () => {
 					const j_response = await Jisho.search(w_basic_form);
 					if (!j_response) throw new Error(Message.failed(['load', 'jisho buffer', { w_basic_form, wt_name }], {
@@ -56,16 +52,16 @@ export namespace JishoBufferHandler {
 				return `${token_ids},${token_id}`
 			})();
 			const token_positions = (() => {
-				const [key, val] = tokens[i].token_positions!.split(',');
 				const token_positions = JSON.parse(jishoBuffers[0].token_positions) as ITokenPositions;
-				if (token_positions[+key]?.includes(+val)) return;
-				token_positions[+key] = !token_positions[+key] ? [+val] : [...token_positions[+key], +val].sort((a, b) => a - b);
+				for (const [section_no, sentences] of Object.entries(JSON.parse(tokens[i].token_positions) as ITokenPositions)) {
+					const token_position = !token_positions[+section_no] ? [] : token_positions[+section_no];
+					for (const sentence_no of sentences) {
+						if (!token_position.includes(sentence_no)) token_position.push(sentence_no);
+					}
+					token_positions[+section_no] = token_position.sort((a, b) => a - b);
+				}
 				return JSON.stringify(token_positions);
 			})();
-			if (!token_positions) {
-				write({ percentage, message: `Skipped existing jisho entry for ${w_basic_form} - ${wt_name}`, t_elapsed_ms: Date.now() - startTime });
-				continue;
-			}
 
 			const jishoBuffer = await JishoBuffer.update({ token_ids, token_positions }, { where: { w_basic_form, wt_name } });
 			if (!jishoBuffer) throw new Error(Message.failed(['load', 'jisho buffer'], {

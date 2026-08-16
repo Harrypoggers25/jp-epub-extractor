@@ -2,7 +2,7 @@
 import { BookBuffer, db, SentenceBuffer, TokenBuffer, WordType } from "../configs/db.config";
 
 // HELPERS
-import { PosType } from "../helpers/book.helper";
+import { ITokenPositions, PosType } from "../helpers/book.helper";
 
 // MODULES
 import Message from "@harrypoggers25/message";
@@ -59,14 +59,8 @@ export namespace TokenBufferHandler {
 			}));
 
 			const transaction = await db.transaction();
-			for (const { token_id, wt_name, w_basic_form, w_reading, w_pos_details, wt_description } of parsedSentence) {
+			for (const { token_id, wt_name, w_basic_form, w_reading, surface_form, w_pos_details, wt_description } of parsedSentence) {
 				if (!w_reading) continue;
-
-				const token_positions = `${section_no},${sentence_no}`;
-
-				const tokens = await TokenBuffer.find({ where: { token_id, token_positions }, transaction });
-				if (!tokens) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['find', 'token', { token_id, token_positions }] }));
-				if (tokens.length) continue;
 
 				const created_at = new Date();
 				const wordTypes = await WordType.find({ where: { wt_name }, transaction });
@@ -76,11 +70,35 @@ export namespace TokenBufferHandler {
 					if (!newWordType) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['create', 'new word type', { wt_name }] }));
 				}
 
-				const token = await TokenBuffer.create({ token_id, wt_name, w_basic_form, w_reading, w_pos_details, token_positions, created_at }, { transaction });
-				if (!token) throw new Error(Message.failed(['create', 'token', i]));
+				const token_positions = await (async () => {
+					const tokens = await TokenBuffer.find({ where: { token_id }, transaction });
+					if (!tokens) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['find', 'tokens', { token_id }] }));
+					if (!tokens.length) {
+						const token = await TokenBuffer.create({ token_id, wt_name, w_basic_form, w_reading, surface_form, w_pos_details, created_at }, { transaction });
+						if (!token) throw new Error(Message.failed(['create', 'token', i]));
+
+						return JSON.stringify({ [section_no]: [sentence_no] });
+					}
+
+					const token_positions = JSON.parse(tokens[0].token_positions) as ITokenPositions;
+					if (!token_positions[section_no]) {
+						token_positions[section_no] = [sentence_no];
+						return JSON.stringify(token_positions);
+					}
+					if (!token_positions[section_no].includes(sentence_no)) {
+						token_positions[section_no] = [...token_positions[section_no], sentence_no].sort((a, b) => a - b);
+						return JSON.stringify(token_positions);
+					}
+
+					return;
+				})();
+				if (!token_positions) continue;
+
+				const token = await TokenBuffer.update({ token_positions }, { where: { token_id }, transaction });
+				if (!token) throw new Error(Message.failed(['update', 'token', i]));
 			}
 			await transaction.commit();
-			write({ percentage, message: `Created ${parsedSentence.length} tokens from sentence [${section_no},${sentence_no}]`, t_elapsed_ms: Date.now() - startTime });
+			write({ percentage, message: `Extracted ${parsedSentence.length} tokens from sentence [${section_no},${sentence_no}]`, t_elapsed_ms: Date.now() - startTime });
 		}
 		write({ percentage: '100%', message: 'Successfully tokenized all sentences into token buffer', t_elapsed_ms: Date.now() - startTime, success: true });
 		res.end();
