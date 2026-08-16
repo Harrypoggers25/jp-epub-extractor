@@ -15,9 +15,9 @@ const router = Router();
 
 router.use('/api/word-types', wordTypeRouter);
 router.use('/api/book-buffers', bookRouter);
+router.use('/api/sentence-buffers', sentenceBufferRouter);
 router.use('/api/token-buffers', tokenBufferRouter);
 router.use('/api/jisho-buffers', jishoBufferRouter);
-router.use('/api/sentence-buffers', sentenceBufferRouter);
 router.use('/api/word-buffers', wordBufferRouter);
 router.use('/api/entry-states', entryStateRouter);
 router.use('/api/words', wordRouter);

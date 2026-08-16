@@ -99,8 +99,23 @@ const KeydownHandlers = {
 				case 'i':
 					await buttonHandler(es_id, 2);
 					break;
+				case 'c':
+					focusElem(sidebar.elems.btnConfirm);
+					break;
 			}
 		},
+		btnConfirm: async (ev, clickHandler) => {
+			switch (ev.key) {
+				case 'Escape':
+				case 'q':
+				case 'c':
+					sidebar.focus();
+					break;
+				case 'Enter':
+					await clickHandler();
+					break;
+			}
+		}
 	},
 	buffer: {
 		button: async (button, ev) => {
@@ -210,8 +225,9 @@ const KeydownHandlers = {
 				case 'k':
 					focusElem(prevElem(card));
 					break;
-				case 'q':
 				case 'Escape':
+				case 'q':
+				case 'm':
 					mergeModal.cancel();
 					break
 				case 'Enter':
@@ -238,7 +254,8 @@ class Sidebar {
 		this.elems = {
 			searchInput: document.getElementById('searchInput'),
 			searchResults: document.getElementById('searchResults'),
-			searchResultCount: document.getElementById('searchResultCount')
+			searchResultCount: document.getElementById('searchResultCount'),
+			btnConfirm: document.getElementById("btnConfirm")
 		}
 
 		this.wordTypes = {};
@@ -260,6 +277,13 @@ class Sidebar {
 			KeydownHandlers.sidebar.searchInput(ev);
 		});
 
+		const btnConfirmClickHandler = async () => {
+		};
+		this.elems.btnConfirm.onclick = eventHandler(btnConfirmClickHandler);
+		this.elems.btnConfirm.addEventListener('keydown', eventHandler(async ev => {
+			await KeydownHandlers.sidebar.btnConfirm(ev, btnConfirmClickHandler);
+		}));
+
 		document.querySelector('div.sidebar-header').onclick = eventHandler(ev => {
 			if (ev.target !== this.elems.searchInput) this.focus();
 		});
@@ -277,6 +301,8 @@ class Sidebar {
 
 		this.allWordBuffers = wordBuffers;
 		this.wordBuffers = wordBuffers;
+
+		this.elems.btnConfirm.disabled = !buffer.entryStates.verify();
 	}
 	async selectWord(wordBuffer) {
 		if (this.selected) {
@@ -412,6 +438,16 @@ class EntryStates {
 	toModel(entryState) {
 		delete entryState.es_id;
 		return entryState;
+	}
+	verify() {
+		const validEntry = entryState => {
+			const { state, ignore, merged_with, unsure } = entryState;
+			return state.size || ignore || merged_with || unsure;
+		}
+		const totalWordBuffer = sidebar.allWordBuffers.length;
+		const totalValidEntry = Object.values(this.entryStates).filter(validEntry).length;
+
+		return totalWordBuffer === totalValidEntry;
 	}
 }
 
@@ -671,6 +707,7 @@ class Buffer {
 			await this.toggleEntry(card, i);
 
 			this.renderMergeBadges();
+			sidebar.elems.btnConfirm.disabled = !this.entryStates.verify();
 			sidebar.renderSearchResults(sidebar.wordBuffers);
 		}
 		card.onclick = eventHandler(clickHandler);
