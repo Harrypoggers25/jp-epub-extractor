@@ -1,3 +1,4 @@
+// API
 export async function asyncHandler(header, handler) {
 	try {
 		return await handler();
@@ -14,6 +15,86 @@ export const eventHandler = (handler) => {
 	}
 }
 
+export class PostEventSource {
+	constructor(url, options = {}) {
+		this.url = url;
+		this.options = options; // { method, headers, body }
+		this.onmessage = null;
+		this.onerror = null;
+		this.onclose = null;
+
+		this._controller = new AbortController();
+		this._connect();
+	}
+
+	async _connect() {
+		try {
+			const response = await fetch(this.url, {
+				method: this.options.method || 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					...(this.options.headers || {}),
+				},
+				body: this.options.body,
+				signal: this._controller.signal,
+			});
+
+			if (!response.ok || !response.body) {
+				throw new Error(`SSE connection failed: ${response.status}`);
+			}
+
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				buffer += decoder.decode(value, { stream: true });
+
+				const chunks = buffer.split('\n\n');
+				buffer = chunks.pop();
+
+				for (const chunk of chunks) {
+					this._handleChunk(chunk);
+				}
+			}
+
+			if (this.onclose) this.onclose();
+		} catch (err) {
+			if (err.name === 'AbortError') return;
+			if (this.onerror) this.onerror(err);
+		}
+	}
+
+	async _handleChunk(chunk) {
+		const lines = chunk.split('\n');
+		let data = '';
+		let eventType = 'message';
+		let id;
+
+		for (const line of lines) {
+			if (line.startsWith('data:')) {
+				data += line.slice(5).trim();
+			} else if (line.startsWith('event:')) {
+				eventType = line.slice(6).trim();
+			} else if (line.startsWith('id:')) {
+				id = line.slice(3).trim();
+			}
+		}
+
+		if (data && this.onmessage) {
+			await this.onmessage({ data, event: eventType, id });
+		}
+	}
+
+	close() {
+		this._controller.abort();
+	}
+}
+
+// UI
 export function createElement(tag, className = null, text = null) {
 	const element = document.createElement(tag);
 	if (className !== null) element.className = className;
@@ -82,4 +163,5 @@ export function focusOffClassCard(card, className, cardHandler) {
 	}
 }
 
+// OTHERS
 export const wordId = (wordBuffer) => `${wordBuffer.w_basic_form}_${wordBuffer.wt_name}`; // returns es_id

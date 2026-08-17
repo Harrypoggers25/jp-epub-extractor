@@ -108,7 +108,7 @@ export namespace WordBufferHandler {
 		res.end();
 	});
 
-	export const confirm = Route.asyncHandler(async (_, res) => {
+	export const confirm = Route.asyncEventStreamHandler(async (_, res, write) => {
 		const wordBuffers = await WordBuffer.find();
 		if (!wordBuffers) throw new Error(Message.failed(['confirm', 'word buffers'], {
 			causer: ['find', 'word buffers']
@@ -137,7 +137,6 @@ export namespace WordBufferHandler {
 			subMessage: 'All word buffers must have a valid entry'
 		}));
 
-		const transaction = await db.transaction();
 		const wordBuffers2: Array<IWordBuffer> = [];
 		const entryStates2: typeof entryStates = {};
 		const sortTokenId = (token_ids: string) => token_ids.split(',').map(token_id => +token_id).sort((a, b) => a - b).join(',');
@@ -155,6 +154,14 @@ export namespace WordBufferHandler {
 
 			return { token_ids, w_basic_form, wt_name, j_response, w_character_type, occurrence_count, es_id, ignore, state, unsure, merged_with, can_merge };
 		};
+		const startTime = Date.now();
+		write(writeResponse({
+			percentage: 0,
+			message: 'Confirming word buffer entries',
+			t_elapsed_ms: 0
+		}));
+		const transaction = await db.transaction();
+		let i = 0;
 		for (const wordBuffer of wordBuffers) {
 			const { token_ids, w_basic_form, wt_name, j_response, w_character_type, occurrence_count, es_id, ignore, state, unsure, merged_with, can_merge } = combine(wordBuffer, entryStates);
 			const created_at = new Date();
@@ -191,6 +198,13 @@ export namespace WordBufferHandler {
 			if (!deletedEntryState) throw new Error(Message.failed(['confirm', 'word buffers'], {
 				causer: ['delete', 'entry state', { es_id }]
 			}));
+			const percentage = Math.round((i + 1) / wordBuffers.length * 100 * 100) / 100;
+			i += 1;
+			write(writeResponse({
+				percentage,
+				message: `Confirmed word buffer entry ${w_basic_form} [ ${wt_name} ]`,
+				t_elapsed_ms: Date.now() - startTime
+			}));
 		}
 		for (const wordBuffer of wordBuffers2) {
 			const { token_ids, w_basic_form, wt_name, occurrence_count, es_id, merged_with } = combine(wordBuffer, entryStates2);
@@ -225,9 +239,23 @@ export namespace WordBufferHandler {
 			if (!deletedEntryState) throw new Error(Message.failed(['confirm', 'word buffers'], {
 				causer: ['delete', 'entry state', { es_id }]
 			}));
+
+			const percentage = Math.round((i + 1) / wordBuffers.length * 100 * 100) / 100;
+			i += 1;
+			write(writeResponse({
+				percentage,
+				message: `Merged word buffer entry ${w_basic_form} [ ${wt_name} ] into ${word.w_basic_form} [ ${word.wt_name} ]`,
+				t_elapsed_ms: Date.now() - startTime
+			}));
 		}
 		await transaction.commit();
-		res.status(200).json('ok');
+		write(writeResponse({
+			percentage: 100,
+			message: 'Successfully confirmed word buffer entries',
+			t_elapsed_ms: Date.now() - startTime,
+			success: true
+		}));
+		res.end();
 	});
 }
 

@@ -1,4 +1,4 @@
-import { asyncHandler } from "./tools.helper.js";
+import { asyncHandler, PostEventSource } from "./tools.helper.js";
 
 export const WordType = {
 	find: async () => {
@@ -42,15 +42,13 @@ export const WordBuffer = {
 			return wordBuffer;
 		});
 	},
-	confirm: async () => {
-		return await asyncHandler('CONFIRM BUFFER', async () => {
-			const response = await fetch('/api/word-buffers/confirm', { method: 'POST' });
-			if (!response.ok) throw new Error('Failed to confirm word buffer. Internal error');
+	confirm: (onmessage) => {
+		return asyncHandler('CONFIRM BUFFER', () => {
+			const eventSource = new PostEventSource('/api/word-buffers/confirm');
 
-			const wordBuffer = await response.json();
-			if (!wordBuffer) throw new Error('Failed to confirm word buffer. Unable to find data');
-
-			return wordBuffer;
+			eventSource.onmessage = async (event) => {
+				await onmessage(JSON.parse(event.data), eventSource);
+			};
 		});
 	}
 }

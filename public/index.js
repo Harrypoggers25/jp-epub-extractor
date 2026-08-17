@@ -278,7 +278,7 @@ class Sidebar {
 		});
 
 		const btnConfirmClickHandler = async () => {
-			await WordBuffer.confirm();
+			confirmOverlay.open();
 		};
 		this.elems.btnConfirm.onclick = eventHandler(btnConfirmClickHandler);
 		this.elems.btnConfirm.addEventListener('keydown', eventHandler(async ev => {
@@ -299,6 +299,10 @@ class Sidebar {
 
 		const wordBuffers = await asyncHandler('SIDEBAR LOAD ALL WORDS', async () => await WordBuffer.find());
 		if (!wordBuffers) return;
+		if (!wordBuffers.length) {
+			window.location.href = nextPage;
+			return;
+		}
 
 		this.allWordBuffers = wordBuffers;
 		this.wordBuffers = wordBuffers;
@@ -1055,35 +1059,34 @@ class SentenceModal {
 
 		return card
 	}
-	boldWordSentence(word, sentence) {
-		if (!word) return sentence;
+}
 
-		const chars = Array.from(sentence);
-		const wordChars = Array.from(word);
-		let result = "";
-		let i = 0;
-
-		while (i < chars.length) {
-			let matched = false;
-
-			for (let len = wordChars.length; len >= 1; len--) {
-				const candidate = chars.slice(i, i + len).join("");
-				const target = wordChars.slice(0, len).join("");
-				if (candidate === target) {
-					result += `<b>${candidate}</b>`;
-					i += len;
-					matched = true;
-					break;
-				}
-			}
-
-			if (!matched) {
-				result += chars[i];
-				i++;
-			}
+class ConfirmOverlay {
+	constructor() {
+		this.elems = {
+			confirmOverlay: document.getElementById('confirmOverlay'),
+			confirmOverlayProgress: document.getElementById('confirmOverlayProgress'),
+			confirmOverlayMessage: document.getElementById('confirmOverlayMessage'),
 		}
+	}
+	async open() {
+		const { confirmOverlay, confirmOverlayProgress, confirmOverlayMessage } = this.elems;
+		confirmOverlay.classList.add('open');
 
-		return result;
+		WordBuffer.confirm(async (data, eventSource) => {
+			const { percentage, message, success } = data;
+			confirmOverlayProgress.textContent = `${Math.round(percentage)}%`;
+
+			if (success) {
+				confirmOverlayMessage.textContent = `${message}. Redirecting...`;
+				eventSource.close();
+				setTimeout(() => {
+					window.location.href = nextPage;
+				}, 1000);
+				return;
+			}
+			confirmOverlayMessage.textContent = message;
+		});
 	}
 }
 
@@ -1091,6 +1094,8 @@ const buffer = new Buffer();
 const sidebar = new Sidebar();
 const mergeModal = new MergeModal();
 const sentenceModal = new SentenceModal();
+const confirmOverlay = new ConfirmOverlay();
+const nextPage = ''; // set redirect page
 
 asyncHandler('MAIN INIT', async () => {
 	await buffer.entryStates.load();

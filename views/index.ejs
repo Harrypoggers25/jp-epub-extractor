@@ -549,10 +549,10 @@
         }
 
         /* ===========================
-            Modal overlay
+            Overlay Base
         ============================ */
 
-        .modal-overlay {
+        .overlay {
             position: fixed;
             inset: 0;
             background: rgba(0, 0, 0, .6);
@@ -562,9 +562,13 @@
             z-index: 1000;
         }
 
-        .modal-overlay.open {
+        .overlay.open {
             display: flex;
         }
+
+        /* ===========================
+            Modal
+        ============================ */
 
         .modal-box {
             background: var(--bg-panel);
@@ -734,6 +738,33 @@
         #sentenceModal .modal-item-text b {
             color: var(--accent);
         }
+
+        /* ===========================
+            Modal
+        ============================ */
+
+        #confirmOverlay.overlay {
+            background: rgba(0, 0, 0, .9);
+        }
+
+        .overlay-box {
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .overlay-box h3 {
+            margin-top: 0;
+            font-size: 40px;
+        }
+
+        .overlay-box h3 span {
+            font-weight: 500;
+        }
+
+        .overlay-box span {
+            font-weight: 500;
+        }
     </style>
 </head>
 
@@ -782,7 +813,7 @@
             </div>
         </main>
     </div>
-    <div class="modal-overlay" id="mergeModal">
+    <div class="overlay" id="mergeModal">
         <div class="modal-box">
             <h3>Selected word: <span id="mergeModalTargetWord"></span></h3>
             <h3>Merge with: <span id="mergeModalSelectedWord"></span></h3>
@@ -800,7 +831,7 @@
             </div>
         </div>
     </div>
-    <div class="modal-overlay" id="sentenceModal">
+    <div class="overlay" id="sentenceModal">
         <div class="modal-box">
             <h3>Reference word: <span id="sentenceModalReferenceWord"></span></h3>
             <div class="modal-list" id="sentenceModalList">
@@ -809,6 +840,12 @@
                 <!--     <div class="modal-item-text">私はリンゴが好きです</div> -->
                 <!-- </div> -->
             </div>
+        </div>
+    </div>
+    <div class="overlay" id="confirmOverlay">
+        <div class="overlay-box">
+            <h3>Loading: <span id="confirmOverlayProgress"></span></h3>
+            <span class="overlay-message" id="confirmOverlayMessage"></span>
         </div>
     </div>
     <script type="module" src="/tools.helper.js"></script>
