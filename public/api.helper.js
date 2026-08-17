@@ -41,6 +41,17 @@ export const WordBuffer = {
 			wordBuffer.j_response = JSON.parse(wordBuffer.j_response);
 			return wordBuffer;
 		});
+	},
+	confirm: async () => {
+		return await asyncHandler('CONFIRM BUFFER', async () => {
+			const response = await fetch('/api/word-buffers/confirm', { method: 'POST' });
+			if (!response.ok) throw new Error('Failed to confirm word buffer. Internal error');
+
+			const wordBuffer = await response.json();
+			if (!wordBuffer) throw new Error('Failed to confirm word buffer. Unable to find data');
+
+			return wordBuffer;
+		});
 	}
 }
 

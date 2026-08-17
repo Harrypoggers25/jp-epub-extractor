@@ -89,14 +89,14 @@ export const UnsureWordBuffer = db.define('unsure_word_buffers', {
 	w_basic_form: { type: DataTypes.VARCHAR(511), allowNull: false },
 	w_character_type: { type: DataTypes.VARCHAR(16), allowNull: false, defaultValue: 'kanji' },
 	j_response: { type: DataTypes.TEXT, allowNull: false },
-	occurence_count: { type: DataTypes.INTEGER, allowNull: false },
+	occurrence_count: { type: DataTypes.INTEGER, allowNull: false },
 	created_at: { type: DataTypes.TIMESTAMP, allowNull: false },
 	wt_name: { type: DataTypes.VARCHAR(511), allowNull: false },
 });
 UnsureWordBuffer.setForeignKey(WordType, 'wt_name');
 export interface IUnsureWordBuffer extends ReturnType<typeof UnsureWordBuffer.getEmptyModel> { };
 
-export const UnsureEntryState = db.define('unsure_sense_states', {
+export const UnsureEntryState = db.define('unsure_entry_states', {
 	es_id: { type: DataTypes.VARCHAR(1023), allowNull: false, primaryKey: true },
 	state: { type: DataTypes.TEXT, allowNull: false, defaultValue: '[]' },
 	ignore: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
@@ -110,7 +110,8 @@ export const Word = db.define('words', {
 	w_basic_form: { type: DataTypes.VARCHAR(511), allowNull: false },
 	w_character_type: { type: DataTypes.VARCHAR(16), allowNull: false, defaultValue: 'kanji' },
 	j_response: { type: DataTypes.TEXT, allowNull: false },
-	occurence_count: { type: DataTypes.INTEGER, allowNull: false },
+	occurrence_count: { type: DataTypes.INTEGER, allowNull: false },
+	ignore: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 	created_at: { type: DataTypes.TIMESTAMP, allowNull: false },
 	wt_name: { type: DataTypes.VARCHAR(511), allowNull: false },
 });

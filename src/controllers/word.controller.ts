@@ -9,10 +9,10 @@ import Route from "@harrypoggers25/route";
 
 export namespace WordHandler {
 	export const create = Route.asyncHandler(async (req, res) => {
-		const { token_ids, w_basic_form, j_response, occurence_count, wt_name } = req.body;
+		const { token_ids, w_basic_form, j_response, occurrence_count, wt_name } = req.body;
 		const created_at = new Date();
 
-		const word = await Word.create({ token_ids, w_basic_form, j_response, occurence_count, created_at, wt_name });
+		const word = await Word.create({ token_ids, w_basic_form, j_response, occurrence_count, created_at, wt_name });
 		if (!word) throw new Error(Message.failed(['create', 'word', { w_basic_form }]));
 
 		res.status(201).json(word);

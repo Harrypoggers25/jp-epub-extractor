@@ -12,6 +12,8 @@ wordBufferRouter.route('/count')
 	.get(WordBufferHandler.count);
 wordBufferRouter.route('/filter')
 	.post(WordBufferHandler.filter);
+wordBufferRouter.route('/confirm')
+	.post(WordBufferHandler.confirm);
 wordBufferRouter.route('/:w_basic_form')
 	.get(WordBufferHandler.findMany);
 wordBufferRouter.route('/:w_basic_form/:wt_name')

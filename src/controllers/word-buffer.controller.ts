@@ -1,5 +1,5 @@
 // CONFIGS
-import { JishoBuffer, WordBuffer } from "../configs/db.config";
+import { db, EntryState, IWordBuffer, JishoBuffer, UnsureEntryState, UnsureWordBuffer, Word, WordBuffer } from "../configs/db.config";
 
 // MODULES
 import Message from "@harrypoggers25/message";
@@ -17,6 +17,7 @@ export namespace WordBufferHandler {
 
 		res.status(200).json({ count: wordBuffers.length });
 	});
+
 	export const findAll = Route.asyncHandler(async (_, res) => {
 		const words = await WordBuffer.find({ orderBy: { w_character_type: 'DESC', w_basic_form: 'ASC', wt_name: 'ASC' } });
 		if (!words) throw new Error(Message.failed(['find', 'all words']));
@@ -85,6 +86,128 @@ export namespace WordBufferHandler {
 		}
 		write({ percentage: '100%', message: 'Successfully filtered jisho entries into word buffer', t_elapsed_ms: Date.now() - startTime, success: true });
 		res.end();
+	});
+
+	export const confirm = Route.asyncHandler(async (_, res) => {
+		const wordBuffers = await WordBuffer.find();
+		if (!wordBuffers) throw new Error(Message.failed(['confirm', 'word buffers'], {
+			causer: ['find', 'word buffers']
+		}));
+
+		const { entryStates, validEntryStateCount } = await (async () => {
+			const entryStates = await EntryState.find();
+			if (!entryStates) throw new Error(Message.failed(['confirm', 'word buffers'], {
+				causer: ['find', 'entry states']
+			}));
+
+			return {
+				entryStates: Object.fromEntries(entryStates.map(entryState => {
+					const { es_id, state, ignore, unsure, can_merge, merged_with } = entryState;
+					return [es_id, { state, ignore, unsure, can_merge, merged_with }];
+				})),
+				validEntryStateCount: entryStates.filter(entryState => {
+					const { unsure, ignore, merged_with } = entryState;
+					const state = JSON.parse(entryState.state) as Array<number>;
+
+					return unsure || ignore || merged_with || state.length;
+				}).length
+			}
+		})();
+		if (wordBuffers.length !== validEntryStateCount) throw new Error(Message.failed(['confirm', 'word buffers'], {
+			subMessage: 'All word buffers must have a valid entry'
+		}));
+
+		const transaction = await db.transaction();
+		const wordBuffers2: Array<IWordBuffer> = [];
+		const entryStates2: typeof entryStates = {};
+		const sortTokenId = (token_ids: string) => token_ids.split(',').map(token_id => +token_id).sort((a, b) => a - b).join(',');
+		const combine = (wordBuffer: IWordBuffer, entryStates: typeof entryStates2) => {
+			const token_ids = sortTokenId(wordBuffer.token_ids);
+			const { w_basic_form, wt_name, w_character_type, occurrence_count } = wordBuffer;
+			const es_id = `${w_basic_form}_${wt_name}`;
+			const { ignore, state, unsure, merged_with, can_merge } = entryStates[es_id];
+			const j_response = (() => {
+				const j_response = JSON.parse(wordBuffer.j_response) as Array<IJishoReducedWord>;
+				const state = JSON.parse(entryStates[es_id].state) as Array<number>;
+
+				return JSON.stringify(state.map(i => j_response[i]));
+			})();
+
+			return { token_ids, w_basic_form, wt_name, j_response, w_character_type, occurrence_count, es_id, ignore, state, unsure, merged_with, can_merge };
+		};
+		for (const wordBuffer of wordBuffers) {
+			const { token_ids, w_basic_form, wt_name, j_response, w_character_type, occurrence_count, es_id, ignore, state, unsure, merged_with, can_merge } = combine(wordBuffer, entryStates);
+			const created_at = new Date();
+
+			if (merged_with) {
+				wordBuffers2.push(wordBuffer);
+				entryStates2[es_id] = entryStates[es_id];
+				continue;
+			}
+
+			if (!unsure) {
+				const word = Word.create({ token_ids, w_basic_form, wt_name, j_response, w_character_type, occurrence_count, ignore, created_at }, { transaction });
+				if (!word) throw new Error(Message.failed(['confirm', 'word buffers'], {
+					causer: ['create', 'word', { w_basic_form, wt_name }]
+				}));
+			} else {
+				const unsureWordBuffer = await UnsureWordBuffer.create({ token_ids, w_basic_form, w_character_type, j_response, occurrence_count, created_at, wt_name }, { transaction });
+				if (!unsureWordBuffer) throw new Error(Message.failed(['confirm', 'word buffers'], {
+					causer: ['create', 'unsure word buffer', { w_basic_form, wt_name }]
+				}));
+
+				const unsureEntryState = UnsureEntryState.create({ es_id, state, ignore, merged_with, can_merge }, { transaction });
+				if (!unsureEntryState) throw new Error(Message.failed(['confirm', 'word buffers'], {
+					causer: ['create', 'unsure entry state']
+				}));
+			}
+
+			const deletedWordBuffer = await WordBuffer.delete({ where: { w_basic_form, wt_name }, transaction });
+			if (!deletedWordBuffer) throw new Error(Message.failed(['confirm', 'word buffers'], {
+				causer: ['delete', 'word buffer', { w_basic_form, wt_name }]
+			}));
+
+			const deletedEntryState = await EntryState.delete({ where: { es_id }, transaction });
+			if (!deletedEntryState) throw new Error(Message.failed(['confirm', 'word buffers'], {
+				causer: ['delete', 'entry state', { es_id }]
+			}));
+		}
+		for (const wordBuffer of wordBuffers2) {
+			const { token_ids, w_basic_form, wt_name, occurrence_count, es_id, merged_with } = combine(wordBuffer, entryStates2);
+
+			const word = await (async () => {
+				const [w_basic_form, wt_name] = merged_with!.split('_');
+				const words = await Word.find({ where: { w_basic_form, wt_name }, transaction })
+				if (!words || !words.length) throw new Error(Message.failed(['confirm', 'word buffers'], {
+					causer: ['find', 'word', { w_basic_form, wt_name }]
+				}));
+
+				return words[0];
+			})();
+
+			const updatedWord = await Word.update({
+				token_ids: sortTokenId(`${word.token_ids},${token_ids}`),
+				occurrence_count: word.occurrence_count + occurrence_count
+			}, {
+				where: { w_basic_form: word.w_basic_form, wt_name: word.wt_name },
+				transaction
+			});
+			if (!updatedWord) throw new Error(Message.failed(['confirm', 'word buffers'], {
+				causer: ['update', 'word', { w_basic_form, wt_name }]
+			}));
+
+			const deletedWordBuffer = await WordBuffer.delete({ where: { w_basic_form, wt_name }, transaction });
+			if (!deletedWordBuffer) throw new Error(Message.failed(['confirm', 'word buffers'], {
+				causer: ['delete', 'word buffer', { w_basic_form, wt_name }]
+			}));
+
+			const deletedEntryState = await EntryState.delete({ where: { es_id }, transaction });
+			if (!deletedEntryState) throw new Error(Message.failed(['confirm', 'word buffers'], {
+				causer: ['delete', 'entry state', { es_id }]
+			}));
+		}
+		await transaction.commit();
+		res.status(200).json('ok');
 	});
 }
 

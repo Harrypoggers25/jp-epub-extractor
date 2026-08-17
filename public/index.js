@@ -278,6 +278,7 @@ class Sidebar {
 		});
 
 		const btnConfirmClickHandler = async () => {
+			await WordBuffer.confirm();
 		};
 		this.elems.btnConfirm.onclick = eventHandler(btnConfirmClickHandler);
 		this.elems.btnConfirm.addEventListener('keydown', eventHandler(async ev => {
