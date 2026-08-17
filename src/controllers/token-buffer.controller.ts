@@ -3,6 +3,7 @@ import { BookBuffer, db, SentenceBuffer, TokenBuffer, WordType } from "../config
 
 // HELPERS
 import { ITokenPositions, PosType } from "../helpers/book.helper";
+import { writeResponse } from "../helpers";
 
 // MODULES
 import Message from "@harrypoggers25/message";
@@ -49,13 +50,21 @@ export namespace TokenBufferHandler {
 		})();
 
 		const startTime = Date.now();
-		write({ percentage: 0, message: 'Tokenizing sentences into token buffer', t_elapsed_ms: 0 });
+		write(writeResponse({
+			percentage: 0,
+			message: 'Tokenizing sentences into token buffer',
+			t_elapsed_ms: 0
+		}));
 		for (let i = 0; i < sentenceBuffers.length; i++) {
 			const { section_no, sentence_no, sentence_text } = sentenceBuffers[i];
 			const percentage = Math.round((i + 1) / sentenceBuffers.length * 100 * 100) / 100;
 
 			if (lastPosition[0] > section_no || (lastPosition[0] === section_no && lastPosition[1] >= sentence_no)) {
-				write({ percentage, message: 'Skipped token entry. Sentence already tokenized', t_elapsed_ms: Date.now() - startTime });
+				write(writeResponse({
+					percentage,
+					message: 'Skipped token entry. Sentence already tokenized',
+					t_elapsed_ms: Date.now() - startTime
+				}));
 				continue;
 			}
 
@@ -104,9 +113,18 @@ export namespace TokenBufferHandler {
 				if (!token) throw new Error(Message.failed(['update', 'token', i]));
 			}
 			await transaction.commit();
-			write({ percentage, message: `Extracted ${parsedSentence.length} tokens from sentence [${section_no},${sentence_no}]`, t_elapsed_ms: Date.now() - startTime });
+			write(writeResponse({
+				percentage,
+				message: `Extracted ${parsedSentence.length} tokens from sentence [${section_no},${sentence_no}]`,
+				t_elapsed_ms: Date.now() - startTime
+			}));
 		}
-		write({ percentage: '100%', message: 'Successfully tokenized all sentences into token buffer', t_elapsed_ms: Date.now() - startTime, success: true });
+		write(writeResponse({
+			percentage: 100,
+			message: 'Successfully tokenized all sentences into token buffer',
+			t_elapsed_ms: Date.now() - startTime,
+			success: true,
+		}))
 		res.end();
 	});
 }

@@ -1,6 +1,9 @@
 // CONFIGS
 import { JishoBuffer, TokenBuffer } from "../configs/db.config";
 
+// HELPERS
+import { writeResponse } from "../helpers";
+
 // MODULES
 import Message from "@harrypoggers25/message";
 
@@ -16,9 +19,13 @@ export namespace JishoBufferHandler {
 
 		const startTime = Date.now();
 		const sortTokenId = (token_ids: string) => token_ids.split(',').map(token_id => +token_id).sort((a, b) => a - b).join(',');
-		write({ percentage: '0%', Message: 'Loading jisho entry into buffer', t_elapsed_ms: 0 });
+		write(writeResponse({
+			percentage: 0,
+			message: 'Loading jisho entry into buffer',
+			t_elapsed_ms: 0
+		}));
 		for (let i = 0; i < tokens.length; i++) {
-			const percentage = `${Math.round((i + 1) / tokens.length * 100 * 100) / 100}%`;
+			const percentage = Math.round((i + 1) / tokens.length * 100 * 100) / 100;
 
 			const { token_id, w_basic_form, wt_name } = tokens[i];
 			const created_at = new Date();
@@ -43,7 +50,11 @@ export namespace JishoBufferHandler {
 					causer: ['create', 'jisho buffer', { token_ids }]
 				}));
 
-				write({ percentage, message: `Created jisho entry for ${w_basic_form} - ${wt_name}`, t_elapsed_ms: Date.now() - startTime });
+				write(writeResponse({
+					percentage,
+					message: `Created jisho entry for ${w_basic_form} - ${wt_name}`,
+					t_elapsed_ms: Date.now() - startTime
+				}));
 				continue;
 			}
 
@@ -69,9 +80,18 @@ export namespace JishoBufferHandler {
 			if (!jishoBuffer) throw new Error(Message.failed(['load', 'jisho buffer'], {
 				causer: ['update', 'jisho buffer', { token_ids }]
 			}));
-			write({ percentage, message: `Merged jisho entry for ${w_basic_form} - ${wt_name}`, t_elapsed_ms: Date.now() - startTime });
+			write(writeResponse({
+				percentage,
+				message: `Merged jisho entry for ${w_basic_form} - ${wt_name}`,
+				t_elapsed_ms: Date.now() - startTime
+			}));
 		}
-		write({ percentage: '100%', message: 'Successfully loaded jisho entries into buffer', t_elapsed_ms: Date.now() - startTime, success: true });
+		write(writeResponse({
+			percentage: 100,
+			message: 'Successfully loaded jisho entries into buffer',
+			t_elapsed_ms: Date.now() - startTime,
+			success: true
+		}));
 		res.end();
 	});
 	export const removeAll = Route.asyncHandler(async (req, res) => {

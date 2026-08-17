@@ -1,6 +1,9 @@
 // CONFIGS
 import { db, EntryState, IWordBuffer, JishoBuffer, UnsureEntryState, UnsureWordBuffer, Word, WordBuffer } from "../configs/db.config";
 
+// HELPERS
+import { writeResponse } from "../helpers";
+
 // MODULES
 import Message from "@harrypoggers25/message";
 
@@ -50,14 +53,22 @@ export namespace WordBufferHandler {
 
 		const startTime = Date.now();
 		const word_forms = (res: IJishoReducedWord): Array<string> => [...res.japanese.map(Object.values).flat(), res.slug];
-		write({ percentage: '0%', message: 'Filtering jisho entries into word buffer', t_elapsed_ms: 0 });
+		write(writeResponse({
+			percentage: 0,
+			message: 'Filtering jisho entries into word buffer',
+			t_elapsed_ms: 0
+		}));
 		for (let i = 0; i < jishoBuffers.length; i++) {
-			const percentage = `${Math.round((i + 1) / jishoBuffers.length * 100 * 100) / 100}%`;
+			const percentage = Math.round((i + 1) / jishoBuffers.length * 100 * 100) / 100;
 
 			const { token_ids, w_basic_form, token_positions, wt_name } = jishoBuffers[i];
 			const wordBuffers = await WordBuffer.find({ where: { w_basic_form, wt_name } });
 			if (wordBuffers?.length) {
-				write({ percentage, message: `Skipped filtering existing word entry for ${w_basic_form} - ${wt_name}`, t_elapsed_ms: Date.now() - startTime });
+				write(writeResponse({
+					percentage,
+					message: `Skipped filtering existing word entry for ${w_basic_form} - ${wt_name}`,
+					t_elapsed_ms: Date.now() - startTime
+				}));
 				continue;
 			}
 
@@ -82,9 +93,18 @@ export namespace WordBufferHandler {
 			const wordBuffer = await WordBuffer.create({ token_ids, w_basic_form, w_character_type, j_response, token_positions, occurrence_count, created_at, wt_name });
 			if (!wordBuffer) throw new Error(Message.failed(['create', 'word buffer', { w_basic_form, wt_name }]));
 
-			write({ percentage, message: `Filtered word entry for ${w_basic_form} - ${wt_name}`, t_elapsed_ms: Date.now() - startTime });
+			write(writeResponse({
+				percentage,
+				message: `Filtered word entry for ${w_basic_form} - ${wt_name}`,
+				t_elapsed_ms: Date.now() - startTime
+			}));
 		}
-		write({ percentage: '100%', message: 'Successfully filtered jisho entries into word buffer', t_elapsed_ms: Date.now() - startTime, success: true });
+		write(writeResponse({
+			percentage: 100,
+			message: 'Successfully filtered jisho entries into word buffer',
+			t_elapsed_ms: Date.now() - startTime,
+			success: true
+		}));
 		res.end();
 	});
 

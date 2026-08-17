@@ -1,6 +1,8 @@
 // MODULES
 import ch from "@harrypoggers25/color-utils";
 
+export const writeResponse = (opts: { percentage: number, message: string, t_elapsed_ms: number, success?: boolean }) => opts;
+
 export function displayProgress(i: number, count: number) {
 	console.log(ch.green('Progress:'), `${Math.round((i / count * 100) * 100) / 100}%`);
 }
