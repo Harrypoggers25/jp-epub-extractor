@@ -8,5 +8,8 @@ const wordTypeRouter = Router();
 
 wordTypeRouter.route('/')
 	.get(WordTypeHandler.findAll);
+wordTypeRouter.route('/:wt_name')
+	.get(WordTypeHandler.find)
+	.patch(WordTypeHandler.update);
 
 export default wordTypeRouter;

@@ -14,5 +14,21 @@ export namespace WordTypeHandler {
 
 		res.status(200).json(wordTypes);
 	});
+	export const find = Route.asyncHandler(async (req, res) => {
+		const wt_name = req.params.wt_name as string;
+		const wordType = await WordType.findByPk(wt_name);
+		if (!wordType) throw new Error(Message.failed(['find', 'word type', wt_name]));
+
+		res.status(200).json(wordType);
+	});
+	export const update = Route.asyncHandler(async (req, res) => {
+		const wt_name = req.params.wt_name as string;
+		const { wt_description } = req.body;
+
+		const wordType = await WordType.updateByPk(wt_name, { wt_description });
+		if (!wordType) throw new Error(Message.failed(['update', 'word type', wt_name]));
+
+		res.status(200).json(wordType);
+	});
 }
 
