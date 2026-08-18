@@ -32,8 +32,9 @@ namespace Book {
 		const parsedBook: IParsedBook = [];
 		for (const { filename, content } of book) {
 			const $ = cheerio.load(content);
-			$("rt").remove();
-			const sentences = Array.from($('.calibre1').map((_, el) => formatText($(el).text()))).filter(val => val !== '');
+			["div", "a", "span", "p"].forEach(tag => $(tag).filter((_, el) => $(el).text().trim() === '').remove());
+			["head", "header", "nav", "hr", "table", "img", "rp", "rt"].forEach(tag => $(tag).remove());
+			const sentences = Array.from($('p').map((_, el) => formatText($(el).text()))).filter(val => val !== '');
 			if (!sentences.length) continue;
 			parsedBook.push({ filename, sentences });
 		}
