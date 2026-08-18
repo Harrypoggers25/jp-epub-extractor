@@ -22,8 +22,8 @@ router.use('/api/word-buffers', wordBufferRouter);
 router.use('/api/entry-states', entryStateRouter);
 router.use('/api/words', wordRouter);
 
-router.get('/', (_, res) => {
-	res.render('index');
+router.get('/review', (_, res) => {
+	res.render('review');
 });
 
 export default router;
