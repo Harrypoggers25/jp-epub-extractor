@@ -18,7 +18,7 @@ export namespace JishoBufferHandler {
 		if (!tokens) throw new Error(Message.failed(['load', 'jisho buffer'], { causer: ['find', 'tokens'] }));
 
 		const startTime = Date.now();
-		const sortTokenId = (token_ids: string) => token_ids.split(',').map(token_id => +token_id).sort((a, b) => a - b).join(',');
+		const sortTokenIds = (token_ids: string) => token_ids.split(',').map(token_id => +token_id).sort((a, b) => a - b).join(',');
 		write(writeResponse({
 			percentage: 0,
 			message: 'Loading jisho entry into buffer',
@@ -62,7 +62,7 @@ export namespace JishoBufferHandler {
 				const token_ids = jishoBuffers[0].token_ids.split(',');
 				if (token_ids.includes(`${token_id}`)) return jishoBuffers[0].token_ids;
 
-				return sortTokenId(`${token_ids},${token_ids}`);
+				return sortTokenIds(`${jishoBuffers[0].token_ids},${token_id}`);
 			})();
 			const token_positions = (() => {
 				const token_positions = JSON.parse(jishoBuffers[0].token_positions) as ITokenPositions;
