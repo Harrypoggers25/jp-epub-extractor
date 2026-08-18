@@ -300,7 +300,7 @@ class Sidebar {
 		const wordBuffers = await asyncHandler('SIDEBAR LOAD ALL WORDS', async () => await WordBuffer.find());
 		if (!wordBuffers) return;
 		if (!wordBuffers.length) {
-			window.location.href = nextPage;
+			window.location.href = nextPageUrl;
 			return;
 		}
 
@@ -1081,7 +1081,7 @@ class ConfirmOverlay {
 				confirmOverlayMessage.textContent = `${message}. Redirecting...`;
 				eventSource.close();
 				setTimeout(() => {
-					window.location.href = nextPage;
+					window.location.href = nextPageUrl;
 				}, 1000);
 				return;
 			}
@@ -1095,7 +1095,8 @@ const sidebar = new Sidebar();
 const mergeModal = new MergeModal();
 const sentenceModal = new SentenceModal();
 const confirmOverlay = new ConfirmOverlay();
-const nextPage = ''; // set redirect page
+
+const nextPageUrl = 'https://youtube.com'; // set redirect page
 
 asyncHandler('MAIN INIT', async () => {
 	await buffer.entryStates.load();

@@ -22,8 +22,10 @@ export const BookBuffer = db.define('book_buffers', {
 	book_name: { type: DataTypes.TEXT, allowNull: true },
 	book_filename: { type: DataTypes.TEXT, allowNull: true },
 	book_original_name: { type: DataTypes.TEXT, allowNull: true },
-	confirmed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 	sections: { type: DataTypes.TEXT, allowNull: false, defaultValue: '[]' },
+	existing_tokens: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+	new_tokens: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+	confirmed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 	created_at: { type: DataTypes.TIMESTAMP, allowNull: false },
 });
 export interface IBookBuffer extends ReturnType<typeof BookBuffer.getEmptyModel> { };
@@ -38,7 +40,7 @@ SentenceBuffer.setForeignKey(BookBuffer, 'book_id');
 export interface ISentenceBuffer extends ReturnType<typeof SentenceBuffer.getEmptyModel> { };
 
 export const TokenBuffer = db.define('token_buffers', {
-	token_id: { type: DataTypes.INTEGER, allowNull: false },
+	token_id: { type: DataTypes.INTEGER, allowNull: false, primaryKey: true },
 	w_basic_form: { type: DataTypes.VARCHAR(511), allowNull: false },
 	w_reading: { type: DataTypes.VARCHAR(511), allowNull: false },
 	surface_form: { type: DataTypes.VARCHAR(511), allowNull: false },

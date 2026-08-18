@@ -1,5 +1,5 @@
 // CONFIGS
-import { BookBuffer, db, SentenceBuffer, TokenBuffer, WordType } from "../configs/db.config";
+import { BookBuffer, db, SentenceBuffer, TokenBuffer, Word, WordType } from "../configs/db.config";
 
 // HELPERS
 import { ITokenPositions, PosType } from "../helpers/book.helper";
@@ -34,7 +34,11 @@ export namespace TokenBufferHandler {
 			causer: ['find', 'current book buffer']
 		}));
 
-		const { book_id } = currentBookBuffer[0];
+		const { book_id, confirmed } = currentBookBuffer[0];
+		if (!confirmed) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], {
+			subMessage: 'Book must be confirmed prior to tokenization'
+		}));
+
 		const sentenceBuffers = await SentenceBuffer.find({ where: { book_id }, orderBy: { section_no: 'ASC', sentence_no: 'ASC' } });
 		if (!sentenceBuffers) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], {
 			causer: ['find', 'sentence buffers']
@@ -49,6 +53,8 @@ export namespace TokenBufferHandler {
 			return !lastTokens.length ? [-1, -1] : lastTokens[0].token_positions.split(',').map(val => +val);
 		})();
 
+		let { existing_tokens, new_tokens } = currentBookBuffer[0];
+		const ignores: Set<number> = new Set();
 		const startTime = Date.now();
 		write(writeResponse({
 			percentage: 0,
@@ -74,8 +80,20 @@ export namespace TokenBufferHandler {
 			}));
 
 			const transaction = await db.transaction();
+			let tokenCount = 0;
 			for (const { token_id, wt_name, w_basic_form, w_reading, surface_form, w_pos_details, wt_description } of parsedSentence) {
-				if (!w_reading) continue;
+				if (!w_reading || ignores.has(token_id)) continue;
+
+				const words = await Word.find({ like: { token_ids: `%${token_id}%` }, transaction });
+				if (!words) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['find', 'words'] }));
+				if (words.length) {
+					ignores.add(token_id);
+					existing_tokens += 1;
+
+					const bookBuffer = await BookBuffer.updateByPk(book_id, { existing_tokens }, { transaction });
+					if (!bookBuffer) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['update', 'book buffer', { existing_tokens }] }));
+					continue;
+				}
 
 				const created_at = new Date();
 				const wordTypes = await WordType.find({ where: { wt_name }, transaction });
@@ -91,6 +109,10 @@ export namespace TokenBufferHandler {
 					if (!tokens.length) {
 						const token = await TokenBuffer.create({ token_id, wt_name, w_basic_form, w_reading, surface_form, w_pos_details, created_at }, { transaction });
 						if (!token) throw new Error(Message.failed(['create', 'token', i]));
+
+						new_tokens += 1;
+						const bookBuffer = await BookBuffer.updateByPk(book_id, { new_tokens }, { transaction });
+						if (!bookBuffer) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['update', 'book buffer', { new_tokens }] }));
 
 						return JSON.stringify({ [section_no]: [sentence_no] });
 					}
@@ -109,13 +131,15 @@ export namespace TokenBufferHandler {
 				})();
 				if (!token_positions) continue;
 
-				const token = await TokenBuffer.update({ token_positions }, { where: { token_id }, transaction });
-				if (!token) throw new Error(Message.failed(['update', 'token', i]));
+				const token = await TokenBuffer.updateByPk(token_id, { token_positions }, { transaction });
+				if (!token) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['update', 'token buffer', token_id] }));
+
+				tokenCount += 1;
 			}
 			await transaction.commit();
 			write(writeResponse({
 				percentage,
-				message: `Extracted ${parsedSentence.length} tokens from sentence [${section_no},${sentence_no}]`,
+				message: !tokenCount ? `No tokens extracted from sentence [${section_no},${sentence_no}]` : `Extracted ${tokenCount} tokens from sentence [${section_no},${sentence_no}]`,
 				t_elapsed_ms: Date.now() - startTime
 			}));
 		}
