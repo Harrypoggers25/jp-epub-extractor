@@ -77,7 +77,7 @@ export namespace BookBufferHandler {
 			causer: ['delete', 'token buffers', { book_id }]
 		}));
 
-		const sentenceBuffers = await SentenceBuffer.delete({ where: book_id, transaction });
+		const sentenceBuffers = await SentenceBuffer.delete({ where: { book_id }, transaction });
 		if (!sentenceBuffers) throw new Error(Message.failed(['delete', 'current book buffer'], {
 			causer: ['delete', 'sentence buffers', { book_id }]
 		}));
