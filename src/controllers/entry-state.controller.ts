@@ -10,9 +10,8 @@ import Message from "@harrypoggers25/message";
 // ROUTES
 import Route from "@harrypoggers25/route";
 
-function getSlugs(entries: Array<IJishoWord>) {
-	return entries.map(entry => entry.slug);
-}
+// SERVICES
+import { transformWordBuffer } from "../services/work-buffers.service";
 
 export namespace EntryStateHandler {
 	export const create = Route.asyncHandler(async (req, res) => {
