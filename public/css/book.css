@@ -16,6 +16,62 @@
     margin-bottom: 24px;
 }
 
+.book-upload-row,
+.buffer-navigation,
+.book-file-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.book-upload-row {
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.book-file-row {
+    padding: 10px 0;
+    border-top: 1px solid var(--border-faint);
+}
+
+.book-label {
+    width: 100px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.book-file {
+    overflow-wrap: anywhere;
+}
+
+.book-name-label {
+    display: block;
+    margin: 18px 0 8px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.book-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #444;
+    border-radius: 10px;
+    font-size: 15px;
+    outline: none;
+    background: var(--bg-input);
+    color: var(--text);
+}
+
+.book-input:focus {
+    border-color: var(--accent);
+}
+.book-input:disabled {
+    background: var(--bg-disabled);
+    color: var(--text-disabled);
+    border-color: var(--border-subtle);
+}
+
 .buffer-panel {
     padding: 20px;
     min-height: 420px;
