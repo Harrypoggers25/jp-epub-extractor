@@ -18,5 +18,7 @@ wordBufferRouter.route('/:w_basic_form')
 	.get(WordBufferHandler.findMany);
 wordBufferRouter.route('/:w_basic_form/:wt_name')
 	.get(WordBufferHandler.find);
+wordBufferRouter.route('/tranform/:w_basic_form/:wt_name')
+	.post(WordBufferHandler.transform);
 
 export default wordBufferRouter;
