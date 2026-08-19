@@ -1,8 +1,10 @@
 // CONFIGS
-import { WordBuffer, db, EntryState } from "../configs/db.config";
+import Db from "@harrypoggers25/db-postgresql";
+import { WordBuffer, db, EntryState, IWordBuffer, IEntryState } from "../configs/db.config";
+import { IParsedToken } from "../helpers/book.helper";
 
 // HELPERS
-import { IJishoWord } from "../helpers/jisho.helper";
+import { IJishoReducedWord, IJishoWord } from "../helpers/jisho.helper";
 
 // MODULES
 import Message from "@harrypoggers25/message";
@@ -25,6 +27,29 @@ export namespace EntryStateHandler {
 		if (!entryState) throw new Error(Message.failed(['create', 'entry state', es_id]));
 
 		res.status(201).json(entryState);
+	});
+
+	export const sync = Route.asyncHandler(async (req, res) => {
+		const wordBuffers = await WordBuffer.find();
+		if (!wordBuffers) throw new Error(Message.failed(['sync', 'all entry states'], { causer: ['find', 'all word buffers'] }));
+
+		const entryStates = await EntryState.find();
+		if (!entryStates) throw new Error(Message.failed(['sync', 'all entry states'], { causer: ['find', 'all entry states'] }));
+
+		const result: Array<IEntryState> = [];
+		const transaction = await db.transaction();
+		for (const { w_basic_form, wt_name } of wordBuffers) {
+			const es_id = `${w_basic_form}_${wt_name}`;
+			const can_merge = transformWordBuffer(wordBuffers, entryStates, es_id).top.length;
+			const updatedEntryState = await EntryState.update({ can_merge }, { where: { es_id }, transaction });
+			if (!updatedEntryState) throw new Error(Message.failed(['update', 'entry state', es_id]));
+			if (!updatedEntryState.length) continue;
+
+			result.push(updatedEntryState[0]);
+		}
+		await transaction.commit();
+
+		res.status(200).json(result);
 	});
 
 	export const findAll = Route.asyncHandler(async (_, res) => {
@@ -101,7 +126,7 @@ export namespace EntryStateHandler {
 				return JSON.parse(buffer.j_response).filter((_: any, i: number) => Array.from(JSON.parse(entryState.state)).sort().includes(i)) as Array<IJishoWord>;
 			})();
 
-			const slugs = getSlugs(entries);
+			const slugs = entries.map(entry => entry.slug);
 			return { es_id, buffer, entries, slugs };
 		}
 
