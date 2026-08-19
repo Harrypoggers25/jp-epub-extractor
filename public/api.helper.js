@@ -1,5 +1,67 @@
 import { asyncHandler, PostEventSource } from "./tools.helper.js";
 
+export const BookBuffer = {
+	findCurrent: async () => {
+		return await asyncHandler('FIND CURRENT BOOK BUFFER', async () => {
+			const response = await fetch('/api/book-buffers/current', { method: 'GET' });
+			if (!response.ok) {
+				const error = await response.json().catch(() => undefined);
+				if (response.status === 500 && error?.message === 'Failed to find current book buffer') return null;
+
+				throw new Error(error?.message ?? 'Failed to find current book buffer. Internal error');
+			}
+
+			const bookBuffer = await response.json();
+			if (!bookBuffer) throw new Error('Failed to find current book buffer. Unable to find data');
+
+			return bookBuffer;
+		});
+	},
+	upload: async file => {
+		return await asyncHandler('UPLOAD BOOK BUFFER', async () => {
+			const body = new FormData();
+			body.append('file', file);
+
+			const response = await fetch('/api/book-buffers/upload', {
+				method: 'POST',
+				body,
+			});
+			if (!response.ok) throw new Error('Failed to upload book buffer. Internal error');
+
+			const bookBuffer = await response.json();
+			if (!bookBuffer) throw new Error('Failed to upload book buffer. Unable to create data');
+
+			return bookBuffer;
+		});
+	},
+	confirm: async body => {
+		return await asyncHandler('CONFIRM BOOK BUFFER', async () => {
+			const response = await fetch('/api/book-buffers/confirm', {
+				method: 'POST',
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!response.ok) throw new Error('Failed to confirm book buffer. Internal error');
+
+			const bookBuffer = await response.json();
+			if (!bookBuffer) throw new Error('Failed to confirm book buffer. Unable to update data');
+
+			return bookBuffer;
+		});
+	},
+	removeCurrent: async () => {
+		return await asyncHandler('DELETE CURRENT BOOK BUFFER', async () => {
+			const response = await fetch('/api/book-buffers/current', { method: 'DELETE' });
+			if (!response.ok) throw new Error('Failed to delete current book buffer. Internal error');
+
+			const bookBuffer = await response.json();
+			if (!bookBuffer) throw new Error('Failed to delete current book buffer. Unable to delete data');
+
+			return bookBuffer;
+		});
+	},
+}
+
 export const WordType = {
 	find: async () => {
 		return await asyncHandler('FIND WORD TYPES', async () => {
@@ -50,6 +112,30 @@ export const WordBuffer = {
 				await onmessage(JSON.parse(event.data), eventSource);
 			};
 		});
+	},
+	count: async () => {
+		return await asyncHandler('COUNT WORD BUFFERS', async () => {
+			const response = await fetch('/api/word-buffers/count', { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to count word buffers. Internal error');
+
+			const wordBuffers = await response.json();
+			if (!wordBuffers) throw new Error('Failed to count word buffers. Unable to find data');
+
+			return wordBuffers;
+		});
+	},
+	filter: (onmessage, onerror, onclose) => {
+		return asyncHandler('FILTER WORD BUFFERS', () => {
+			const eventSource = new PostEventSource('/api/word-buffers/filter');
+
+			eventSource.onmessage = async event => {
+				await onmessage(JSON.parse(event.data), eventSource);
+			};
+			eventSource.onerror = error => onerror?.(error, eventSource);
+			eventSource.onclose = () => onclose?.(eventSource);
+
+			return eventSource;
+		});
 	}
 }
 
@@ -63,6 +149,60 @@ export const SentenceBuffer = {
 			if (!sentenceBuffers) throw new Error('Failed to find sentence buffers. Unable to find data');
 
 			return sentenceBuffers;
+		});
+	},
+	findBySection: async (section_no, limit) => {
+		return await asyncHandler('FIND SENTENCE BUFFERS BY SECTION', async () => {
+			const response = await fetch(`/api/sentence-buffers/section/${section_no}?limit=${limit}`, { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to find sentence buffers by section. Internal error');
+
+			const sentenceBuffers = await response.json();
+			if (!sentenceBuffers) throw new Error('Failed to find sentence buffers by section. Unable to find data');
+
+			return sentenceBuffers;
+		});
+	}
+}
+
+export const TokenBuffer = {
+	count: async () => {
+		return await asyncHandler('COUNT TOKEN BUFFERS', async () => {
+			const response = await fetch('/api/token-buffers/count', { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to count token buffers. Internal error');
+
+			const tokenBuffers = await response.json();
+			if (!tokenBuffers) throw new Error('Failed to count token buffers. Unable to find data');
+
+			return tokenBuffers;
+		});
+	},
+	tokenize: (onmessage, onerror, onclose) => {
+		return asyncHandler('TOKENIZE BOOK BUFFER', () => {
+			const eventSource = new PostEventSource('/api/token-buffers/tokenize');
+
+			eventSource.onmessage = async event => {
+				await onmessage(JSON.parse(event.data), eventSource);
+			};
+			eventSource.onerror = error => onerror?.(error, eventSource);
+			eventSource.onclose = () => onclose?.(eventSource);
+
+			return eventSource;
+		});
+	}
+}
+
+export const JishoBuffer = {
+	load: (onmessage, onerror, onclose) => {
+		return asyncHandler('LOAD JISHO BUFFERS', () => {
+			const eventSource = new PostEventSource('/api/jisho-buffers/load');
+
+			eventSource.onmessage = async event => {
+				await onmessage(JSON.parse(event.data), eventSource);
+			};
+			eventSource.onerror = error => onerror?.(error, eventSource);
+			eventSource.onclose = () => onclose?.(eventSource);
+
+			return eventSource;
 		});
 	}
 }
