@@ -71,10 +71,9 @@ class Buffer {
 			bookStatus: document.getElementById('bookStatus'),
 			uploadInput: document.getElementById('uploadInput'),
 			btnUpload: document.getElementById('btnUpload'),
-			btnUploadFile: document.getElementById('btnUploadFile'),
 			btnDiscard: document.getElementById('btnDiscard'),
+			bookSetupDetails: document.getElementById('bookSetupDetails'),
 			selectedFile: document.getElementById('selectedFile'),
-			bookFilePath: document.getElementById('bookFilePath'),
 			bookName: document.getElementById('bookName'),
 			btnSetupNext: document.getElementById('btnSetupNext'),
 			bufferPanel: document.getElementById('bufferPanel'),
@@ -100,8 +99,13 @@ class Buffer {
 		this.isConfirming = false;
 
 		this.elems.btnUpload.onclick = eventHandler(() => this.elems.uploadInput.click());
-		this.elems.uploadInput.onchange = eventHandler(ev => this.setSelectedFile(ev.target.files?.[0]));
-		this.elems.btnUploadFile.onclick = eventHandler(async () => await this.upload());
+		this.elems.uploadInput.onchange = eventHandler(async ev => {
+			const file = ev.target.files?.[0];
+			if (!file) return;
+
+			this.setSelectedFile(file);
+			await this.upload();
+		});
 		this.elems.btnDiscard.onclick = eventHandler(() => discardOverlay.open());
 		this.elems.bookName.oninput = eventHandler(() => {
 			this.renderControls();
@@ -153,15 +157,18 @@ class Buffer {
 		this.selectedSectionNo = this.selectedSections.values().next().value ?? null;
 		this.sentenceBuffers = [];
 
-		const currentFile = !bookBuffer ? 'No current book' : `${bookBuffer.book_original_name ?? 'Unknown file'} · ${bookBuffer.book_filename ?? '-'}`;
-		this.elems.bookFilePath.textContent = currentFile;
+		this.elems.selectedFile.textContent = bookBuffer?.book_original_name ?? 'No EPUB selected';
 		this.elems.bookName.value = bookBuffer?.book_name ?? '';
 		this.elems.bookName.disabled = !bookBuffer || bookBuffer.confirmed;
 	}
 	setSelectedFile(file) {
 		this.selectedFile = file ?? null;
-		this.elems.selectedFile.textContent = this.selectedFile?.name ?? 'No EPUB selected';
 		this.renderControls();
+	}
+	resetUpload() {
+		this.elems.uploadInput.value = '';
+		this.selectedFile = null;
+		this.elems.selectedFile.textContent = 'No EPUB selected';
 	}
 	async upload() {
 		if (!this.selectedFile || this.bookBuffer || this.isUploading) return;
@@ -172,12 +179,16 @@ class Buffer {
 		const bookBuffer = await BookBuffer.upload(this.selectedFile);
 		this.isUploading = false;
 		if (!bookBuffer) {
+			this.resetUpload();
+			this.setBook(null);
+			this.bufferIndex = null;
 			errorOverlay.open('Unable to upload the EPUB. Please check the file and try again.');
-			this.elems.bookStatus.textContent = 'Upload failed';
-			this.renderControls();
+			this.elems.bookStatus.textContent = 'Ready to upload';
+			this.render();
 			return;
 		}
 
+		this.resetUpload();
 		this.setBook(bookBuffer);
 		this.bufferIndex = null;
 		this.elems.bookStatus.textContent = 'Enter book details';
@@ -198,8 +209,7 @@ class Buffer {
 		processingBuffer.reset();
 		this.setBook(null);
 		this.bufferIndex = null;
-		this.selectedFile = null;
-		this.elems.selectedFile.textContent = 'No EPUB selected';
+		this.resetUpload();
 		this.elems.bookStatus.textContent = 'Ready to upload';
 		this.render();
 	}
@@ -330,9 +340,10 @@ class Buffer {
 		const canUpload = !hasBook && !this.isUploading;
 		const canEnterSections = hasBook && !this.bookBuffer?.confirmed && !this.isUploading && !this.isConfirming && !!this.elems.bookName.value.trim();
 
+		this.elems.btnUpload.hidden = hasBook;
 		this.elems.btnUpload.disabled = !canUpload;
-		this.elems.btnUploadFile.disabled = !canUpload || !this.selectedFile;
-		this.elems.btnUploadFile.textContent = this.isUploading ? 'Uploading EPUB...' : 'Upload EPUB';
+		this.elems.btnUpload.textContent = this.isUploading ? 'Uploading EPUB...' : 'Upload EPUB';
+		this.elems.bookSetupDetails.hidden = !hasBook;
 		this.elems.btnDiscard.disabled = !hasBook || this.isUploading || this.isConfirming || processingBuffer.running;
 		this.elems.btnSetupNext.disabled = !canEnterSections;
 		this.elems.btnSetupNext.hidden = this.bufferIndex !== null;

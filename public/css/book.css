@@ -18,15 +18,19 @@
 
 .book-upload-row,
 .buffer-navigation,
-.book-file-row {
+.book-file-row,
+.book-setup-actions {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
 .book-upload-row {
-    flex-wrap: wrap;
-    margin-bottom: 18px;
+    margin-bottom: 0;
+}
+
+.book-setup-details {
+    margin-top: 18px;
 }
 
 .book-file-row {
@@ -50,6 +54,11 @@
     margin: 18px 0 8px;
     color: var(--text-muted);
     font-size: 14px;
+}
+
+.book-setup-actions {
+    justify-content: flex-end;
+    margin-top: 18px;
 }
 
 .book-input {

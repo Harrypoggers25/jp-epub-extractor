@@ -29,21 +29,20 @@
                 <div class="book-panel">
                     <div class="book-upload-row">
                         <input id="uploadInput" type="file" accept=".epub,application/epub+zip" hidden>
-                        <button id="btnUpload" class="header-btn">Choose EPUB</button>
-                        <button id="btnUploadFile" class="header-btn" disabled>Upload EPUB</button>
-                        <button id="btnDiscard" class="header-btn danger" disabled>Discard current book</button>
-                        <button id="btnSetupNext" class="header-btn success" disabled>Next</button>
+                        <button id="btnUpload" class="header-btn">Upload EPUB</button>
                     </div>
-                    <div class="book-file-row">
-                        <span class="book-label">Selected file</span>
-                        <span id="selectedFile" class="book-file">No EPUB selected</span>
+                    <div id="bookSetupDetails" class="book-setup-details" hidden>
+                        <div class="book-file-row">
+                            <span class="book-label">Selected file</span>
+                            <span id="selectedFile" class="book-file">No EPUB selected</span>
+                        </div>
+                        <label class="book-name-label" for="bookName">Book name</label>
+                        <input id="bookName" class="book-input" type="text" placeholder="Enter a book name" disabled>
+                        <div class="book-setup-actions">
+                            <button id="btnDiscard" class="header-btn danger" disabled>Discard current book</button>
+                            <button id="btnSetupNext" class="header-btn success" disabled>Next</button>
+                        </div>
                     </div>
-                    <div class="book-file-row">
-                        <span class="book-label">Current file</span>
-                        <span id="bookFilePath" class="book-file">No current book</span>
-                    </div>
-                    <label class="book-name-label" for="bookName">Book name</label>
-                    <input id="bookName" class="book-input" type="text" placeholder="Confirm a name after upload" disabled>
                 </div>
 
                 <div id="bufferPanel" class="buffer-panel" hidden>
