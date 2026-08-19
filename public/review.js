@@ -599,13 +599,28 @@ class Buffer {
 
 			if (entryState.merged_with) {
 				const es_id2 = entryState.merged_with;
-				const can_merge1 = mergeModal.transformWords(es_id, sidebar.allWordBuffers).top.length;
-				const updatedEntryState = await this.entryStates.set(es_id, { merged_with: null, can_merge: can_merge1 });
-				if (!updatedEntryState) return;
 
-				const can_merge2 = mergeModal.transformWords(es_id2, sidebar.allWordBuffers).top.length;
-				const updatedEntryState2 = await buffer.entryStates.set(es_id2, { can_merge: can_merge2 });
-				if (!updatedEntryState2) return;
+				const can_merge1 = await (async () => {
+					const [w_basic_form, wt_name] = es_id.split('_');
+					const transformed = await WordBuffer.transform(w_basic_form, wt_name);
+					if (!transformed) return;
+
+					const can_merge = transformed.top.length;
+					const updatedEntryState = await this.entryStates.set(es_id, { merged_with: null, can_merge });
+					if (!updatedEntryState) return;
+				})();
+				if (!can_merge1) return;
+
+				const can_merge2 = await (async () => {
+					const [w_basic_form, wt_name] = es_id2.split('_');
+					const transformed = await WordBuffer.transform(w_basic_form, wt_name);
+					if (!transformed) return;
+
+					const can_merge = transformed.top.length;
+					const updatedEntryState = await this.entryStates.set(es_id, { can_merge });
+					if (!updatedEntryState) return;
+				})();
+				if (!can_merge2) return;
 
 				sidebar.renderSearchResults(sidebar.wordBuffers);
 				this.syncButtonState(es_id, buttons);
@@ -663,6 +678,7 @@ class Buffer {
 		return { buttons, handlers };
 	}
 	async toggleEntry(card, i) {
+		const { w_basic_form, wt_name } = this.selected;
 		const es_id = wordId(this.selected);
 		const entryState = await this.entryStates.init(es_id);
 		if (!entryState) return;
@@ -677,7 +693,10 @@ class Buffer {
 			}
 
 			state.delete(i);
-			const can_merge = mergeModal.transformWords(es_id, sidebar.allWordBuffers, { targetState: state }).top.length;
+			const transformed = await WordBuffer.transform(w_basic_form, wt_name, { state });
+			if (!transformed) return;
+
+			const can_merge = transformed.top.length;
 			const updatedEntryState = await this.entryStates.set(es_id, { state, can_merge });
 			if (!updatedEntryState) return;
 
@@ -687,7 +706,10 @@ class Buffer {
 
 		// Toggle on
 		state.add(i);
-		const can_merge = mergeModal.transformWords(es_id, sidebar.allWordBuffers, { targetState: state }).top.length;
+		const transformed = await WordBuffer.transform(w_basic_form, wt_name, { state });
+		if (!transformed) return;
+
+		const can_merge = transformed.top.length;
 		const updatedEntryState = await this.entryStates.set(es_id, { state, can_merge });
 		if (!updatedEntryState) return;
 
@@ -844,6 +866,7 @@ class MergeModal {
 
 		this.elems.mergeModalSearchInput.oninput = eventHandler(async ev => {
 			await asyncHandler('MERGE MODAL SEARCH', async () => {
+				const { w_basic_form, wt_name } = this.target;
 				const text = ev.target.value;
 				const wordBuffers = !text ? sidebar.allWordBuffers : await WordBuffer.find(text);
 				if (!wordBuffers) throw new Error(`Failed to search word '${text}'`);
@@ -872,11 +895,14 @@ class MergeModal {
 		mergeModalSelectedWord.textContent = '';
 		this.target = wordBuffer;
 
-		await asyncHandler('MERGE MODAL OPEN', () => {
+		await asyncHandler('MERGE MODAL OPEN', async () => {
 			const wordBuffers = sidebar.allWordBuffers;
 			if (!wordBuffers) throw new Error('Failed to open merge modal. Unable to find word buffers');
 
-			const { top, bottom } = this.transformWords(wordId(this.target), wordBuffers);
+			const transformed = await WordBuffer.transform(w_basic_form, wt_name);
+			if (!transformed) throw new Error('Failed to open merge modal. Unable to tranform word buffers');
+
+			const { top, bottom } = transformed;
 			const sorted = [...top, ...bottom];
 
 			this.renderModelItems(sorted);
