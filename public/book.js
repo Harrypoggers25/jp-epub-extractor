@@ -120,10 +120,14 @@ class Buffer {
 			return;
 		}
 
-		this.bufferIndex = 1;
-		this.elems.bookStatus.textContent = 'Select book sections';
+		this.bufferIndex = bookBuffer.confirmed ? 2 : 1;
+		this.elems.bookStatus.textContent = bookBuffer.confirmed ? 'Processing book' : 'Select book sections';
 		this.render();
-		await this.loadSection(this.selectedSectionNo);
+		if (this.bufferIndex === 1) await this.loadSection(this.selectedSectionNo);
+		if (this.bufferIndex === 2) {
+			await processingBuffer.open(bookBuffer, true);
+			if (processingBuffer.completed) this.elems.bookStatus.textContent = 'WordBuffers ready for review';
+		}
 	}
 	setBook(bookBuffer) {
 		this.bookBuffer = bookBuffer;
@@ -194,7 +198,7 @@ class Buffer {
 		this.bufferIndex = index;
 		this.render();
 		if (this.bufferIndex === 1) await this.loadSection(this.selectedSectionNo);
-		if (this.bufferIndex === 2) await processingBuffer.open(this.bookBuffer);
+		if (this.bufferIndex === 2) await processingBuffer.open(this.bookBuffer, true);
 	}
 	async next() {
 		if (this.bufferIndex === 0) {
@@ -400,6 +404,7 @@ class ProcessingBuffer {
 		this.completed = false;
 		this.failed = false;
 		this.activeEventSource = null;
+		this.counts = { token: null, word: null };
 		this.stages = this.createStages();
 	}
 	createStages() {
@@ -416,15 +421,42 @@ class ProcessingBuffer {
 		this.completed = false;
 		this.failed = false;
 		this.activeEventSource = null;
+		this.counts = { token: null, word: null };
 		this.stages = this.createStages();
 	}
-	async open(bookBuffer) {
+	async open(bookBuffer, resume = false) {
 		this.bookBuffer = bookBuffer;
-		this.completed = false;
-		this.failed = false;
-		this.stages = this.createStages();
+		if (!resume) {
+			this.completed = false;
+			this.failed = false;
+			this.stages = this.createStages();
+		}
+		if (resume) await this.loadResumeState();
 		this.render();
 		buffer.renderNavigation();
+	}
+	async loadResumeState() {
+		const counts = await this.loadCounts();
+		if (!counts) return;
+
+		if (counts.word) {
+			Object.values(this.stages).forEach(stage => {
+				stage.status = 'success';
+				stage.percentage = 100;
+				stage.message = 'Previously completed';
+			});
+			this.completed = true;
+		}
+	}
+	async loadCounts() {
+		const [tokenBuffers, wordBuffers] = await Promise.all([
+			TokenBuffer.count(),
+			WordBuffer.count(),
+		]);
+		if (!tokenBuffers || !wordBuffers) return undefined;
+
+		this.counts = { token: tokenBuffers.count, word: wordBuffers.count };
+		return this.counts;
 	}
 	async start() {
 		if (this.running || this.completed || this.failed) return;
@@ -441,7 +473,7 @@ class ProcessingBuffer {
 		const filtered = await this.runStage('filter', WordBuffer.filter);
 		if (!filtered) return this.stop();
 
-		this.complete();
+		await this.complete();
 	}
 	async runStage(key, handler) {
 		return await new Promise(async resolve => {
@@ -496,10 +528,16 @@ class ProcessingBuffer {
 		buffer.renderControls();
 		this.render();
 	}
-	complete() {
+	async complete() {
 		this.running = false;
 		this.completed = true;
 		this.activeEventSource = null;
+		const bookBuffer = await BookBuffer.findCurrent();
+		if (bookBuffer) {
+			this.bookBuffer = bookBuffer;
+			buffer.bookBuffer = bookBuffer;
+		}
+		await this.loadCounts();
 		buffer.elems.bookStatus.textContent = 'WordBuffers ready for review';
 		buffer.renderControls();
 		buffer.renderNavigation();
@@ -512,7 +550,7 @@ class ProcessingBuffer {
 		this.container.innerHTML = '';
 		const panel = createElement('div', 'processing-panel');
 		panel.appendChild(createElement('h2', null, this.completed ? 'Processing complete' : 'Book processing'));
-		panel.appendChild(createElement('p', null, this.completed ? 'WordBuffers are prepared.' : 'Tokenization, Jisho loading, and WordBuffer filtering run in order.'));
+		panel.appendChild(createElement('p', null, this.completed ? 'WordBuffers are prepared. Continue to review when you are ready.' : 'Tokenization, Jisho loading, and WordBuffer filtering run in order.'));
 		Object.entries(this.stages).forEach(([key, stage]) => panel.appendChild(this.createStageCard(key, stage)));
 
 		if (!this.running && !this.completed) {
@@ -523,6 +561,8 @@ class ProcessingBuffer {
 			if (this.failed) panel.appendChild(createElement('span', 'processing-note', 'Safe processing retry is not available with the current backend behavior.'));
 		}
 		this.container.appendChild(panel);
+
+		if (this.completed) this.container.appendChild(this.createSummary());
 	}
 	createStageCard(key, stage) {
 		const card = createElement('div', `stage-card ${stage.status}`);
@@ -543,6 +583,30 @@ class ProcessingBuffer {
 		card.appendChild(footer);
 
 		return card;
+	}
+	createSummary() {
+		const container = createElement('div', 'completion-summary');
+		container.appendChild(createElement('h2', null, 'Book Extraction Summary'));
+		const grid = createElement('div', 'summary-grid');
+		const sections = this.bookBuffer ? getSections(this.bookBuffer).join(', ') : '-';
+		const values = [
+			['Book ID', this.bookBuffer?.book_id ?? '-'],
+			['Book name', this.bookBuffer?.book_name ?? '-'],
+			['Original file', this.bookBuffer?.book_original_name ?? '-'],
+			['Stored file', this.bookBuffer?.book_filename ?? '-'],
+			['Selected sections', sections || '-'],
+			['Existing tokens', `${this.bookBuffer?.existing_tokens ?? 0}`],
+			['New tokens', `${this.bookBuffer?.new_tokens ?? 0}`],
+			['TokenBuffer count', `${this.counts.token ?? '-'}`],
+			['WordBuffer count', `${this.counts.word ?? '-'}`],
+		];
+		for (const [label, value] of values) {
+			grid.appendChild(createElement('div', 'summary-label', label));
+			grid.appendChild(createElement('div', null, value));
+		}
+		container.appendChild(grid);
+
+		return container;
 	}
 }
 
