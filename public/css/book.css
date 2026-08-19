@@ -66,6 +66,16 @@
 .book-input:focus {
     border-color: var(--accent);
 }
+
+.book-input.warning {
+    border-color: var(--warning);
+}
+
+.book-input.warning:is(:hover, :focus) {
+    border-color: var(--warning);
+    box-shadow: 0 8px 30px var(--warning-glow);
+}
+
 .book-input:disabled {
     background: var(--bg-disabled);
     color: var(--text-disabled);
@@ -147,6 +157,13 @@
     gap: 8px;
     max-height: 470px;
     overflow-y: auto;
+}
+
+.section-selector .book-name-warning {
+    margin: 6px 0 8px;
+    color: var(--warning);
+    font-size: 12px;
+    white-space: nowrap;
 }
 
 .section-item {

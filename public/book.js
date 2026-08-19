@@ -15,6 +15,9 @@ const formatElapsed = t_elapsed_ms => {
 	const seconds = Math.round(t_elapsed_ms / 100) / 10;
 	return `${seconds}s`;
 }
+
+const formatStatus = status => `${status[0].toUpperCase()}${status.slice(1)}`;
+
 class ErrorOverlay {
 	constructor() {
 		this.elems = {
@@ -98,7 +101,11 @@ class Buffer {
 		this.elems.uploadInput.onchange = eventHandler(ev => this.setSelectedFile(ev.target.files?.[0]));
 		this.elems.btnUploadFile.onclick = eventHandler(async () => await this.upload());
 		this.elems.btnDiscard.onclick = eventHandler(() => discardOverlay.open());
-		this.elems.bookName.oninput = eventHandler(() => this.renderNavigation());
+		this.elems.bookName.oninput = eventHandler(() => {
+			this.renderControls();
+			this.renderNavigation();
+			if (this.bufferIndex === 1) this.renderBuffer();
+		});
 		this.elems.btnPrevBuffer.onclick = eventHandler(async () => await this.selectBuffer(this.bufferIndex - 1));
 		this.elems.btnNextBuffer.onclick = eventHandler(async () => await this.next());
 		this.elems.bufferSteps.forEach((button, i) => {
@@ -288,6 +295,10 @@ class Buffer {
 		this.elems.btnUploadFile.textContent = this.isUploading ? 'Uploading EPUB...' : 'Upload EPUB';
 		this.elems.btnDiscard.disabled = !hasBook || this.isUploading || this.isConfirming || processingBuffer.running;
 		this.elems.bookName.disabled = !hasBook || this.bookBuffer?.confirmed;
+		setClass(this.elems.bookName, 'warning', this.isBookNameMissing());
+	}
+	isBookNameMissing() {
+		return !!this.bookBuffer && !this.bookBuffer.confirmed && !this.elems.bookName.value.trim();
 	}
 	renderNavigation() {
 		this.elems.bufferSteps.forEach((button, i) => {
@@ -354,6 +365,7 @@ class Buffer {
 		const listWrapper = createElement('div');
 		listWrapper.appendChild(createElement('h2', null, 'Book sections'));
 		listWrapper.appendChild(createElement('p', null, 'Choose a section to preview. Toggle included sections before confirmation.'));
+		if (this.isBookNameMissing()) listWrapper.appendChild(createElement('p', 'book-name-warning', 'Enter a book name before processing.'));
 		const list = createElement('div', 'section-list');
 		for (const section_no of getSections(this.bookBuffer)) list.appendChild(this.createSectionItem(section_no));
 		listWrapper.appendChild(list);
@@ -580,7 +592,7 @@ class ProcessingBuffer {
 		const card = createElement('div', `stage-card ${stage.status}`);
 		const header = createElement('div', 'stage-header');
 		header.appendChild(createElement('span', null, stage.title));
-		header.appendChild(createElement('span', 'stage-status', `${stage.status} · ${stage.percentage}%`));
+		header.appendChild(createElement('span', 'stage-status', `${formatStatus(stage.status)} · ${stage.percentage}%`));
 		card.appendChild(header);
 
 		const progress = createElement('div', 'stage-progress');

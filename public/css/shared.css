@@ -31,6 +31,7 @@
     --warning: #d9b64c;
     --warning-bg: #332b0f;
     --warning-bg-hover: #3d331a;
+    --warning-glow: rgba(217, 182, 76, .22);
 
     --danger: #e05c5c;
     --danger-bg: #2b1414;
