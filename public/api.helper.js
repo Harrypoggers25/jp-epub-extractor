@@ -15,6 +15,30 @@ export const WordType = {
 }
 
 export const WordBuffer = {
+	transform: async (w_basic_form, wt_name, body) => {
+		body.state = body.state ? Array.from(body.state) : body.state;
+		return await asyncHandler('TRANSFORM WORD BUFFERS', async () => {
+			const response = await fetch(`/api/word-buffers/transform/${w_basic_form}/${wt_name}`, {
+				method: 'POST',
+				body
+			});
+			if (!response.ok) throw new Error('Failed to find word buffers. Internal error');
+
+			const data = await response.json();
+			if (!data) throw new Error('Failed to find word buffers. Unable to find data');
+
+			return {
+				top: data.top.map(wordBuffer => {
+					wordBuffer.j_response = JSON.parse(wordBuffer.j_response);
+					return wordBuffer;
+				}),
+				bottom: data.bottom.map(wordBuffer => {
+					wordBuffer.j_response = JSON.parse(wordBuffer.j_response);
+					return wordBuffer;
+				}),
+			}
+		});
+	},
 	find: async (w_basic_form) => {
 		return await asyncHandler('FIND WORD BUFFERS', async () => {
 			const url = !w_basic_form ? '/api/word-buffers' : `/api/word-buffers/${w_basic_form}`
