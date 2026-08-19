@@ -1,5 +1,5 @@
 // CONFIGS
-import { BookBuffer, SentenceBuffer, WordType, TokenBuffer, JishoBuffer, WordBuffer, EntryState } from "../configs/db.config";
+import { BookBuffer, SentenceBuffer, WordType, TokenBuffer, JishoBuffer, WordBuffer, EntryState, Word } from "../configs/db.config";
 
 // MODULES
 import ch from "@harrypoggers25/color-utils";
@@ -30,6 +30,9 @@ import env from "../configs/env.config";
 
 	const entryStates = await EntryState.backup(path, { format, append });
 	if (!entryStates) return;
+
+	const words = await Word.backup(path, { format, append });
+	if (!words) return;
 
 	console.log(ch.green('SCRIPT:'), 'All db data has been', ch.green('successfully'), 'backed up');
 })()
