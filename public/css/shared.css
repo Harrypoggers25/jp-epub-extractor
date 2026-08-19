@@ -31,9 +31,11 @@
     --warning: #d9b64c;
     --warning-bg: #332b0f;
     --warning-bg-hover: #3d331a;
+
     --danger: #e05c5c;
     --danger-bg: #2b1414;
     --danger-bg-hover: #331a1a;
+    --danger-glow: rgba(224, 92, 92, .22);
 }
 
 html,
@@ -106,6 +108,37 @@ body {
     border-color: var(--accent);
     box-shadow: var(--shadow-soft), 0 8px 30px var(--accent-glow);
     color: var(--accent);
+}
+
+.header-btn.selected {
+    border-color: var(--accent);
+}
+
+.header-btn.selected:is(:hover, :focus) {
+    color: var(--accent);
+    box-shadow: var(--shadow-soft), 0 8px 30px var(--accent-glow);
+}
+
+.header-btn.success {
+    border-color: var(--success);
+}
+
+.header-btn.success:is(:hover, :focus) {
+    background: var(--bg-item-hover);
+    border-color: var(--success);
+    box-shadow: var(--shadow-soft), 0 8px 30px var(--success-glow);
+    color: var(--success);
+}
+
+.header-btn.danger {
+    border-color: var(--danger);
+}
+
+.header-btn.danger:is(:hover, :focus) {
+    background: var(--bg-item-hover);
+    border-color: var(--danger);
+    box-shadow: var(--shadow-soft), 0 8px 30px var(--danger-glow);
+    color: var(--danger);
 }
 
 .header-btn:disabled,

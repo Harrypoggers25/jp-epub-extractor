@@ -294,6 +294,9 @@ class Buffer {
 			button.disabled = !this.canSelectBuffer(i) || processingBuffer.running;
 			setClass(button, 'selected', i === this.bufferIndex);
 		});
+		const isConfirmingBook = this.bufferIndex === 1 && !this.bookBuffer?.confirmed;
+		const isReviewReady = this.bufferIndex === 2 && processingBuffer.completed;
+		setClass(this.elems.btnNextBuffer, 'success', isConfirmingBook || isReviewReady);
 
 		this.elems.btnPrevBuffer.disabled = this.bufferIndex === 0 || processingBuffer.running;
 		this.elems.btnNextBuffer.hidden = false;
@@ -376,6 +379,7 @@ class Buffer {
 		item.appendChild(nav);
 
 		const toggle = createElement('button', 'header-btn section-toggle', this.selectedSections.has(section_no) ? 'Included' : 'Excluded');
+		setClass(toggle, 'success', this.selectedSections.has(section_no));
 		toggle.disabled = this.bookBuffer?.confirmed;
 		toggle.onclick = eventHandler(() => this.toggleSection(section_no));
 		item.appendChild(toggle);
