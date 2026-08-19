@@ -528,7 +528,7 @@ class ProcessingBuffer {
 		const card = createElement('div', `stage-card ${stage.status}`);
 		const header = createElement('div', 'stage-header');
 		header.appendChild(createElement('span', null, stage.title));
-		header.appendChild(createElement('span', 'stage-status', stage.status));
+		header.appendChild(createElement('span', 'stage-status', `${stage.status} · ${stage.percentage}%`));
 		card.appendChild(header);
 
 		const progress = createElement('div', 'stage-progress');
