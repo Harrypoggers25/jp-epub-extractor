@@ -1096,7 +1096,7 @@ const mergeModal = new MergeModal();
 const sentenceModal = new SentenceModal();
 const confirmOverlay = new ConfirmOverlay();
 
-const nextPageUrl = 'https://youtube.com'; // set redirect page
+const nextPageUrl = '/book';
 
 asyncHandler('MAIN INIT', async () => {
 	await buffer.entryStates.load();

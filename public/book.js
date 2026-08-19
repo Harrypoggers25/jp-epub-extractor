@@ -205,7 +205,11 @@ class Buffer {
 			await this.selectBuffer(1);
 			return;
 		}
-		if (this.bufferIndex === 1) await this.confirm();
+		if (this.bufferIndex === 1) {
+			await this.confirm();
+			return;
+		}
+		if (this.bufferIndex === 2 && processingBuffer.completed) window.location.href = '/review';
 	}
 	async confirm() {
 		if (!this.bookBuffer || this.bookBuffer.confirmed || this.isConfirming) return;
@@ -303,7 +307,11 @@ class Buffer {
 			this.elems.btnNextBuffer.disabled = !!this.bookBuffer?.confirmed || this.isConfirming || !this.elems.bookName.value.trim() || !this.selectedSections.size;
 			return;
 		}
-		this.elems.btnNextBuffer.hidden = true;
+		if (this.bufferIndex === 2) {
+			this.elems.btnNextBuffer.textContent = 'Go to Review';
+			this.elems.btnNextBuffer.disabled = processingBuffer.running || !processingBuffer.completed;
+			this.elems.btnNextBuffer.hidden = !processingBuffer.completed;
+		}
 	}
 	renderBuffer() {
 		this.elems.bufferContent.innerHTML = '';
