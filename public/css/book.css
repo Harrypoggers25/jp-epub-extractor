@@ -135,6 +135,78 @@
     color: var(--text-muted);
 }
 
+.section-selector {
+    display: grid;
+    grid-template-columns: 230px minmax(0, 1fr);
+    gap: 18px;
+}
+
+.section-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 470px;
+    overflow-y: auto;
+}
+
+.section-item {
+    display: flex;
+    gap: 6px;
+}
+
+.section-nav {
+    flex: 1;
+}
+
+.section-toggle {
+    min-width: 76px;
+    text-align: center;
+}
+
+.section-preview {
+    min-height: 470px;
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 10px 6px;
+    border: 1px solid var(--border-faint);
+    border-radius: 10px;
+    background: var(--bg-input);
+}
+
+.sentence-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    height: 100%;
+    padding: 8px 14px;
+    margin-right: 18px;
+    border-right: 4px solid var(--text-muted);
+}
+
+.sentence-preview-no {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.sentence-preview-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 16px;
+    line-height: 1.9;
+    letter-spacing: .05em;
+    height: 100%;
+}
+
+.preview-message {
+    margin: auto;
+    color: var(--text-muted);
+}
+
 .error-modal-box h3 {
     color: var(--danger);
 }

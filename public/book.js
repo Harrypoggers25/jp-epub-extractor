@@ -1,4 +1,4 @@
-import { BookBuffer } from "./api.helper.js";
+import { BookBuffer, SentenceBuffer } from "./api.helper.js";
 import { asyncHandler, createElement, eventHandler, setClass } from "./tools.helper.js";
 
 const getSections = bookBuffer => {
@@ -80,12 +80,22 @@ class Buffer {
 		this.bookBuffer = null;
 		this.bufferIndex = 0;
 		this.selectedFile = null;
+		this.selectedSections = new Set();
+		this.selectedSectionNo = null;
+		this.sentenceBuffers = [];
+		this.previewLimit = 50;
+		this.loadingSection = false;
 		this.isUploading = false;
 
 		this.elems.btnUpload.onclick = eventHandler(() => this.elems.uploadInput.click());
 		this.elems.uploadInput.onchange = eventHandler(ev => this.setSelectedFile(ev.target.files?.[0]));
 		this.elems.btnUploadFile.onclick = eventHandler(async () => await this.upload());
 		this.elems.btnDiscard.onclick = eventHandler(() => discardOverlay.open());
+		this.elems.btnPrevBuffer.onclick = eventHandler(async () => await this.selectBuffer(this.bufferIndex - 1));
+		this.elems.btnNextBuffer.onclick = eventHandler(async () => await this.next());
+		this.elems.bufferSteps.forEach((button, i) => {
+			button.onclick = eventHandler(async () => await this.selectBuffer(i));
+		});
 	}
 	async load() {
 		const bookBuffer = await BookBuffer.findCurrent();
@@ -97,11 +107,22 @@ class Buffer {
 		}
 
 		this.setBook(bookBuffer);
-		this.elems.bookStatus.textContent = bookBuffer ? 'Uploaded book' : 'Ready to upload';
+		if (!bookBuffer) {
+			this.render();
+			return;
+		}
+
+		this.bufferIndex = 1;
+		this.elems.bookStatus.textContent = 'Select book sections';
 		this.render();
+		await this.loadSection(this.selectedSectionNo);
 	}
 	setBook(bookBuffer) {
 		this.bookBuffer = bookBuffer;
+		this.selectedSections = new Set(bookBuffer ? getSections(bookBuffer) : []);
+		this.selectedSectionNo = this.selectedSections.values().next().value ?? null;
+		this.sentenceBuffers = [];
+
 		const currentFile = !bookBuffer ? 'No current book' : `${bookBuffer.book_original_name ?? 'Unknown file'} · ${bookBuffer.book_filename ?? '-'}`;
 		this.elems.bookFilePath.textContent = currentFile;
 		this.elems.bookName.value = bookBuffer?.book_name ?? '';
@@ -128,8 +149,10 @@ class Buffer {
 		}
 
 		this.setBook(bookBuffer);
-		this.elems.bookStatus.textContent = 'Uploaded book';
+		this.bufferIndex = 1;
+		this.elems.bookStatus.textContent = 'Select book sections';
 		this.render();
+		await this.loadSection(this.selectedSectionNo);
 	}
 	async discard() {
 		if (!this.bookBuffer) return;
@@ -144,10 +167,56 @@ class Buffer {
 
 		discardOverlay.close();
 		this.setBook(null);
+		this.bufferIndex = 0;
 		this.selectedFile = null;
 		this.elems.selectedFile.textContent = 'No EPUB selected';
 		this.elems.bookStatus.textContent = 'Ready to upload';
 		this.render();
+	}
+	canSelectBuffer(index) {
+		if (index === 0) return true;
+		if (index === 1) return !!this.bookBuffer;
+		return false;
+	}
+	async selectBuffer(index) {
+		if (!this.canSelectBuffer(index)) return;
+
+		this.bufferIndex = index;
+		this.render();
+		if (this.bufferIndex === 1) await this.loadSection(this.selectedSectionNo);
+	}
+	async next() {
+		if (this.bufferIndex === 0) await this.selectBuffer(1);
+	}
+	toggleSection(section_no) {
+		if (this.selectedSections.has(section_no)) this.selectedSections.delete(section_no);
+		else this.selectedSections.add(section_no);
+
+		this.render();
+	}
+	async selectSection(section_no) {
+		if (this.selectedSectionNo === section_no && this.sentenceBuffers.length) return;
+
+		this.selectedSectionNo = section_no;
+		this.sentenceBuffers = [];
+		this.render();
+		await this.loadSection(section_no);
+	}
+	async loadSection(section_no) {
+		if (section_no === null || section_no === undefined || this.bufferIndex !== 1) return;
+
+		this.loadingSection = true;
+		this.renderSectionPreview();
+		const sentenceBuffers = await SentenceBuffer.findBySection(section_no, this.previewLimit);
+		this.loadingSection = false;
+		if (!sentenceBuffers) {
+			errorOverlay.open('Unable to load the selected section. Please try again.');
+			this.renderSectionPreview();
+			return;
+		}
+
+		this.sentenceBuffers = [...sentenceBuffers].sort((a, b) => a.sentence_no - b.sentence_no);
+		this.renderSectionPreview();
 	}
 	render() {
 		this.renderControls();
@@ -166,16 +235,23 @@ class Buffer {
 	}
 	renderNavigation() {
 		this.elems.bufferSteps.forEach((button, i) => {
-			button.disabled = i !== 0;
+			button.disabled = !this.canSelectBuffer(i);
 			setClass(button, 'selected', i === this.bufferIndex);
 		});
-		this.elems.btnPrevBuffer.disabled = true;
-		this.elems.btnNextBuffer.textContent = 'Sections';
-		this.elems.btnNextBuffer.disabled = !this.bookBuffer;
+
+		this.elems.btnPrevBuffer.disabled = this.bufferIndex === 0;
+		if (this.bufferIndex === 0) {
+			this.elems.btnNextBuffer.textContent = 'Sections';
+			this.elems.btnNextBuffer.disabled = !this.bookBuffer;
+			return;
+		}
+		this.elems.btnNextBuffer.textContent = 'Confirm book';
+		this.elems.btnNextBuffer.disabled = true;
 	}
 	renderBuffer() {
 		this.elems.bufferContent.innerHTML = '';
-		this.elems.bufferContent.appendChild(this.createBookInfo());
+		if (this.bufferIndex === 0) this.elems.bufferContent.appendChild(this.createBookInfo());
+		if (this.bufferIndex === 1) this.elems.bufferContent.appendChild(this.createSectionSelector());
 	}
 	createBookInfo() {
 		const container = createElement('div', 'buffer-info');
@@ -192,7 +268,7 @@ class Buffer {
 			['Book ID', this.bookBuffer.book_id],
 			['Original file', this.bookBuffer.book_original_name ?? '-'],
 			['Stored file', this.bookBuffer.book_filename ?? '-'],
-			['Sections', Array.from(getSections(this.bookBuffer)).join(', ') || '-'],
+			['Sections', Array.from(this.selectedSections).join(', ') || '-'],
 		];
 		for (const [label, value] of values) {
 			details.appendChild(createElement('div', null, label));
@@ -201,6 +277,62 @@ class Buffer {
 		container.appendChild(details);
 
 		return container;
+	}
+	createSectionSelector() {
+		const container = createElement('div', 'section-selector');
+		if (!this.bookBuffer) return container;
+
+		const listWrapper = createElement('div');
+		listWrapper.appendChild(createElement('h2', null, 'Book sections'));
+		listWrapper.appendChild(createElement('p', null, 'Choose a section to preview. Toggle included sections before confirmation.'));
+		const list = createElement('div', 'section-list');
+		for (const section_no of getSections(this.bookBuffer)) list.appendChild(this.createSectionItem(section_no));
+		listWrapper.appendChild(list);
+		container.appendChild(listWrapper);
+
+		const previewWrapper = createElement('div');
+		previewWrapper.appendChild(createElement('h2', null, `Section ${this.selectedSectionNo ?? '-'}`));
+		previewWrapper.appendChild(createElement('p', null, `Showing up to ${this.previewLimit} sentences.`));
+		this.elems.sectionPreview = createElement('div', 'section-preview');
+		previewWrapper.appendChild(this.elems.sectionPreview);
+		container.appendChild(previewWrapper);
+
+		this.renderSectionPreview();
+
+		return container;
+	}
+	createSectionItem(section_no) {
+		const item = createElement('div', 'section-item');
+		const nav = createElement('button', 'header-btn section-nav', `Section ${section_no}`);
+		setClass(nav, 'selected', section_no === this.selectedSectionNo);
+		nav.onclick = eventHandler(async () => await this.selectSection(section_no));
+		item.appendChild(nav);
+
+		const toggle = createElement('button', 'header-btn section-toggle', this.selectedSections.has(section_no) ? 'Included' : 'Excluded');
+		toggle.onclick = eventHandler(() => this.toggleSection(section_no));
+		item.appendChild(toggle);
+
+		return item;
+	}
+	renderSectionPreview() {
+		const preview = this.elems.sectionPreview;
+		if (!preview) return;
+
+		preview.innerHTML = '';
+		if (this.loadingSection) {
+			preview.appendChild(createElement('div', 'preview-message', 'Loading section...'));
+			return;
+		}
+		if (!this.sentenceBuffers.length) {
+			preview.appendChild(createElement('div', 'preview-message', 'No sentences are available for this section.'));
+			return;
+		}
+		for (const { sentence_no, sentence_text } of this.sentenceBuffers) {
+			const sentence = createElement('div', 'sentence-preview');
+			sentence.appendChild(createElement('div', 'sentence-preview-no', `${this.selectedSectionNo}:${sentence_no}`));
+			sentence.appendChild(createElement('div', 'sentence-preview-text', sentence_text));
+			preview.appendChild(sentence);
+		}
 	}
 }
 
