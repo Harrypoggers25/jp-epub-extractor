@@ -1,5 +1,5 @@
 // CONFIGS
-import { db, EntryState, IWordBuffer, JishoBuffer, UnsureEntryState, UnsureWordBuffer, Word, WordBuffer } from "../configs/db.config";
+import { BookBuffer, db, EntryState, IWordBuffer, JishoBuffer, SentenceBuffer, TokenBuffer, UnsureEntryState, UnsureWordBuffer, Word, WordBuffer } from "../configs/db.config";
 
 // HELPERS
 import { writeResponse } from "../helpers";
@@ -248,6 +248,36 @@ export namespace WordBufferHandler {
 				t_elapsed_ms: Date.now() - startTime
 			}));
 		}
+
+		const currentBookBuffer = await BookBuffer.find({ orderBy: { created_at: 'DESC' }, limit: 1, transaction });
+		if (!currentBookBuffer || !currentBookBuffer.length) throw new Error(Message.failed(['confirm', 'word buffers'], {
+			causer: ['find', 'current book buffer']
+		}));
+
+		const { book_id } = currentBookBuffer[0];
+		const deletedWordBuffers = await WordBuffer.delete({ transaction });
+		if (!deletedWordBuffers) throw new Error(Message.failed(['confirm', 'word buffers'], {
+			causer: ['delete', 'word buffers', { book_id }]
+		}));
+
+		const jishoBuffers = await JishoBuffer.delete({ transaction });
+		if (!jishoBuffers) throw new Error(Message.failed(['confirm', 'word buffers'], {
+			causer: ['delete', 'jisho buffers', { book_id }]
+		}));
+
+		const tokenBuffers = await TokenBuffer.delete({ transaction });
+		if (!tokenBuffers) throw new Error(Message.failed(['confirm', 'word buffers'], {
+			causer: ['delete', 'token buffers', { book_id }]
+		}));
+
+		const sentenceBuffers = await SentenceBuffer.delete({ where: { book_id }, transaction });
+		if (!sentenceBuffers) throw new Error(Message.failed(['confirm', 'word buffers'], {
+			causer: ['delete', 'sentence buffers', { book_id }]
+		}));
+
+		const bookBuffer = await BookBuffer.deleteByPk(book_id, { transaction });
+		if (!bookBuffer) throw new Error(Message.failed(['confirm', 'word buffers'], { causer: ['delete', 'current book buffer'] }))
+
 		await transaction.commit();
 		write(writeResponse({
 			percentage: 100,
