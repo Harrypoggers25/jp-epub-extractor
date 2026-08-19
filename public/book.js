@@ -76,18 +76,20 @@ class Buffer {
 			selectedFile: document.getElementById('selectedFile'),
 			bookFilePath: document.getElementById('bookFilePath'),
 			bookName: document.getElementById('bookName'),
+			btnSetupNext: document.getElementById('btnSetupNext'),
+			bufferPanel: document.getElementById('bufferPanel'),
 			bufferContent: document.getElementById('bufferContent'),
 			btnPrevBuffer: document.getElementById('btnPrevBuffer'),
 			btnNextBuffer: document.getElementById('btnNextBuffer'),
 			bufferSteps: [
-				document.getElementById('btnBufferInfo'),
 				document.getElementById('btnBufferSections'),
 				document.getElementById('btnBufferProcessing'),
+				document.getElementById('btnBufferSummary'),
 			]
 		}
 
 		this.bookBuffer = null;
-		this.bufferIndex = 0;
+		this.bufferIndex = null;
 		this.selectedFile = null;
 		this.selectedSections = new Set();
 		this.selectedSectionNo = null;
@@ -104,9 +106,9 @@ class Buffer {
 		this.elems.bookName.oninput = eventHandler(() => {
 			this.renderControls();
 			this.renderNavigation();
-			if (this.bufferIndex === 1) this.renderBuffer();
 		});
-		this.elems.btnPrevBuffer.onclick = eventHandler(async () => await this.selectBuffer(this.bufferIndex - 1));
+		this.elems.btnSetupNext.onclick = eventHandler(async () => await this.next());
+		this.elems.btnPrevBuffer.onclick = eventHandler(async () => await this.previous());
 		this.elems.btnNextBuffer.onclick = eventHandler(async () => await this.next());
 		this.elems.bufferSteps.forEach((button, i) => {
 			button.onclick = eventHandler(async () => await this.selectBuffer(i));
@@ -123,17 +125,26 @@ class Buffer {
 
 		this.setBook(bookBuffer);
 		if (!bookBuffer) {
+			this.bufferIndex = null;
 			this.render();
 			return;
 		}
 
-		this.bufferIndex = bookBuffer.confirmed ? 2 : 1;
-		this.elems.bookStatus.textContent = bookBuffer.confirmed ? 'Processing book' : 'Select book sections';
+		if (!bookBuffer.confirmed) {
+			this.bufferIndex = null;
+			this.elems.bookStatus.textContent = 'Enter book details';
+			this.render();
+			return;
+		}
+
+		this.bufferIndex = 1;
+		this.elems.bookStatus.textContent = 'Processing book';
 		this.render();
-		if (this.bufferIndex === 1) await this.loadSection(this.selectedSectionNo);
-		if (this.bufferIndex === 2) {
-			await processingBuffer.open(bookBuffer, true);
-			if (processingBuffer.completed) this.elems.bookStatus.textContent = 'WordBuffers ready for review';
+		await processingBuffer.open(bookBuffer, true);
+		if (processingBuffer.completed) {
+			this.bufferIndex = 2;
+			this.elems.bookStatus.textContent = 'WordBuffers ready for review';
+			this.render();
 		}
 	}
 	setBook(bookBuffer) {
@@ -168,10 +179,9 @@ class Buffer {
 		}
 
 		this.setBook(bookBuffer);
-		this.bufferIndex = 1;
-		this.elems.bookStatus.textContent = 'Select book sections';
+		this.bufferIndex = null;
+		this.elems.bookStatus.textContent = 'Enter book details';
 		this.render();
-		await this.loadSection(this.selectedSectionNo);
 	}
 	async discard() {
 		if (!this.bookBuffer) return;
@@ -187,16 +197,16 @@ class Buffer {
 		discardOverlay.close();
 		processingBuffer.reset();
 		this.setBook(null);
-		this.bufferIndex = 0;
+		this.bufferIndex = null;
 		this.selectedFile = null;
 		this.elems.selectedFile.textContent = 'No EPUB selected';
 		this.elems.bookStatus.textContent = 'Ready to upload';
 		this.render();
 	}
 	canSelectBuffer(index) {
-		if (index === 0) return true;
-		if (index === 1) return !!this.bookBuffer;
-		if (index === 2) return !!this.bookBuffer?.confirmed;
+		if (index === 0) return !!this.bookBuffer;
+		if (index === 1) return !!this.bookBuffer?.confirmed;
+		if (index === 2) return !!this.bookBuffer?.confirmed && processingBuffer.completed;
 		return false;
 	}
 	async selectBuffer(index) {
@@ -204,16 +214,45 @@ class Buffer {
 
 		this.bufferIndex = index;
 		this.render();
-		if (this.bufferIndex === 1) await this.loadSection(this.selectedSectionNo);
-		if (this.bufferIndex === 2) await processingBuffer.open(this.bookBuffer, true);
+		if (this.bufferIndex === 0) await this.loadSection(this.selectedSectionNo);
+		if (this.bufferIndex === 1) await processingBuffer.open(this.bookBuffer, true);
 	}
-	async next() {
-		if (this.bufferIndex === 0) {
-			await this.selectBuffer(1);
+	selectSetup() {
+		if (!this.bookBuffer || this.bookBuffer.confirmed || processingBuffer.running) return;
+
+		this.bufferIndex = null;
+		this.render();
+	}
+	async previous() {
+		if (processingBuffer.running) return;
+
+		if (this.bufferIndex === 0 && !this.bookBuffer?.confirmed) {
+			this.selectSetup();
 			return;
 		}
 		if (this.bufferIndex === 1) {
+			await this.selectBuffer(0);
+			return;
+		}
+		if (this.bufferIndex === 2) await this.selectBuffer(1);
+	}
+	async next() {
+		if (this.bufferIndex === null) {
+			if (!this.bookBuffer || this.bookBuffer.confirmed) return;
+			if (!this.elems.bookName.value.trim()) {
+				errorOverlay.open('Book name is required before selecting sections.');
+				return;
+			}
+
+			await this.selectBuffer(0);
+			return;
+		}
+		if (this.bufferIndex === 0) {
 			await this.confirm();
+			return;
+		}
+		if (this.bufferIndex === 1 && processingBuffer.completed) {
+			await this.selectBuffer(2);
 			return;
 		}
 		if (this.bufferIndex === 2 && processingBuffer.completed) window.location.href = '/review';
@@ -243,7 +282,7 @@ class Buffer {
 		}
 
 		this.setBook(bookBuffer);
-		this.bufferIndex = 2;
+		this.bufferIndex = 1;
 		this.elems.bookStatus.textContent = 'Processing book';
 		this.render();
 		await processingBuffer.open(bookBuffer);
@@ -266,7 +305,7 @@ class Buffer {
 		await this.loadSection(section_no);
 	}
 	async loadSection(section_no) {
-		if (section_no === null || section_no === undefined || this.bufferIndex !== 1) return;
+		if (section_no === null || section_no === undefined || this.bufferIndex !== 0) return;
 
 		this.loadingSection = true;
 		this.renderSectionPreview();
@@ -289,74 +328,56 @@ class Buffer {
 	renderControls() {
 		const hasBook = !!this.bookBuffer;
 		const canUpload = !hasBook && !this.isUploading;
+		const canEnterSections = hasBook && !this.bookBuffer?.confirmed && !this.isUploading && !this.isConfirming && !!this.elems.bookName.value.trim();
 
 		this.elems.btnUpload.disabled = !canUpload;
 		this.elems.btnUploadFile.disabled = !canUpload || !this.selectedFile;
 		this.elems.btnUploadFile.textContent = this.isUploading ? 'Uploading EPUB...' : 'Upload EPUB';
 		this.elems.btnDiscard.disabled = !hasBook || this.isUploading || this.isConfirming || processingBuffer.running;
-		this.elems.bookName.disabled = !hasBook || this.bookBuffer?.confirmed;
+		this.elems.btnSetupNext.disabled = !canEnterSections;
+		this.elems.btnSetupNext.hidden = this.bufferIndex !== null;
+		this.elems.bookName.disabled = !hasBook || this.bookBuffer?.confirmed || this.bufferIndex !== null;
 		setClass(this.elems.bookName, 'warning', this.isBookNameMissing());
 	}
 	isBookNameMissing() {
-		return !!this.bookBuffer && !this.bookBuffer.confirmed && !this.elems.bookName.value.trim();
+		return !!this.bookBuffer && !this.bookBuffer.confirmed && this.bufferIndex === null && !this.elems.bookName.value.trim();
 	}
 	renderNavigation() {
 		this.elems.bufferSteps.forEach((button, i) => {
 			button.disabled = !this.canSelectBuffer(i) || processingBuffer.running;
 			setClass(button, 'selected', i === this.bufferIndex);
 		});
-		const isConfirmingBook = this.bufferIndex === 1 && !this.bookBuffer?.confirmed;
-		const isReviewReady = this.bufferIndex === 2 && processingBuffer.completed;
-		setClass(this.elems.btnNextBuffer, 'success', isConfirmingBook || isReviewReady);
+		this.elems.bufferPanel.hidden = this.bufferIndex === null;
+		setClass(this.elems.btnNextBuffer, 'success', this.bufferIndex !== null);
 
-		this.elems.btnPrevBuffer.disabled = this.bufferIndex === 0 || processingBuffer.running;
-		this.elems.btnNextBuffer.hidden = false;
+		const canGoPrevious = this.bufferIndex === 0 ? !this.bookBuffer?.confirmed : this.bufferIndex === 1 || this.bufferIndex === 2;
+		this.elems.btnPrevBuffer.disabled = !canGoPrevious || processingBuffer.running;
+		this.elems.btnNextBuffer.hidden = this.bufferIndex === null;
+		if (this.bufferIndex === null) {
+			this.elems.btnNextBuffer.disabled = true;
+			return;
+		}
 		if (this.bufferIndex === 0) {
-			this.elems.btnNextBuffer.textContent = 'Sections';
-			this.elems.btnNextBuffer.disabled = !this.bookBuffer || processingBuffer.running;
+			this.elems.btnNextBuffer.textContent = 'Next';
+			this.elems.btnNextBuffer.disabled = this.isConfirming || !this.selectedSections.size;
 			return;
 		}
 		if (this.bufferIndex === 1) {
-			this.elems.btnNextBuffer.textContent = this.bookBuffer?.confirmed ? 'Confirmed' : 'Confirm book';
-			this.elems.btnNextBuffer.disabled = !!this.bookBuffer?.confirmed || this.isConfirming || !this.elems.bookName.value.trim() || !this.selectedSections.size;
+			this.elems.btnNextBuffer.textContent = 'Next';
+			this.elems.btnNextBuffer.disabled = processingBuffer.running || !processingBuffer.completed;
+			this.elems.btnNextBuffer.hidden = !processingBuffer.completed;
 			return;
 		}
 		if (this.bufferIndex === 2) {
-			this.elems.btnNextBuffer.textContent = 'Go to Review';
-			this.elems.btnNextBuffer.disabled = processingBuffer.running || !processingBuffer.completed;
-			this.elems.btnNextBuffer.hidden = !processingBuffer.completed;
+			this.elems.btnNextBuffer.textContent = 'Confirm';
+			this.elems.btnNextBuffer.disabled = !processingBuffer.completed;
 		}
 	}
 	renderBuffer() {
 		this.elems.bufferContent.innerHTML = '';
-		if (this.bufferIndex === 0) this.elems.bufferContent.appendChild(this.createBookInfo());
-		if (this.bufferIndex === 1) this.elems.bufferContent.appendChild(this.createSectionSelector());
-		if (this.bufferIndex === 2) processingBuffer.render(this.elems.bufferContent);
-	}
-	createBookInfo() {
-		const container = createElement('div', 'buffer-info');
-		if (!this.bookBuffer) {
-			container.appendChild(createElement('h2', null, 'Upload an EPUB'));
-			container.appendChild(createElement('p', null, 'Choose an EPUB file, then upload it to extract its available book sections.'));
-			return container;
-		}
-
-		container.appendChild(createElement('h2', null, this.bookBuffer.confirmed ? 'Confirmed book' : 'Uploaded book'));
-		container.appendChild(createElement('p', null, this.bookBuffer.confirmed ? 'The book information and selected sections are confirmed.' : 'Continue to select sections and confirm the book name.'));
-		const details = createElement('div', 'book-details');
-		const values = [
-			['Book ID', this.bookBuffer.book_id],
-			['Original file', this.bookBuffer.book_original_name ?? '-'],
-			['Stored file', this.bookBuffer.book_filename ?? '-'],
-			['Sections', Array.from(this.selectedSections).join(', ') || '-'],
-		];
-		for (const [label, value] of values) {
-			details.appendChild(createElement('div', null, label));
-			details.appendChild(createElement('div', null, value));
-		}
-		container.appendChild(details);
-
-		return container;
+		if (this.bufferIndex === 0) this.elems.bufferContent.appendChild(this.createSectionSelector());
+		if (this.bufferIndex === 1) processingBuffer.render(this.elems.bufferContent);
+		if (this.bufferIndex === 2) this.elems.bufferContent.appendChild(processingBuffer.createSummary());
 	}
 	createSectionSelector() {
 		const container = createElement('div', 'section-selector');
@@ -365,7 +386,6 @@ class Buffer {
 		const listWrapper = createElement('div');
 		listWrapper.appendChild(createElement('h2', null, 'Book sections'));
 		listWrapper.appendChild(createElement('p', null, 'Choose a section to preview. Toggle included sections before confirmation.'));
-		if (this.isBookNameMissing()) listWrapper.appendChild(createElement('p', 'book-name-warning', 'Enter a book name before processing.'));
 		const list = createElement('div', 'section-list');
 		for (const section_no of getSections(this.bookBuffer)) list.appendChild(this.createSectionItem(section_no));
 		listWrapper.appendChild(list);
@@ -574,7 +594,7 @@ class ProcessingBuffer {
 		this.container.innerHTML = '';
 		const panel = createElement('div', 'processing-panel');
 		panel.appendChild(createElement('h2', null, this.completed ? 'Processing complete' : 'Book processing'));
-		panel.appendChild(createElement('p', null, this.completed ? 'WordBuffers are prepared. Continue to review when you are ready.' : 'Tokenization, Jisho loading, and WordBuffer filtering run in order.'));
+		panel.appendChild(createElement('p', null, this.completed ? 'WordBuffers are prepared. Continue to summary when you are ready.' : 'Tokenization, Jisho loading, and WordBuffer filtering run in order.'));
 		Object.entries(this.stages).forEach(([key, stage]) => panel.appendChild(this.createStageCard(key, stage)));
 
 		if (!this.running && !this.completed) {
@@ -585,8 +605,6 @@ class ProcessingBuffer {
 			if (this.failed) panel.appendChild(createElement('span', 'processing-note', 'Safe processing retry is not available with the current backend behavior.'));
 		}
 		this.container.appendChild(panel);
-
-		if (this.completed) this.container.appendChild(this.createSummary());
 	}
 	createStageCard(key, stage) {
 		const card = createElement('div', `stage-card ${stage.status}`);

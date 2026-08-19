@@ -159,13 +159,6 @@
     overflow-y: auto;
 }
 
-.section-selector .book-name-warning {
-    margin: 6px 0 8px;
-    color: var(--warning);
-    font-size: 12px;
-    white-space: nowrap;
-}
-
 .section-item {
     display: flex;
     gap: 6px;

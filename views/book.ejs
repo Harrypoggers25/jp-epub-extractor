@@ -32,6 +32,7 @@
                         <button id="btnUpload" class="header-btn">Choose EPUB</button>
                         <button id="btnUploadFile" class="header-btn" disabled>Upload EPUB</button>
                         <button id="btnDiscard" class="header-btn danger" disabled>Discard current book</button>
+                        <button id="btnSetupNext" class="header-btn success" disabled>Next</button>
                     </div>
                     <div class="book-file-row">
                         <span class="book-label">Selected file</span>
@@ -45,11 +46,11 @@
                     <input id="bookName" class="book-input" type="text" placeholder="Confirm a name after upload" disabled>
                 </div>
 
-                <div class="buffer-panel">
+                <div id="bufferPanel" class="buffer-panel" hidden>
                     <div class="buffer-steps">
-                        <button id="btnBufferInfo" class="header-btn buffer-step selected" disabled>1. Book</button>
-                        <button id="btnBufferSections" class="header-btn buffer-step" disabled>2. Sections</button>
-                        <button id="btnBufferProcessing" class="header-btn buffer-step" disabled>3. Processing</button>
+                        <button id="btnBufferSections" class="header-btn buffer-step" disabled>1. Sections</button>
+                        <button id="btnBufferProcessing" class="header-btn buffer-step" disabled>2. Processing</button>
+                        <button id="btnBufferSummary" class="header-btn buffer-step" disabled>3. Summary</button>
                     </div>
                     <div id="bufferContent" class="buffer-content"></div>
                     <div class="buffer-navigation">
