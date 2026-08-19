@@ -1,4 +1,4 @@
-import { BookBuffer, SentenceBuffer } from "./api.helper.js";
+import { BookBuffer, JishoBuffer, SentenceBuffer, TokenBuffer, WordBuffer } from "./api.helper.js";
 import { asyncHandler, createElement, eventHandler, setClass } from "./tools.helper.js";
 
 const getSections = bookBuffer => {
@@ -9,6 +9,12 @@ const getSections = bookBuffer => {
 	}
 }
 
+const formatElapsed = t_elapsed_ms => {
+	if (typeof t_elapsed_ms !== 'number') return '-';
+
+	const seconds = Math.round(t_elapsed_ms / 100) / 10;
+	return `${seconds}s`;
+}
 class ErrorOverlay {
 	constructor() {
 		this.elems = {
@@ -168,6 +174,7 @@ class Buffer {
 		}
 
 		discardOverlay.close();
+		processingBuffer.reset();
 		this.setBook(null);
 		this.bufferIndex = 0;
 		this.selectedFile = null;
@@ -178,14 +185,16 @@ class Buffer {
 	canSelectBuffer(index) {
 		if (index === 0) return true;
 		if (index === 1) return !!this.bookBuffer;
+		if (index === 2) return !!this.bookBuffer?.confirmed;
 		return false;
 	}
 	async selectBuffer(index) {
-		if (!this.canSelectBuffer(index)) return;
+		if (!this.canSelectBuffer(index) || processingBuffer.running) return;
 
 		this.bufferIndex = index;
 		this.render();
 		if (this.bufferIndex === 1) await this.loadSection(this.selectedSectionNo);
+		if (this.bufferIndex === 2) await processingBuffer.open(this.bookBuffer);
 	}
 	async next() {
 		if (this.bufferIndex === 0) {
@@ -219,8 +228,11 @@ class Buffer {
 		}
 
 		this.setBook(bookBuffer);
-		this.elems.bookStatus.textContent = 'Confirmed book';
+		this.bufferIndex = 2;
+		this.elems.bookStatus.textContent = 'Processing book';
 		this.render();
+		await processingBuffer.open(bookBuffer);
+		await processingBuffer.start();
 	}
 	toggleSection(section_no) {
 		if (this.bookBuffer?.confirmed) return;
@@ -266,28 +278,34 @@ class Buffer {
 		this.elems.btnUpload.disabled = !canUpload;
 		this.elems.btnUploadFile.disabled = !canUpload || !this.selectedFile;
 		this.elems.btnUploadFile.textContent = this.isUploading ? 'Uploading EPUB...' : 'Upload EPUB';
-		this.elems.btnDiscard.disabled = !hasBook || this.isUploading || this.isConfirming;
+		this.elems.btnDiscard.disabled = !hasBook || this.isUploading || this.isConfirming || processingBuffer.running;
 		this.elems.bookName.disabled = !hasBook || this.bookBuffer?.confirmed;
 	}
 	renderNavigation() {
 		this.elems.bufferSteps.forEach((button, i) => {
-			button.disabled = !this.canSelectBuffer(i);
+			button.disabled = !this.canSelectBuffer(i) || processingBuffer.running;
 			setClass(button, 'selected', i === this.bufferIndex);
 		});
 
-		this.elems.btnPrevBuffer.disabled = this.bufferIndex === 0;
+		this.elems.btnPrevBuffer.disabled = this.bufferIndex === 0 || processingBuffer.running;
+		this.elems.btnNextBuffer.hidden = false;
 		if (this.bufferIndex === 0) {
 			this.elems.btnNextBuffer.textContent = 'Sections';
-			this.elems.btnNextBuffer.disabled = !this.bookBuffer;
+			this.elems.btnNextBuffer.disabled = !this.bookBuffer || processingBuffer.running;
 			return;
 		}
-		this.elems.btnNextBuffer.textContent = this.bookBuffer?.confirmed ? 'Confirmed' : 'Confirm book';
-		this.elems.btnNextBuffer.disabled = !!this.bookBuffer?.confirmed || this.isConfirming || !this.elems.bookName.value.trim() || !this.selectedSections.size;
+		if (this.bufferIndex === 1) {
+			this.elems.btnNextBuffer.textContent = this.bookBuffer?.confirmed ? 'Confirmed' : 'Confirm book';
+			this.elems.btnNextBuffer.disabled = !!this.bookBuffer?.confirmed || this.isConfirming || !this.elems.bookName.value.trim() || !this.selectedSections.size;
+			return;
+		}
+		this.elems.btnNextBuffer.hidden = true;
 	}
 	renderBuffer() {
 		this.elems.bufferContent.innerHTML = '';
 		if (this.bufferIndex === 0) this.elems.bufferContent.appendChild(this.createBookInfo());
 		if (this.bufferIndex === 1) this.elems.bufferContent.appendChild(this.createSectionSelector());
+		if (this.bufferIndex === 2) processingBuffer.render(this.elems.bufferContent);
 	}
 	createBookInfo() {
 		const container = createElement('div', 'buffer-info');
@@ -374,9 +392,164 @@ class Buffer {
 	}
 }
 
+class ProcessingBuffer {
+	constructor() {
+		this.bookBuffer = null;
+		this.container = null;
+		this.running = false;
+		this.completed = false;
+		this.failed = false;
+		this.activeEventSource = null;
+		this.stages = this.createStages();
+	}
+	createStages() {
+		return {
+			tokenize: { title: 'Tokenization', status: 'idle', percentage: 0, message: 'Waiting to start', t_elapsed_ms: null },
+			jisho: { title: 'Jisho loading', status: 'idle', percentage: 0, message: 'Waiting to start', t_elapsed_ms: null },
+			filter: { title: 'WordBuffer filtering', status: 'idle', percentage: 0, message: 'Waiting to start', t_elapsed_ms: null },
+		};
+	}
+	reset() {
+		this.bookBuffer = null;
+		this.container = null;
+		this.running = false;
+		this.completed = false;
+		this.failed = false;
+		this.activeEventSource = null;
+		this.stages = this.createStages();
+	}
+	async open(bookBuffer) {
+		this.bookBuffer = bookBuffer;
+		this.completed = false;
+		this.failed = false;
+		this.stages = this.createStages();
+		this.render();
+		buffer.renderNavigation();
+	}
+	async start() {
+		if (this.running || this.completed || this.failed) return;
+
+		this.running = true;
+		buffer.renderControls();
+		this.render();
+		const tokenized = await this.runStage('tokenize', TokenBuffer.tokenize);
+		if (!tokenized) return this.stop();
+
+		const jishoLoaded = await this.runStage('jisho', JishoBuffer.load);
+		if (!jishoLoaded) return this.stop();
+
+		const filtered = await this.runStage('filter', WordBuffer.filter);
+		if (!filtered) return this.stop();
+
+		this.complete();
+	}
+	async runStage(key, handler) {
+		return await new Promise(async resolve => {
+			const stage = this.stages[key];
+			let finished = false;
+			const finish = success => {
+				if (finished) return;
+				finished = true;
+				resolve(success);
+			}
+			const fail = message => {
+				stage.status = 'failed';
+				stage.message = message;
+				this.failed = true;
+				this.render();
+				errorOverlay.open(message);
+				finish(false);
+			}
+
+			stage.status = 'running';
+			stage.message = 'Starting...';
+			this.render();
+			const eventSource = await handler(async (data, source) => {
+				if (typeof data.percentage !== 'number') {
+					fail(data.message ?? `${stage.title} failed.`);
+					return;
+				}
+
+				stage.percentage = data.percentage;
+				stage.message = data.message;
+				stage.t_elapsed_ms = data.t_elapsed_ms;
+				this.render();
+				if (!data.success) return;
+
+				stage.status = 'success';
+				stage.percentage = 100;
+				this.render();
+				source.close();
+				finish(true);
+			}, error => {
+				fail(error.message ?? `${stage.title} failed.`);
+			}, () => {
+				if (!finished) fail(`${stage.title} ended before completion.`);
+			});
+			this.activeEventSource = eventSource;
+			if (!eventSource) fail(`${stage.title} could not start.`);
+		});
+	}
+	stop() {
+		this.running = false;
+		this.activeEventSource = null;
+		buffer.renderControls();
+		this.render();
+	}
+	complete() {
+		this.running = false;
+		this.completed = true;
+		this.activeEventSource = null;
+		buffer.elems.bookStatus.textContent = 'WordBuffers ready for review';
+		buffer.renderControls();
+		buffer.renderNavigation();
+		this.render();
+	}
+	render(container) {
+		if (container) this.container = container;
+		if (!this.container) return;
+
+		this.container.innerHTML = '';
+		const panel = createElement('div', 'processing-panel');
+		panel.appendChild(createElement('h2', null, this.completed ? 'Processing complete' : 'Book processing'));
+		panel.appendChild(createElement('p', null, this.completed ? 'WordBuffers are prepared.' : 'Tokenization, Jisho loading, and WordBuffer filtering run in order.'));
+		Object.entries(this.stages).forEach(([key, stage]) => panel.appendChild(this.createStageCard(key, stage)));
+
+		if (!this.running && !this.completed) {
+			const button = createElement('button', 'confirm-btn processing-action', this.failed ? 'Retry unavailable' : 'Start processing');
+			button.disabled = this.failed;
+			button.onclick = eventHandler(async () => await this.start());
+			panel.appendChild(button);
+			if (this.failed) panel.appendChild(createElement('span', 'processing-note', 'Safe processing retry is not available with the current backend behavior.'));
+		}
+		this.container.appendChild(panel);
+	}
+	createStageCard(key, stage) {
+		const card = createElement('div', `stage-card ${stage.status}`);
+		const header = createElement('div', 'stage-header');
+		header.appendChild(createElement('span', null, stage.title));
+		header.appendChild(createElement('span', 'stage-status', stage.status));
+		card.appendChild(header);
+
+		const progress = createElement('div', 'stage-progress');
+		const progressBar = createElement('div');
+		progressBar.style.width = `${stage.percentage}%`;
+		progress.appendChild(progressBar);
+		card.appendChild(progress);
+
+		const footer = createElement('div', 'stage-footer');
+		footer.appendChild(createElement('span', null, stage.message));
+		footer.appendChild(createElement('span', null, formatElapsed(stage.t_elapsed_ms)));
+		card.appendChild(footer);
+
+		return card;
+	}
+}
+
 const errorOverlay = new ErrorOverlay();
 const discardOverlay = new DiscardOverlay();
 const buffer = new Buffer();
+const processingBuffer = new ProcessingBuffer();
 
 asyncHandler('MAIN INIT', async () => {
 	await buffer.load();

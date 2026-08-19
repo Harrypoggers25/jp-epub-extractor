@@ -212,6 +212,80 @@
     color: var(--success);
 }
 
+.processing-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stage-card {
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+}
+
+.stage-card.running {
+    border-color: var(--accent);
+}
+
+.stage-card.success {
+    border-color: var(--success);
+}
+
+.stage-card.failed {
+    border-color: var(--danger);
+}
+
+.stage-header,
+.stage-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.stage-header {
+    font-weight: bold;
+}
+
+.stage-status,
+.stage-footer {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.stage-progress {
+    height: 8px;
+    margin: 12px 0 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--bg-input);
+}
+
+.stage-progress>div {
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width .2s;
+}
+
+.stage-card.success .stage-progress>div {
+    background: var(--success);
+}
+
+.stage-card.failed .stage-progress>div {
+    background: var(--danger);
+}
+
+.processing-action {
+    align-self: flex-end;
+}
+
+.processing-note {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
 .error-modal-box h3 {
     color: var(--danger);
 }
