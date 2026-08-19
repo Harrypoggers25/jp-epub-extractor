@@ -1,0 +1,84 @@
+.book-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.book-panel,
+.buffer-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-soft);
+}
+
+.book-panel {
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.buffer-panel {
+    padding: 20px;
+    min-height: 420px;
+}
+
+.buffer-steps {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.buffer-step {
+    flex: 1;
+    text-align: center;
+}
+
+.buffer-content {
+    min-height: 300px;
+}
+
+.buffer-navigation {
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.buffer-info,
+.section-selector,
+.processing-panel,
+.completion-summary {
+    background: var(--bg-item);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 18px;
+}
+
+.buffer-info h2,
+.section-selector h2,
+.processing-panel h2,
+.completion-summary h2 {
+    margin: 0 0 12px;
+    font-size: 20px;
+}
+
+.buffer-info p,
+.section-selector p,
+.processing-panel p {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.book-details {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.book-details>div:nth-child(odd),
+.summary-label {
+    color: var(--text-muted);
+}
+
+.error-modal-box h3 {
+    color: var(--danger);
+}

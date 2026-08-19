@@ -22,6 +22,10 @@ router.use('/api/word-buffers', wordBufferRouter);
 router.use('/api/entry-states', entryStateRouter);
 router.use('/api/words', wordRouter);
 
+router.get('/book', (_, res) => {
+	res.render('book');
+});
+
 router.get('/review', (_, res) => {
 	res.render('review');
 });
