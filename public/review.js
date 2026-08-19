@@ -728,7 +728,7 @@ class Buffer {
 		const slug = createElement("div", "slug", entry.slug);
 		const badges = createElement("div");
 		if (entry.is_common) badges.appendChild(this.createBadge("Common", "common"));
-		if (entry.jlpt) badges.appendChild(this.createBadge(entry.jlpt, "jlpt"));
+		if (entry.jlpt && entry.jlpt.length) badges.appendChild(this.createBadge(entry.jlpt, "jlpt"));
 
 		header.appendChild(slug);
 		header.appendChild(badges);
