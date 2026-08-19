@@ -207,6 +207,11 @@
     color: var(--text-muted);
 }
 
+.section-confirmed {
+    grid-column: 1 / -1;
+    color: var(--success);
+}
+
 .error-modal-box h3 {
     color: var(--danger);
 }

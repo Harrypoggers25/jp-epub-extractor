@@ -86,11 +86,13 @@ class Buffer {
 		this.previewLimit = 50;
 		this.loadingSection = false;
 		this.isUploading = false;
+		this.isConfirming = false;
 
 		this.elems.btnUpload.onclick = eventHandler(() => this.elems.uploadInput.click());
 		this.elems.uploadInput.onchange = eventHandler(ev => this.setSelectedFile(ev.target.files?.[0]));
 		this.elems.btnUploadFile.onclick = eventHandler(async () => await this.upload());
 		this.elems.btnDiscard.onclick = eventHandler(() => discardOverlay.open());
+		this.elems.bookName.oninput = eventHandler(() => this.renderNavigation());
 		this.elems.btnPrevBuffer.onclick = eventHandler(async () => await this.selectBuffer(this.bufferIndex - 1));
 		this.elems.btnNextBuffer.onclick = eventHandler(async () => await this.next());
 		this.elems.bufferSteps.forEach((button, i) => {
@@ -126,7 +128,7 @@ class Buffer {
 		const currentFile = !bookBuffer ? 'No current book' : `${bookBuffer.book_original_name ?? 'Unknown file'} · ${bookBuffer.book_filename ?? '-'}`;
 		this.elems.bookFilePath.textContent = currentFile;
 		this.elems.bookName.value = bookBuffer?.book_name ?? '';
-		this.elems.bookName.disabled = !bookBuffer;
+		this.elems.bookName.disabled = !bookBuffer || bookBuffer.confirmed;
 	}
 	setSelectedFile(file) {
 		this.selectedFile = file ?? null;
@@ -186,9 +188,43 @@ class Buffer {
 		if (this.bufferIndex === 1) await this.loadSection(this.selectedSectionNo);
 	}
 	async next() {
-		if (this.bufferIndex === 0) await this.selectBuffer(1);
+		if (this.bufferIndex === 0) {
+			await this.selectBuffer(1);
+			return;
+		}
+		if (this.bufferIndex === 1) await this.confirm();
+	}
+	async confirm() {
+		if (!this.bookBuffer || this.bookBuffer.confirmed || this.isConfirming) return;
+
+		const book_name = this.elems.bookName.value.trim();
+		const sections = Array.from(this.selectedSections).sort((a, b) => a - b);
+		if (!book_name) {
+			errorOverlay.open('Book name is required before confirmation.');
+			return;
+		}
+		if (!sections.length) {
+			errorOverlay.open('Select at least one section before confirmation.');
+			return;
+		}
+
+		this.isConfirming = true;
+		this.renderControls();
+		const bookBuffer = await BookBuffer.confirm({ book_name, sections });
+		this.isConfirming = false;
+		if (!bookBuffer) {
+			errorOverlay.open('Unable to confirm the book. Please try again.');
+			this.renderControls();
+			return;
+		}
+
+		this.setBook(bookBuffer);
+		this.elems.bookStatus.textContent = 'Confirmed book';
+		this.render();
 	}
 	toggleSection(section_no) {
+		if (this.bookBuffer?.confirmed) return;
+
 		if (this.selectedSections.has(section_no)) this.selectedSections.delete(section_no);
 		else this.selectedSections.add(section_no);
 
@@ -230,8 +266,8 @@ class Buffer {
 		this.elems.btnUpload.disabled = !canUpload;
 		this.elems.btnUploadFile.disabled = !canUpload || !this.selectedFile;
 		this.elems.btnUploadFile.textContent = this.isUploading ? 'Uploading EPUB...' : 'Upload EPUB';
-		this.elems.btnDiscard.disabled = !hasBook || this.isUploading;
-		this.elems.bookName.disabled = !hasBook;
+		this.elems.btnDiscard.disabled = !hasBook || this.isUploading || this.isConfirming;
+		this.elems.bookName.disabled = !hasBook || this.bookBuffer?.confirmed;
 	}
 	renderNavigation() {
 		this.elems.bufferSteps.forEach((button, i) => {
@@ -245,8 +281,8 @@ class Buffer {
 			this.elems.btnNextBuffer.disabled = !this.bookBuffer;
 			return;
 		}
-		this.elems.btnNextBuffer.textContent = 'Confirm book';
-		this.elems.btnNextBuffer.disabled = true;
+		this.elems.btnNextBuffer.textContent = this.bookBuffer?.confirmed ? 'Confirmed' : 'Confirm book';
+		this.elems.btnNextBuffer.disabled = !!this.bookBuffer?.confirmed || this.isConfirming || !this.elems.bookName.value.trim() || !this.selectedSections.size;
 	}
 	renderBuffer() {
 		this.elems.bufferContent.innerHTML = '';
@@ -261,8 +297,8 @@ class Buffer {
 			return container;
 		}
 
-		container.appendChild(createElement('h2', null, 'Uploaded book'));
-		container.appendChild(createElement('p', null, 'Continue to select sections and confirm the book name.'));
+		container.appendChild(createElement('h2', null, this.bookBuffer.confirmed ? 'Confirmed book' : 'Uploaded book'));
+		container.appendChild(createElement('p', null, this.bookBuffer.confirmed ? 'The book information and selected sections are confirmed.' : 'Continue to select sections and confirm the book name.'));
 		const details = createElement('div', 'book-details');
 		const values = [
 			['Book ID', this.bookBuffer.book_id],
@@ -297,6 +333,7 @@ class Buffer {
 		previewWrapper.appendChild(this.elems.sectionPreview);
 		container.appendChild(previewWrapper);
 
+		if (this.bookBuffer.confirmed) container.appendChild(createElement('div', 'section-confirmed', 'Section selection is confirmed and read-only.'));
 		this.renderSectionPreview();
 
 		return container;
@@ -309,6 +346,7 @@ class Buffer {
 		item.appendChild(nav);
 
 		const toggle = createElement('button', 'header-btn section-toggle', this.selectedSections.has(section_no) ? 'Included' : 'Excluded');
+		toggle.disabled = this.bookBuffer?.confirmed;
 		toggle.onclick = eventHandler(() => this.toggleSection(section_no));
 		item.appendChild(toggle);
 
