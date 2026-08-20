@@ -429,10 +429,12 @@ class Buffer {
 		nav.onclick = eventHandler(async () => await this.selectSection(section_no));
 		item.appendChild(nav);
 
-		const toggle = createElement('button', 'header-btn section-toggle', this.selectedSections.has(section_no) ? 'Included' : 'Excluded');
-		setClass(toggle, 'success', this.selectedSections.has(section_no));
+		const toggle = createElement('input', 'checkbox');
+		toggle.type = 'checkbox';
+		toggle.checked = this.selectedSections.has(section_no);
 		toggle.disabled = this.bookBuffer?.confirmed;
-		toggle.onclick = eventHandler(() => this.toggleSection(section_no));
+		toggle.setAttribute('aria-label', `Include Section ${section_no}`);
+		toggle.onchange = eventHandler(() => this.toggleSection(section_no));
 		item.appendChild(toggle);
 
 		return item;

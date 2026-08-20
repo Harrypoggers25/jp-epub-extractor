@@ -36,8 +36,10 @@
                             <span class="book-label">Selected file</span>
                             <span id="selectedFile" class="book-file">No EPUB selected</span>
                         </div>
-                        <label class="book-name-label" for="bookName">Book name</label>
-                        <input id="bookName" class="book-input" type="text" placeholder="Enter a book name" disabled>
+                        <div class="book-name-row">
+                            <label class="book-label book-name-label" for="bookName">Book name</label>
+                            <input id="bookName" class="book-input" type="text" placeholder="Enter a book name" disabled>
+                        </div>
                         <div class="book-setup-actions">
                             <button id="btnDiscard" class="header-btn danger" disabled>Discard current book</button>
                             <button id="btnSetupNext" class="header-btn success" disabled>Next</button>
@@ -73,7 +75,7 @@
     <div class="overlay" id="discardOverlay">
         <div class="modal-box">
             <h3>Discard current book?</h3>
-            <span class="overlay-message">This removes the current extraction pipeline buffers. Confirmed words are not removed.</span>
+            <span class="overlay-message">This will reset any/all selected options for the current book buffer. Proceed to discard?</span>
             <div class="modal-actions">
                 <button class="modal-btn" id="btnDiscardCancel">Cancel</button>
                 <button class="modal-btn danger" id="btnDiscardConfirm">Discard</button>
