@@ -598,14 +598,15 @@ class Buffer {
 			if (!entryState) return;
 
 			if (entryState.merged_with) {
-				const es_id2 = entryState.merged_with;
-				const can_merge1 = mergeModal.transformWords(es_id, sidebar.allWordBuffers).top.length;
-				const updatedEntryState = await this.entryStates.set(es_id, { merged_with: null, can_merge: can_merge1 });
-				if (!updatedEntryState) return;
-
-				const can_merge2 = mergeModal.transformWords(es_id2, sidebar.allWordBuffers).top.length;
-				const updatedEntryState2 = await buffer.entryStates.set(es_id2, { can_merge: can_merge2 });
-				if (!updatedEntryState2) return;
+				const unmergedEntryStates = await EntryState.unmerge(es_id);
+				if (!unmergedEntryStates) return;
+				const [entryState1, entryState2] = unmergedEntryStates;
+				const setEntry = (entryState, es_id) => {
+					delete entryState.es_id;
+					buffer.entryStates.entryStates[es_id] = entryState;
+				}
+				setEntry(entryState1, entryState1.es_id);
+				setEntry(entryState2, entryState2.es_id);
 
 				sidebar.renderSearchResults(sidebar.wordBuffers);
 				this.syncButtonState(es_id, buttons);
@@ -663,6 +664,7 @@ class Buffer {
 		return { buttons, handlers };
 	}
 	async toggleEntry(card, i) {
+		const { w_basic_form, wt_name } = this.selected;
 		const es_id = wordId(this.selected);
 		const entryState = await this.entryStates.init(es_id);
 		if (!entryState) return;
@@ -677,7 +679,10 @@ class Buffer {
 			}
 
 			state.delete(i);
-			const can_merge = mergeModal.transformWords(es_id, sidebar.allWordBuffers, { targetState: state }).top.length;
+			const transformed = await WordBuffer.transform(w_basic_form, wt_name, { state });
+			if (!transformed) return;
+
+			const can_merge = transformed.top.length;
 			const updatedEntryState = await this.entryStates.set(es_id, { state, can_merge });
 			if (!updatedEntryState) return;
 
@@ -687,7 +692,10 @@ class Buffer {
 
 		// Toggle on
 		state.add(i);
-		const can_merge = mergeModal.transformWords(es_id, sidebar.allWordBuffers, { targetState: state }).top.length;
+		const transformed = await WordBuffer.transform(w_basic_form, wt_name, { state });
+		if (!transformed) return;
+
+		const can_merge = transformed.top.length;
 		const updatedEntryState = await this.entryStates.set(es_id, { state, can_merge });
 		if (!updatedEntryState) return;
 
@@ -844,13 +852,13 @@ class MergeModal {
 
 		this.elems.mergeModalSearchInput.oninput = eventHandler(async ev => {
 			await asyncHandler('MERGE MODAL SEARCH', async () => {
+				const { w_basic_form, wt_name } = this.target;
 				const text = ev.target.value;
 				const wordBuffers = !text ? sidebar.allWordBuffers : await WordBuffer.find(text);
 				if (!wordBuffers) throw new Error(`Failed to search word '${text}'`);
 
-				const { bottom } = mergeModal.transformWords(wordId(this.target), wordBuffers, { sort: false });
-
-				this.renderModelItems(bottom);
+				const isTargetWord = word => word.w_basic_form === w_basic_form && word.wt_name === wt_name;
+				this.renderModelItems(wordBuffers.filter(word => !isTargetWord(word)));
 			})
 		});
 		this.elems.mergeModalSearchInput.addEventListener('keydown', async ev => {
@@ -872,11 +880,14 @@ class MergeModal {
 		mergeModalSelectedWord.textContent = '';
 		this.target = wordBuffer;
 
-		await asyncHandler('MERGE MODAL OPEN', () => {
+		await asyncHandler('MERGE MODAL OPEN', async () => {
 			const wordBuffers = sidebar.allWordBuffers;
 			if (!wordBuffers) throw new Error('Failed to open merge modal. Unable to find word buffers');
 
-			const { top, bottom } = this.transformWords(wordId(this.target), wordBuffers);
+			const transformed = await WordBuffer.transform(w_basic_form, wt_name);
+			if (!transformed) throw new Error('Failed to open merge modal. Unable to tranform word buffers');
+
+			const { top, bottom } = transformed;
 			const sorted = [...top, ...bottom];
 
 			this.renderModelItems(sorted);
@@ -908,12 +919,16 @@ class MergeModal {
 		if (!this.selected) return;
 
 		const [es_id1, es_id2] = [wordId(this.target), wordId(this.selected)];
-		const updatedEntryState1 = await buffer.entryStates.set(es_id1, { merged_with: es_id2, can_merge: 0 });
-		if (!updatedEntryState1) return;
+		const mergedEntryStates = await EntryState.merge(es_id1, es_id2);
+		if (!mergedEntryStates) return;
 
-		const can_merge = mergeModal.transformWords(es_id2, sidebar.allWordBuffers).top.length;
-		const updatedEntryState2 = await buffer.entryStates.set(es_id2, { can_merge });
-		if (!updatedEntryState2) return;
+		const [entryState1, entryState2] = mergedEntryStates;
+		const setEntry = (entryState, es_id) => {
+			delete entryState.es_id;
+			buffer.entryStates.entryStates[es_id] = entryState;
+		}
+		setEntry(entryState1, es_id1);
+		setEntry(entryState2, es_id2);
 
 		sidebar.renderSearchResults();
 		buffer.syncButtonState(es_id1);
@@ -960,39 +975,6 @@ class MergeModal {
 		}));
 
 		return card;
-	}
-	transformWords(es_id, wordBuffers, opts) {
-		const [w_basic_form, wt_name] = es_id.split('_'); // target word params
-		const isTargetWord = word => word.w_basic_form === w_basic_form && word.wt_name === wt_name;
-		const filteredWords = wordBuffers.filter(word => !isTargetWord(word));
-
-		const sort = opts?.sort ?? true;
-		if (!sort) return { top: [], bottom: filteredWords };
-
-		const getEntries = (word, state) => {
-			if (!state) return undefined;
-			return word.j_response.filter((_, i) => Array.from(state).includes(i));
-		}
-		const [targetWord] = wordBuffers.filter(isTargetWord);
-		const targetState = opts?.targetState ?? buffer.entryStates.get(wordId(targetWord))?.state;
-		const targetEntries = getEntries(targetWord, targetState);
-		if (!targetEntries?.length) return { top: [], bottom: filteredWords };
-
-		const isMergedWord = word => {
-			const es_id = wordId(word);
-			const entryState = buffer.entryStates.get(es_id);
-			return entryState && entryState.merged_with;
-		}
-		const isTopWord = word => {
-			if (isMergedWord(word)) return false;
-
-			const state = buffer.entryStates.get(wordId(word))?.state;
-			const entries = getEntries(word, state);
-			if (!entries?.length) return false;
-
-			return targetEntries.every(targetEntry => entries.some(entry => entry.slug === targetEntry.slug));
-		};
-		return { top: filteredWords.filter(isTopWord), bottom: filteredWords.filter(word => !isTopWord(word)) };
 	}
 }
 

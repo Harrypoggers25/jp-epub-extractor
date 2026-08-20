@@ -1,5 +1,5 @@
 // CONFIGS
-import { BookBuffer, db, JishoBuffer, SentenceBuffer, TokenBuffer, WordBuffer, WordType } from "../configs/db.config";
+import { BookBuffer, db, JishoBuffer, SentenceBuffer, TokenBuffer, WordBuffer } from "../configs/db.config";
 
 // HELPERS
 import { isArrayObj } from "../helpers/json.helper";

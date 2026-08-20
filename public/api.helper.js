@@ -77,6 +77,31 @@ export const WordType = {
 }
 
 export const WordBuffer = {
+	transform: async (w_basic_form, wt_name, body = {}) => {
+		body.state = body.state ? Array.from(body.state) : body.state;
+		return await asyncHandler('TRANSFORM WORD BUFFERS', async () => {
+			const response = await fetch(`/api/word-buffers/transform/${w_basic_form}/${wt_name}`, {
+				method: 'POST',
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!response.ok) throw new Error('Failed to find word buffers. Internal error');
+
+			const data = await response.json();
+			if (!data) throw new Error('Failed to find word buffers. Unable to find data');
+
+			return {
+				top: data.top.map(wordBuffer => {
+					wordBuffer.j_response = JSON.parse(wordBuffer.j_response);
+					return wordBuffer;
+				}),
+				bottom: data.bottom.map(wordBuffer => {
+					wordBuffer.j_response = JSON.parse(wordBuffer.j_response);
+					return wordBuffer;
+				}),
+			}
+		});
+	},
 	find: async (w_basic_form) => {
 		return await asyncHandler('FIND WORD BUFFERS', async () => {
 			const url = !w_basic_form ? '/api/word-buffers' : `/api/word-buffers/${w_basic_form}`
@@ -225,6 +250,34 @@ export const EntryState = {
 			return entryState;
 		});
 	},
+	unmerge: async (es_id) => {
+		return await asyncHandler('UNMERGE ENTRY STATE', async () => {
+			const response = await fetch(`/api/entry-states/unmerge/${es_id}`, { method: 'POST' });
+			if (!response.ok) throw new Error('Failed to unmerge entry state. Internal error');
+
+			const entryStates = await response.json();
+			if (!entryStates) throw new Error(`Failed to unmerge entry state. Unable to create data`);
+
+			return entryStates.map(entryState => {
+				entryState.state = new Set(JSON.parse(entryState.state));
+				return entryState;
+			});
+		});
+	},
+	merge: async (es_id1, es_id2) => {
+		return await asyncHandler('MERGE ENTRY STATES', async () => {
+			const response = await fetch(`/api/entry-states/merge/${es_id1}/${es_id2}`, { method: 'POST' });
+			if (!response.ok) throw new Error('Failed to merge entry state. Internal error');
+
+			const entryStates = await response.json();
+			if (!entryStates) throw new Error(`Failed to merge entry state. Unable to create data`);
+
+			return entryStates.map(entryState => {
+				entryState.state = new Set(JSON.parse(entryState.state));
+				return entryState;
+			});
+		});
+	},
 	findAll: async () => {
 		return await asyncHandler('FIND ALL ENTRY STATES', async () => {
 			const response = await fetch('/api/entry-states', { method: 'GET', });
@@ -237,7 +290,7 @@ export const EntryState = {
 				entryState.state = new Set(JSON.parse(entryState.state));
 				return entryState;
 			});
-		})
+		});
 	},
 	update: async (es_id, body) => {
 		body.state = body.state ? Array.from(body.state) : body.state;

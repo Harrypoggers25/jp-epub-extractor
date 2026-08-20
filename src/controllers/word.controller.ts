@@ -8,18 +8,12 @@ import Message from "@harrypoggers25/message";
 import Route from "@harrypoggers25/route";
 
 export namespace WordHandler {
-	export const create = Route.asyncHandler(async (req, res) => {
-		const { token_ids, w_basic_form, j_response, occurrence_count, wt_name } = req.body;
-		const created_at = new Date();
+	export const findAll = Route.asyncHandler(async (req, res) => {
+		const getQuery = (query: string) => req.query[query] ? +req.query[query] : undefined;
+		const limit = getQuery('limit');
+		const offset = getQuery('offset');
 
-		const word = await Word.create({ token_ids, w_basic_form, j_response, occurrence_count, created_at, wt_name });
-		if (!word) throw new Error(Message.failed(['create', 'word', { w_basic_form }]));
-
-		res.status(201).json(word);
-	});
-
-	export const findAll = Route.asyncHandler(async (_, res) => {
-		const words = await Word.find();
+		const words = await Word.find({ offset, limit });
 		if (!words) throw new Error(Message.failed(['find', 'all words']));
 
 		res.status(200).json(words);
@@ -29,6 +23,16 @@ export namespace WordHandler {
 		const w_basic_form = req.params.w_basic_form as string;
 		const words = await Word.find({ like: { w_basic_form } });
 		if (!words) throw new Error(Message.failed(['find', 'words', { w_basic_form }]));
+
+		res.status(200).json(words);
+	});
+
+	export const find = Route.asyncHandler(async (req, res) => {
+		const w_basic_form = req.params.w_basic_form as string;
+		const wt_name = req.params.wt_name as string;
+
+		const words = await Word.find({ where: { w_basic_form, wt_name } });
+		if (!words) throw new Error(Message.failed(['find', 'words', { w_basic_form, wt_name }]));
 
 		res.status(200).json(words);
 	});

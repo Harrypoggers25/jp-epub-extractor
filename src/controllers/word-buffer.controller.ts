@@ -3,15 +3,18 @@ import { BookBuffer, db, EntryState, IWordBuffer, JishoBuffer, SentenceBuffer, T
 
 // HELPERS
 import { writeResponse } from "../helpers";
+import { IJishoReducedWord, IJishoWord } from "../helpers/jisho.helper";
+import { ITokenPositions } from "../helpers/book.helper";
 
 // MODULES
 import Message from "@harrypoggers25/message";
 
 // ROUTES
 import Route from "@harrypoggers25/route";
+
 import Jisho from "../services/jisho.service";
-import { IJishoReducedWord, IJishoWord } from "../helpers/jisho.helper";
-import { ITokenPositions } from "../helpers/book.helper";
+import { transformWordBuffer } from "../services/work-buffers.service";
+import { isArrayObj } from "../helpers/json.helper";
 
 export namespace WordBufferHandler {
 	export const count = Route.asyncHandler(async (_, res) => {
@@ -19,6 +22,33 @@ export namespace WordBufferHandler {
 		if (!wordBuffers) throw new Error(Message.failed(['find', 'sentence buffer count']));
 
 		res.status(200).json({ count: wordBuffers.length });
+	});
+
+	export const transform = Route.asyncHandler(async (req, res) => {
+		const w_basic_form = req.params.w_basic_form as string;
+		const wt_name = req.params.wt_name as string;
+		const state = (() => {
+			const { state } = req.body;
+			if (!state) return state;
+			if (!isArrayObj<number>(state, i => typeof i === 'number')) throw new Error(Message.failed(['transform', 'word buffers', { w_basic_form, wt_name }], {
+				subMessage: 'state must be an array of numbers'
+			}));
+
+			return state;
+		})();
+
+		const wordBuffers = await WordBuffer.find();
+		if (!wordBuffers) throw new Error(Message.failed(['transform', 'word buffers', { w_basic_form, wt_name }], {
+			causer: ['find', 'all word buffers']
+		}));
+
+		const entryStates = await EntryState.find();
+		if (!entryStates) throw new Error(Message.failed(['transform', 'word buffers', { w_basic_form, wt_name }], { causer: ['find', 'all entry states'] }));
+
+		const es_id = `${w_basic_form}_${wt_name}`;
+
+		const { top, bottom } = transformWordBuffer(wordBuffers, entryStates, es_id, state);
+		res.status(200).json({ top, bottom });
 	});
 
 	export const findAll = Route.asyncHandler(async (_, res) => {
