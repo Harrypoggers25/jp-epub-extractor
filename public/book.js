@@ -405,8 +405,16 @@ class Buffer {
 		const previewWrapper = createElement('div');
 		previewWrapper.appendChild(createElement('h2', null, `Section ${this.selectedSectionNo ?? '-'}`));
 		previewWrapper.appendChild(createElement('p', null, `Showing up to ${this.previewLimit} sentences.`));
-		this.elems.sectionPreview = createElement('div', 'section-preview');
-		previewWrapper.appendChild(this.elems.sectionPreview);
+		const preview = createElement('div', 'section-preview');
+		preview.addEventListener('wheel', ev => {
+			if (ev.deltaY === 0 || preview.scrollWidth <= preview.clientWidth) return;
+
+			const scrollLeft = preview.scrollLeft;
+			preview.scrollLeft -= ev.deltaY;
+			if (preview.scrollLeft !== scrollLeft) ev.preventDefault();
+		});
+		this.elems.sectionPreview = preview;
+		previewWrapper.appendChild(preview);
 		container.appendChild(previewWrapper);
 
 		if (this.bookBuffer.confirmed) container.appendChild(createElement('div', 'section-confirmed', 'Section selection is confirmed and read-only.'));

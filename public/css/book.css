@@ -164,7 +164,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 470px;
+    height: min(75vh, 720px);
     overflow-y: auto;
 }
 
@@ -183,12 +183,13 @@
 }
 
 .section-preview {
-    min-height: 470px;
+    height: min(75vh, 720px);
     display: flex;
     flex-direction: row-reverse;
     align-items: stretch;
     overflow-x: auto;
     overflow-y: hidden;
+    box-sizing: border-box;
     padding: 10px 6px;
     border: 1px solid var(--border-faint);
     border-radius: 10px;
@@ -201,6 +202,7 @@
     align-items: center;
     flex-shrink: 0;
     height: 100%;
+    box-sizing: border-box;
     padding: 8px 14px;
     margin-right: 18px;
     border-right: 4px solid var(--text-muted);
@@ -340,6 +342,10 @@
     }
 
     .section-list {
-        max-height: 200px;
+        height: min(35vh, 240px);
+    }
+
+    .section-preview {
+        height: min(55vh, 420px);
     }
 }
