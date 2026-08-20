@@ -94,7 +94,7 @@ export namespace JishoBufferHandler {
 		}));
 		res.end();
 	});
-	export const removeAll = Route.asyncHandler(async (req, res) => {
+	export const removeAll = Route.asyncHandler(async (_, res) => {
 		const jishoBuffers = await JishoBuffer.delete();
 		if (jishoBuffers) throw new Error(Message.failed(['delete', 'all jisho buffers']));
 
