@@ -7,11 +7,11 @@ import { Router } from 'express';
 const wordRouter = Router();
 
 wordRouter.route('/')
-	.post(WordHandler.create)
 	.get(WordHandler.findAll);
-wordRouter.route('/:w_id')
-	.delete(WordHandler.remove);
 wordRouter.route('/:w_basic_form')
 	.get(WordHandler.findMany);
+wordRouter.route('/:w_basic_form/:wt_name')
+	.get(WordHandler.find)
+	.delete(WordHandler.remove);
 
 export default wordRouter;
