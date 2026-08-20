@@ -29,6 +29,7 @@ export namespace WordBufferHandler {
 		const wt_name = req.params.wt_name as string;
 		const state = (() => {
 			const { state } = req.body;
+			if (!state) return state;
 			if (!isArrayObj<number>(state, i => typeof i === 'number')) throw new Error(Message.failed(['transform', 'word buffers', { w_basic_form, wt_name }], {
 				subMessage: 'state must be an array of numbers'
 			}));
