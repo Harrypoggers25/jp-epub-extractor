@@ -20,6 +20,80 @@
     background: var(--bg-item);
 }
 
+.word-layout .word-table-state {
+    display: flex;
+    min-height: 376px;
+    padding: 20px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+}
+
+.word-layout .word-table-state h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.word-layout .word-table-state span {
+    color: var(--text-muted);
+}
+
+.word-layout .word-table-state.error h2 {
+    color: var(--danger);
+}
+
+.word-layout .word-table {
+    width: 100%;
+    min-width: 800px;
+    border-collapse: collapse;
+}
+
+.word-layout .word-table th,
+.word-layout .word-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-faint);
+    text-align: left;
+}
+
+.word-layout .word-table th {
+    color: var(--text-muted);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.word-layout .word-table tr:last-child td {
+    border-bottom: none;
+}
+
+.word-layout .word-meaning {
+    min-width: 280px;
+}
+
+.word-layout .word-type,
+.word-layout .word-status.ignored {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+}
+
+.word-layout .word-type {
+    background: var(--accent-bg);
+    color: var(--accent);
+}
+
+.word-layout .word-status {
+    color: var(--text-muted);
+}
+
+.word-layout .word-status.ignored {
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
 @media (max-width: 700px) {
     .word-layout .content {
         padding: 20px;
