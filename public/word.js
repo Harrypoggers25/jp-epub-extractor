@@ -1,5 +1,5 @@
 import { Word } from "./api.helper.js";
-import { asyncHandler, createElement, eventHandler } from "./tools.helper.js";
+import { asyncHandler, createElement, eventHandler, focusElem, focusable, setClass } from "./tools.helper.js";
 
 class WordList {
 	constructor() {
@@ -242,7 +242,18 @@ class WordList {
 		return pagination;
 	}
 	createWordRow(word) {
-		const row = createElement('tr');
+		const row = createElement('tr', 'word-row');
+		const openDetail = () => wordDetailModal.open(word, row);
+		focusable(row);
+		row.setAttribute('aria-haspopup', 'dialog');
+		row.setAttribute('aria-label', `Show details for ${word.w_basic_form}`);
+		row.onclick = eventHandler(openDetail);
+		row.addEventListener('keydown', ev => {
+			if (ev.key !== 'Enter' && ev.key !== ' ') return;
+			ev.preventDefault();
+			openDetail();
+		});
+
 		const { reading, meaning } = this.getDisplayWord(word);
 		row.appendChild(createElement('td', null, word.w_basic_form));
 		row.appendChild(createElement('td', null, reading));
@@ -306,7 +317,204 @@ class WordList {
 	}
 }
 
+class WordDetailModal {
+	constructor() {
+		this.elems = {
+			wordDetailModal: document.getElementById('wordDetailModal'),
+		}
+
+		this.opener = null;
+
+		this.elems.wordDetailModal.onclick = eventHandler(ev => {
+			if (ev.target === this.elems.wordDetailModal) this.close();
+		});
+		document.addEventListener('keydown', ev => {
+			if (ev.key !== 'Escape' || !this.elems.wordDetailModal.classList.contains('open')) return;
+			ev.preventDefault();
+			this.close();
+		});
+	}
+	open(word, opener) {
+		const { wordDetailModal } = this.elems;
+		const entries = wordList.getEntries(word);
+		wordDetailModal.innerHTML = '';
+
+		const modalBox = createElement('div', 'modal-box word-detail-box');
+		modalBox.setAttribute('role', 'dialog');
+		modalBox.setAttribute('aria-modal', 'true');
+		modalBox.setAttribute('aria-labelledby', 'wordDetailTitle');
+
+		const actions = createElement('div', 'modal-actions');
+		const close = createElement('button', 'modal-btn', 'Close');
+		close.type = 'button';
+		close.onclick = eventHandler(() => this.close());
+		actions.appendChild(close);
+
+		const header = createElement('div', 'word-detail-modal-header');
+		const title = createElement('h2', 'word-detail-title', word.w_basic_form);
+		title.id = 'wordDetailTitle';
+		header.appendChild(title);
+		header.appendChild(actions);
+		modalBox.appendChild(header);
+
+		const scrollBody = createElement('div', 'word-detail-scroll-body');
+		scrollBody.appendChild(this.createSummary(word, entries));
+		scrollBody.appendChild(this.createDictionarySection(entries));
+
+		const advancedMetadata = this.createAdvancedMetadata(word);
+		if (advancedMetadata) scrollBody.appendChild(advancedMetadata);
+		modalBox.appendChild(scrollBody);
+
+		wordDetailModal.appendChild(modalBox);
+		wordDetailModal.setAttribute('aria-hidden', 'false');
+		this.opener = opener;
+		setClass(wordDetailModal, 'open', true);
+		focusElem(close);
+	}
+	close() {
+		const { wordDetailModal } = this.elems;
+		const opener = this.opener;
+		this.opener = null;
+		setClass(wordDetailModal, 'open', false);
+		wordDetailModal.setAttribute('aria-hidden', 'true');
+		wordDetailModal.innerHTML = '';
+		if (opener?.isConnected) focusElem(opener);
+	}
+	createSummary(word, entries) {
+		const summary = createElement('div', 'word-detail-summary');
+		const metadata = createElement('div', 'word-detail-meta');
+		metadata.appendChild(this.createSummaryBadge(`Reading: ${wordList.getReading(entries)}`));
+		metadata.appendChild(this.createSummaryBadge(word.wt_name));
+		metadata.appendChild(this.createSummaryBadge(`${word.occurrence_count} occurrences`));
+		metadata.appendChild(this.createSummaryBadge(word.w_character_type));
+		if (word.ignore) metadata.appendChild(this.createSummaryBadge('Ignored', 'ignored'));
+		summary.appendChild(metadata);
+
+		return summary;
+	}
+	createDictionarySection(entries) {
+		const section = createElement('section', 'word-detail-dictionary');
+		section.appendChild(createElement('h3', 'word-detail-section-title', 'Dictionary entries'));
+
+		const dictionaryEntries = entries.filter(entry => entry && typeof entry === 'object');
+		if (!dictionaryEntries.length) {
+			section.appendChild(createElement('p', 'word-detail-empty', 'No dictionary entries available.'));
+			return section;
+		}
+
+		dictionaryEntries.forEach(entry => section.appendChild(this.createEntry(entry)));
+		return section;
+	}
+	createEntry(entry) {
+		const card = createElement('div', 'entry');
+		const header = createElement('div', 'entry-header');
+		const slug = typeof entry.slug === 'string' && entry.slug.trim() ? entry.slug : '—';
+		header.appendChild(createElement('div', 'slug', slug));
+
+		const badges = createElement('div');
+		if (entry.is_common) badges.appendChild(this.createEntryBadge('Common', 'common'));
+		if (typeof entry.jlpt === 'string' && entry.jlpt.trim()) {
+			badges.appendChild(this.createEntryBadge(entry.jlpt, 'jlpt'));
+		}
+		if (badges.childElementCount) header.appendChild(badges);
+		card.appendChild(header);
+
+		const japaneseWords = this.getItems(entry.japanese);
+		if (japaneseWords.length) card.appendChild(this.createJapaneseSection(japaneseWords));
+
+		const senses = this.getItems(entry.senses);
+		if (senses.length) card.appendChild(this.createMeaningSection(senses));
+
+		const tags = this.getStrings(entry.tags);
+		if (tags.length) card.appendChild(this.createTagSection('Dictionary tags', tags));
+
+		return card;
+	}
+	createJapaneseSection(japaneseWords) {
+		const section = this.createSection('Forms');
+
+		japaneseWords.forEach(word => {
+			if (!word || typeof word !== 'object') return;
+			const text = typeof word.word === 'string' && word.word.trim() ? word.word : null;
+			const reading = typeof word.reading === 'string' && word.reading.trim() ? word.reading : null;
+			if (!text && !reading) return;
+
+			const form = createElement('div', 'word');
+			if (text) form.appendChild(createElement('strong', null, text));
+			if (reading) form.appendChild(createElement('span', null, reading));
+			section.appendChild(form);
+		});
+
+		return section;
+	}
+	createMeaningSection(senses) {
+		const section = this.createSection('Meanings');
+
+		senses.forEach(sense => {
+			if (!sense || typeof sense !== 'object') return;
+			const definitions = this.getStrings(sense.english_definitions);
+			const partsOfSpeech = this.getStrings(sense.parts_of_speech);
+			const tags = this.getStrings(sense.tags);
+			if (!definitions.length && !partsOfSpeech.length && !tags.length) return;
+
+			const wrapper = createElement('div', 'sense');
+			if (definitions.length) {
+				wrapper.appendChild(createElement('div', 'definitions', definitions.join(', ')));
+			}
+			if (partsOfSpeech.length) wrapper.appendChild(this.createTagContainer(partsOfSpeech));
+			if (tags.length) wrapper.appendChild(this.createTagContainer(tags));
+			section.appendChild(wrapper);
+		});
+
+		return section;
+	}
+	createTagSection(title, tags) {
+		const section = this.createSection(title);
+		section.appendChild(this.createTagContainer(tags));
+		return section;
+	}
+	createTagContainer(tags) {
+		const container = createElement('div', 'tags');
+		tags.forEach(tag => container.appendChild(createElement('span', 'tag', tag)));
+		return container;
+	}
+	createAdvancedMetadata(word) {
+		const details = [];
+		if (typeof word.token_ids === 'string' && word.token_ids.trim()) details.push(['Token IDs', word.token_ids]);
+		if (typeof word.created_at === 'string' && word.created_at.trim()) details.push(['Created', word.created_at]);
+		if (!details.length) return;
+
+		const section = this.createSection('Details', 'word-detail-advanced');
+		details.forEach(([label, value]) => {
+			const item = createElement('div', 'word-detail-detail');
+			item.appendChild(createElement('span', null, label));
+			item.appendChild(createElement('span', null, value));
+			section.appendChild(item);
+		});
+
+		return section;
+	}
+	createSummaryBadge(text, className = '') {
+		return createElement('span', `word-detail-badge ${className}`, text);
+	}
+	createEntryBadge(text, className) {
+		return createElement('span', className, text);
+	}
+	createSection(title, className = '') {
+		const section = createElement('div', `section ${className}`);
+		section.appendChild(createElement('h3', null, title));
+		return section;
+	}
+	getItems(value) {
+		return Array.isArray(value) ? value : [];
+	}
+	getStrings(value) {
+		return this.getItems(value).filter(item => typeof item === 'string' && item.trim());
+	}
+}
+
 const wordList = new WordList();
+const wordDetailModal = new WordDetailModal();
 
 asyncHandler('MAIN INIT', async () => {
 	await wordList.load();

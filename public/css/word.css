@@ -157,6 +157,19 @@
     border-bottom: none;
 }
 
+.word-layout .word-row {
+    cursor: pointer;
+}
+
+.word-layout .word-row:is(:hover, :focus) td {
+    background: var(--bg-item-hover);
+}
+
+.word-layout .word-row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
 .word-layout .word-meaning {
     min-width: 280px;
 }
@@ -202,6 +215,220 @@
     font-size: 13px;
 }
 
+#wordDetailModal .word-detail-box {
+    width: min(900px, calc(100vw - 48px));
+    max-width: none;
+    max-height: calc(100vh - 48px);
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+}
+
+#wordDetailModal .word-detail-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    flex-shrink: 0;
+    padding: 28px 28px 20px;
+    border-bottom: 1px solid var(--border-faint);
+}
+
+#wordDetailModal .word-detail-modal-header .modal-actions {
+    flex-shrink: 0;
+}
+
+#wordDetailModal .word-detail-summary {
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-faint);
+}
+
+#wordDetailModal .word-detail-title {
+    margin: 0;
+    font-size: 34px;
+}
+
+#wordDetailModal .word-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#wordDetailModal .word-detail-meta {
+    margin-top: 12px;
+}
+
+#wordDetailModal .word-detail-scroll-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 20px 28px 28px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+#wordDetailModal .word-detail-scroll-body::-webkit-scrollbar {
+    width: 10px;
+}
+
+#wordDetailModal .word-detail-scroll-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#wordDetailModal .word-detail-scroll-body::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: var(--border);
+    background-clip: content-box;
+}
+
+#wordDetailModal .word-detail-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+}
+
+#wordDetailModal .word-detail-badge {
+    background: var(--accent-bg);
+    color: var(--accent);
+}
+
+#wordDetailModal .word-detail-badge.ignored {
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+#wordDetailModal .word-detail-dictionary {
+    margin-top: 18px;
+}
+
+#wordDetailModal .word-detail-section-title {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+#wordDetailModal .word-detail-box .entry {
+    padding: 22px;
+    margin-bottom: 20px;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    background: var(--bg-panel);
+    box-shadow: var(--shadow);
+    cursor: default;
+}
+
+#wordDetailModal .word-detail-box .entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#wordDetailModal .word-detail-box .slug {
+    font-size: 30px;
+    font-weight: bold;
+}
+
+#wordDetailModal .word-detail-box .common {
+    background: var(--success);
+    color: #0d0f0f;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#wordDetailModal .word-detail-box .jlpt {
+    background: #ffab40;
+    color: #0d0f0f;
+    padding: 5px 12px;
+    border-radius: 999px;
+    margin-left: 8px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#wordDetailModal .word-detail-box .section {
+    margin-top: 18px;
+}
+
+#wordDetailModal .word-detail-box .section h3 {
+    margin-bottom: 10px;
+    color: var(--text-muted);
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+#wordDetailModal .word-detail-box .word {
+    display: inline-block;
+    margin: 6px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--bg-item);
+}
+
+#wordDetailModal .word-detail-box .word strong {
+    display: block;
+    font-size: 22px;
+}
+
+#wordDetailModal .word-detail-box .word span {
+    color: var(--text-muted);
+}
+
+#wordDetailModal .word-detail-box .sense {
+    padding: 12px;
+    border-left: 4px solid #7986cb;
+    background: #16181d;
+    margin-bottom: 10px;
+}
+
+#wordDetailModal .word-detail-box .definitions {
+    margin-bottom: 8px;
+    font-size: 17px;
+}
+
+#wordDetailModal .word-detail-box .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+#wordDetailModal .word-detail-box .tag {
+    background: #2c2c2c;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 13px;
+    color: #ccc;
+}
+
+#wordDetailModal .word-detail-empty {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+#wordDetailModal .word-detail-advanced {
+    padding-top: 16px;
+    border-top: 1px solid var(--border-faint);
+}
+
+#wordDetailModal .word-detail-detail {
+    display: flex;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+#wordDetailModal .word-detail-detail span:first-child {
+    color: var(--text-disabled);
+}
+
 @media (max-width: 700px) {
     .word-layout .content {
         padding: 20px;
@@ -214,5 +441,28 @@
 
     .word-layout .header-actions {
         flex-direction: row;
+    }
+
+    #wordDetailModal .word-detail-box .entry-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    #wordDetailModal .word-detail-box {
+        width: calc(100vw - 24px);
+        max-height: calc(100vh - 24px);
+    }
+
+    #wordDetailModal .word-detail-modal-header {
+        flex-direction: column;
+        padding: 20px 20px 16px;
+    }
+
+    #wordDetailModal .word-detail-modal-header .modal-actions {
+        align-self: flex-end;
+    }
+
+    #wordDetailModal .word-detail-scroll-body {
+        padding: 16px 20px 20px;
     }
 }
