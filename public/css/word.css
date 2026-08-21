@@ -12,6 +12,31 @@
     box-shadow: var(--shadow-soft);
 }
 
+.word-layout .word-table-controls {
+    margin-bottom: 16px;
+}
+
+.word-layout .word-search {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #444;
+    border-radius: 10px;
+    outline: none;
+    background: var(--bg-input);
+    color: var(--text);
+    font: inherit;
+}
+
+.word-layout .word-search:focus {
+    border-color: var(--accent);
+}
+
+.word-layout .word-search:disabled {
+    background: var(--bg-disabled);
+    color: var(--text-disabled);
+    border-color: var(--border-subtle);
+}
+
 .word-layout .word-table-region {
     min-height: 378px;
     overflow-x: auto;
@@ -64,6 +89,29 @@
     letter-spacing: .08em;
 }
 
+.word-layout .word-sort {
+    padding: 0;
+    border: none;
+    outline: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+}
+
+.word-layout .word-sort:is(:hover, :focus),
+.word-layout .word-sort.active {
+    color: var(--accent);
+}
+
+.word-layout .word-sort:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 2px;
+}
+
 .word-layout .word-table tr:last-child td {
     border-bottom: none;
 }
@@ -92,6 +140,25 @@
 .word-layout .word-status.ignored {
     background: var(--warning-bg);
     color: var(--warning);
+}
+
+.word-layout .word-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    min-width: 800px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-faint);
+}
+
+.word-layout .word-page-btn {
+    text-align: center;
+}
+
+.word-layout .word-page-info {
+    color: var(--text-muted);
+    font-size: 13px;
 }
 
 @media (max-width: 700px) {

@@ -1,13 +1,25 @@
 import { Word } from "./api.helper.js";
-import { asyncHandler, createElement } from "./tools.helper.js";
+import { asyncHandler, createElement, eventHandler } from "./tools.helper.js";
 
 class WordList {
 	constructor() {
 		this.elems = {
 			wordTable: document.getElementById('wordTable'),
+			wordSearch: document.getElementById('wordSearch'),
 		}
 
 		this.words = null;
+		this.searchText = '';
+		this.sort = { column: null, direction: 'asc' };
+		this.page = 1;
+		this.wordPerPage = 25;
+		this.collator = new Intl.Collator('ja', { numeric: true, sensitivity: 'base' });
+
+		this.elems.wordSearch.oninput = eventHandler(ev => {
+			this.searchText = ev.target.value.trim();
+			this.page = 1;
+			this.renderWords();
+		});
 	}
 	async load() {
 		this.renderLoading();
@@ -19,16 +31,20 @@ class WordList {
 			}
 
 			this.words = words;
+			this.elems.wordSearch.disabled = !words.length;
 			this.renderWords();
 		});
 	}
 	renderLoading() {
+		this.elems.wordSearch.disabled = true;
 		this.renderState('Loading words...');
 	}
 	renderEmpty() {
+		this.elems.wordSearch.disabled = true;
 		this.renderState('No words', 'Process and review a book to add words.');
 	}
 	renderError() {
+		this.elems.wordSearch.disabled = true;
 		this.renderState('Failed to load words', 'Please try again.', 'error');
 	}
 	renderState(title, message, className = '') {
@@ -49,42 +65,160 @@ class WordList {
 			return;
 		}
 
-		wordTable.appendChild(this.createTable());
+		const filteredWords = this.getFilteredWords();
+		if (!filteredWords.length) {
+			this.renderState('No matching words');
+			return;
+		}
+
+		const sortedWords = this.getSortedWords(filteredWords);
+		const totalPages = Math.max(1, Math.ceil(sortedWords.length / this.wordPerPage));
+		if (this.page > totalPages) this.page = totalPages;
+
+		const start = (this.page - 1) * this.wordPerPage;
+		const words = sortedWords.slice(start, start + this.wordPerPage);
+		wordTable.appendChild(this.createTable(words));
+		wordTable.appendChild(this.createPagination(totalPages));
 	}
-	createTable() {
+	getFilteredWords() {
+		if (!this.searchText) return this.words;
+
+		const searchText = this.searchText.toLowerCase();
+		return this.words.filter(word => {
+			const { reading, meaning } = this.getDisplayWord(word);
+			return [word.w_basic_form, reading, word.wt_name, meaning].some(text => {
+				return text.toLowerCase().includes(searchText);
+			});
+		});
+	}
+	getSortedWords(words) {
+		if (!this.sort.column) return words;
+
+		return [...words].sort((word1, word2) => {
+			const value1 = this.getSortValue(word1);
+			const value2 = this.getSortValue(word2);
+			const result = this.sort.column === 'occurrence_count'
+				? value1 - value2
+				: this.collator.compare(value1, value2);
+			if (result) return this.sort.direction === 'asc' ? result : -result;
+
+			const basicFormResult = this.collator.compare(word1.w_basic_form, word2.w_basic_form);
+			if (basicFormResult) return basicFormResult;
+
+			return this.collator.compare(word1.wt_name, word2.wt_name);
+		});
+	}
+	getSortValue(word) {
+		const { reading, meaning } = this.getDisplayWord(word);
+		switch (this.sort.column) {
+			case 'word': return word.w_basic_form;
+			case 'reading': return reading;
+			case 'type': return word.wt_name;
+			case 'meaning': return meaning;
+			case 'occurrence_count': return word.occurrence_count;
+			case 'status': return this.getStatus(word);
+		}
+	}
+	sortBy(column) {
+		if (this.sort.column === column) {
+			this.sort.direction = this.sort.direction === 'asc' ? 'desc' : 'asc';
+		} else {
+			this.sort = { column, direction: 'asc' };
+		}
+
+		this.renderWords();
+	}
+	setPage(page) {
+		this.page = page;
+		this.renderWords();
+	}
+	createTable(words) {
 		const table = createElement('table', 'word-table');
 		const header = createElement('thead');
 		const headerRow = createElement('tr');
-		['Word', 'Reading', 'Type', 'Meaning', 'Occurrences', 'Status'].forEach(text => {
-			headerRow.appendChild(createElement('th', null, text));
+		[
+			['word', 'Word'],
+			['reading', 'Reading'],
+			['type', 'Type'],
+			['meaning', 'Meaning'],
+			['occurrence_count', 'Occurrences'],
+			['status', 'Status'],
+		].forEach(([column, text]) => {
+			headerRow.appendChild(this.createTableHeader(column, text));
 		});
 		header.appendChild(headerRow);
 		table.appendChild(header);
 
 		const body = createElement('tbody');
-		this.words.forEach(word => body.appendChild(this.createWordRow(word)));
+		words.forEach(word => body.appendChild(this.createWordRow(word)));
 		table.appendChild(body);
 
 		return table;
 	}
+	createTableHeader(column, text) {
+		const header = createElement('th');
+		header.scope = 'col';
+		const active = this.sort.column === column;
+		header.setAttribute('aria-sort', active ? (this.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none');
+
+		const direction = active ? (this.sort.direction === 'asc' ? ' ↑' : ' ↓') : '';
+		const button = createElement('button', `word-sort${active ? ' active' : ''}`, `${text}${direction}`);
+		button.type = 'button';
+		button.onclick = eventHandler(() => this.sortBy(column));
+		header.appendChild(button);
+
+		return header;
+	}
+	createPagination(totalPages) {
+		const pagination = createElement('div', 'word-pagination');
+
+		const previous = createElement('button', 'header-btn word-page-btn', 'Previous');
+		previous.type = 'button';
+		previous.disabled = this.page === 1;
+		previous.onclick = eventHandler(() => this.setPage(this.page - 1));
+		pagination.appendChild(previous);
+
+		const pageInfo = createElement('span', 'word-page-info', `Page ${this.page} of ${totalPages}`);
+		pageInfo.setAttribute('aria-live', 'polite');
+		pagination.appendChild(pageInfo);
+
+		const next = createElement('button', 'header-btn word-page-btn', 'Next');
+		next.type = 'button';
+		next.disabled = this.page === totalPages;
+		next.onclick = eventHandler(() => this.setPage(this.page + 1));
+		pagination.appendChild(next);
+
+		return pagination;
+	}
 	createWordRow(word) {
 		const row = createElement('tr');
-		const entries = this.getEntries(word);
+		const { reading, meaning } = this.getDisplayWord(word);
 		row.appendChild(createElement('td', null, word.w_basic_form));
-		row.appendChild(createElement('td', null, this.getReading(entries)));
+		row.appendChild(createElement('td', null, reading));
 
 		const wordType = createElement('td');
 		wordType.appendChild(createElement('span', 'word-type', word.wt_name));
 		row.appendChild(wordType);
 
-		row.appendChild(createElement('td', 'word-meaning', this.getMeaning(entries)));
+		row.appendChild(createElement('td', 'word-meaning', meaning));
 		row.appendChild(createElement('td', null, `${word.occurrence_count}`));
 
 		const status = createElement('td');
-		status.appendChild(createElement('span', word.ignore ? 'word-status ignored' : 'word-status', word.ignore ? 'Ignored' : '—'));
+		const statusText = this.getStatus(word);
+		status.appendChild(createElement('span', word.ignore ? 'word-status ignored' : 'word-status', statusText));
 		row.appendChild(status);
 
 		return row;
+	}
+	getDisplayWord(word) {
+		const entries = this.getEntries(word);
+		return {
+			reading: this.getReading(entries),
+			meaning: this.getMeaning(entries),
+		};
+	}
+	getStatus(word) {
+		return word.ignore ? 'Ignored' : '—';
 	}
 	getEntries(word) {
 		try {
