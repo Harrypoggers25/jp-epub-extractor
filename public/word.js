@@ -396,7 +396,7 @@ class WordDetailModal {
 		const section = createElement('section', 'word-detail-dictionary');
 		section.appendChild(createElement('h3', 'word-detail-section-title', 'Dictionary entries'));
 
-		const dictionaryEntries = entries.filter(entry => entry && typeof entry === 'object');
+		const dictionaryEntries = entries.filter(entry => this.isDictionaryEntry(entry));
 		if (!dictionaryEntries.length) {
 			section.appendChild(createElement('p', 'word-detail-empty', 'No dictionary entries available.'));
 			return section;
@@ -404,6 +404,21 @@ class WordDetailModal {
 
 		dictionaryEntries.forEach(entry => section.appendChild(this.createEntry(entry)));
 		return section;
+	}
+	isDictionaryEntry(entry) {
+		if (!entry || typeof entry !== 'object') return false;
+		if (typeof entry.slug === 'string' && entry.slug.trim()) return true;
+		if (this.getItems(entry.japanese).some(word => {
+			return typeof word?.word === 'string' && word.word.trim()
+				|| typeof word?.reading === 'string' && word.reading.trim();
+		})) return true;
+		if (this.getItems(entry.senses).some(sense => {
+			return this.getStrings(sense?.english_definitions).length
+				|| this.getStrings(sense?.parts_of_speech).length
+				|| this.getStrings(sense?.tags).length;
+		})) return true;
+
+		return !!this.getStrings(entry.tags).length;
 	}
 	createEntry(entry) {
 		const card = createElement('div', 'entry');

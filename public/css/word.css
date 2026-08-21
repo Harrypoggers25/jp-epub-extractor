@@ -441,6 +441,7 @@
 
     .word-layout .header-actions {
         flex-direction: row;
+        flex-wrap: wrap;
     }
 
     #wordDetailModal .word-detail-box .entry-header {
