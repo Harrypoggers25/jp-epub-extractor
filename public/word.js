@@ -336,7 +336,7 @@ class WordDetailModal {
 		modalBox.setAttribute('aria-labelledby', 'wordDetailTitle');
 
 		const actions = createElement('div', 'modal-actions');
-		const close = createElement('button', 'modal-btn header-btn', 'Close');
+		const close = createElement('button', 'header-btn', 'Close');
 		close.type = 'button';
 		close.onclick = eventHandler(() => this.close());
 		actions.appendChild(close);
