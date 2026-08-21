@@ -6,6 +6,11 @@ class WordList {
 		this.elems = {
 			wordTable: document.getElementById('wordTable'),
 			wordSearch: document.getElementById('wordSearch'),
+			wordExport: document.getElementById('wordExport'),
+			btnExport: document.getElementById('btnExport'),
+			exportMenu: document.getElementById('exportMenu'),
+			btnExportJson: document.getElementById('btnExportJson'),
+			btnExportFormatted: document.getElementById('btnExportFormatted'),
 		}
 
 		this.words = null;
@@ -20,6 +25,17 @@ class WordList {
 			this.page = 1;
 			this.renderWords();
 		});
+		this.elems.btnExport.onclick = eventHandler(() => this.toggleExportMenu());
+		this.elems.btnExportJson.onclick = eventHandler(() => this.exportWords());
+		this.elems.btnExportFormatted.onclick = eventHandler(() => this.exportWords(true));
+		document.addEventListener('click', ev => {
+			if (!this.elems.wordExport.contains(ev.target)) this.closeExportMenu();
+		});
+		document.addEventListener('keydown', ev => {
+			if (ev.key !== 'Escape' || !this.elems.exportMenu.classList.contains('open')) return;
+			this.closeExportMenu();
+			this.elems.btnExport.focus();
+		});
 	}
 	async load() {
 		this.renderLoading();
@@ -32,20 +48,55 @@ class WordList {
 
 			this.words = words;
 			this.elems.wordSearch.disabled = !words.length;
+			this.setExportEnabled(words.length);
 			this.renderWords();
 		});
 	}
 	renderLoading() {
 		this.elems.wordSearch.disabled = true;
+		this.setExportEnabled(false);
 		this.renderState('Loading words...');
 	}
 	renderEmpty() {
 		this.elems.wordSearch.disabled = true;
+		this.setExportEnabled(false);
 		this.renderState('No words', 'Process and review a book to add words.');
 	}
 	renderError() {
 		this.elems.wordSearch.disabled = true;
+		this.setExportEnabled(false);
 		this.renderState('Failed to load words', 'Please try again.', 'error');
+	}
+	setExportEnabled(enabled) {
+		this.elems.btnExport.disabled = !enabled;
+		if (!enabled) this.closeExportMenu();
+	}
+	toggleExportMenu() {
+		if (this.elems.btnExport.disabled) return;
+		this.setExportMenuOpen(!this.elems.exportMenu.classList.contains('open'));
+	}
+	closeExportMenu() {
+		this.setExportMenuOpen(false);
+	}
+	setExportMenuOpen(open) {
+		this.elems.exportMenu.classList.toggle('open', open);
+		this.elems.exportMenu.setAttribute('aria-hidden', `${!open}`);
+		this.elems.btnExport.setAttribute('aria-expanded', `${open}`);
+	}
+	exportWords(formatted = false) {
+		if (!this.words?.length) return;
+
+		const text = formatted ? JSON.stringify(this.words, null, 2) : JSON.stringify(this.words);
+		const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = formatted ? 'words-formatted.json' : 'words.json';
+		document.body.appendChild(link);
+		link.click();
+		link.remove();
+		URL.revokeObjectURL(url);
+		this.closeExportMenu();
 	}
 	renderState(title, message, className = '') {
 		const { wordTable } = this.elems;

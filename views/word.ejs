@@ -21,7 +21,14 @@
                     <div class="header-actions">
                         <a class="header-btn" href="/book">New book</a>
                         <a class="header-btn" href="/review/unsure">Unsure words</a>
-                        <button id="btnExport" class="header-btn" disabled>Export</button>
+                        <div id="wordExport" class="word-export">
+                            <button id="btnExport" class="header-btn" aria-haspopup="true" aria-expanded="false"
+                                disabled>Export</button>
+                            <div id="exportMenu" class="word-export-menu" aria-hidden="true">
+                                <button id="btnExportJson" class="word-export-item" type="button">JSON</button>
+                                <button id="btnExportFormatted" class="word-export-item" type="button">JSON formatted</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

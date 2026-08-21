@@ -37,6 +37,47 @@
     border-color: var(--border-subtle);
 }
 
+.word-layout .word-export {
+    position: relative;
+}
+
+.word-layout .word-export-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 1;
+    display: none;
+    min-width: 170px;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-panel);
+    box-shadow: var(--shadow);
+}
+
+.word-layout .word-export-menu.open {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.word-layout .word-export-item {
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    background: var(--bg-item);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.word-layout .word-export-item:is(:hover, :focus) {
+    background: var(--bg-item-hover);
+    color: var(--accent);
+}
+
 .word-layout .word-table-region {
     min-height: 378px;
     overflow-x: auto;
