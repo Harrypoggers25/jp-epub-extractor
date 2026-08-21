@@ -346,15 +346,13 @@ class WordDetailModal {
 		title.id = 'wordDetailTitle';
 		header.appendChild(title);
 		header.appendChild(actions);
-		modalBox.appendChild(header);
 
-		const scrollBody = createElement('div', 'word-detail-scroll-body');
-		scrollBody.appendChild(this.createSummary(word, entries));
-		scrollBody.appendChild(this.createDictionarySection(entries));
-
+		const summary = this.createSummary(word, entries);
+		summary.prepend(header);
 		const advancedMetadata = this.createAdvancedMetadata(word);
-		if (advancedMetadata) scrollBody.appendChild(advancedMetadata);
-		modalBox.appendChild(scrollBody);
+		if (advancedMetadata) summary.appendChild(advancedMetadata);
+		modalBox.appendChild(summary);
+		modalBox.appendChild(this.createDictionarySection(entries));
 
 		wordDetailModal.appendChild(modalBox);
 		wordDetailModal.setAttribute('aria-hidden', 'false');
@@ -385,7 +383,7 @@ class WordDetailModal {
 	}
 	createDictionarySection(entries) {
 		const section = createElement('section', 'word-detail-dictionary');
-		section.appendChild(createElement('h3', 'word-detail-section-title', 'Dictionary entries'));
+		section.setAttribute('aria-label', 'Dictionary entries');
 
 		const dictionaryEntries = entries.filter(entry => this.isDictionaryEntry(entry));
 		if (!dictionaryEntries.length) {
@@ -490,7 +488,7 @@ class WordDetailModal {
 		if (typeof word.created_at === 'string' && word.created_at.trim()) details.push(['Created', word.created_at]);
 		if (!details.length) return;
 
-		const section = this.createSection('Details', 'word-detail-advanced');
+		const section = createElement('div', 'word-detail-advanced');
 		details.forEach(([label, value]) => {
 			const item = createElement('div', 'word-detail-detail');
 			item.appendChild(createElement('span', null, label));

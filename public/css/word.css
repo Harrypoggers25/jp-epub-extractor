@@ -43,9 +43,6 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 20px;
-    flex-shrink: 0;
-    padding: 28px 28px 20px;
-    border-bottom: 1px solid var(--border-faint);
 }
 
 #wordDetailModal .word-detail-modal-header .modal-actions {
@@ -53,7 +50,8 @@
 }
 
 #wordDetailModal .word-detail-summary {
-    padding-bottom: 16px;
+    flex-shrink: 0;
+    padding: 28px 28px 20px;
     border-bottom: 1px solid var(--border-faint);
 }
 
@@ -72,24 +70,25 @@
     margin-top: 12px;
 }
 
-#wordDetailModal .word-detail-scroll-body {
+#wordDetailModal .word-detail-dictionary {
     flex: 1 1 auto;
     min-height: 0;
     padding: 20px 28px 28px;
     overflow-y: auto;
+    background: var(--bg-item);
     scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
+    scrollbar-color: var(--border) var(--bg-input);
 }
 
-#wordDetailModal .word-detail-scroll-body::-webkit-scrollbar {
+#wordDetailModal .word-detail-dictionary::-webkit-scrollbar {
     width: 10px;
 }
 
-#wordDetailModal .word-detail-scroll-body::-webkit-scrollbar-track {
-    background: transparent;
+#wordDetailModal .word-detail-dictionary::-webkit-scrollbar-track {
+    background: var(--bg-input);
 }
 
-#wordDetailModal .word-detail-scroll-body::-webkit-scrollbar-thumb {
+#wordDetailModal .word-detail-dictionary::-webkit-scrollbar-thumb {
     border: 3px solid transparent;
     border-radius: 999px;
     background: var(--border);
@@ -114,26 +113,17 @@
     color: var(--warning);
 }
 
-#wordDetailModal .word-detail-dictionary {
-    margin-top: 18px;
-}
-
-#wordDetailModal .word-detail-section-title {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: 15px;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-}
-
 #wordDetailModal .word-detail-box .entry {
     padding: 22px;
-    margin-bottom: 20px;
     border: 2px solid var(--border);
     border-radius: 14px;
     background: var(--bg-panel);
     box-shadow: var(--shadow);
     cursor: default;
+}
+
+#wordDetailModal .word-detail-box .entry+.entry {
+    margin-top: 16px;
 }
 
 #wordDetailModal .word-detail-box .entry-header {
@@ -228,6 +218,9 @@
 }
 
 #wordDetailModal .word-detail-advanced {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
     padding-top: 16px;
     border-top: 1px solid var(--border-faint);
 }
@@ -237,6 +230,7 @@
     gap: 8px;
     color: var(--text-muted);
     font-size: 13px;
+    overflow-wrap: anywhere;
 }
 
 #wordDetailModal .word-detail-detail span:first-child {
@@ -270,14 +264,17 @@
 
     #wordDetailModal .word-detail-modal-header {
         flex-direction: column;
-        padding: 20px 20px 16px;
     }
 
     #wordDetailModal .word-detail-modal-header .modal-actions {
         align-self: flex-end;
     }
 
-    #wordDetailModal .word-detail-scroll-body {
+    #wordDetailModal .word-detail-summary {
+        padding: 20px 20px 16px;
+    }
+
+    #wordDetailModal .word-detail-dictionary {
         padding: 16px 20px 20px;
     }
 }
