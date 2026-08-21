@@ -1,0 +1,185 @@
+.table-panel {
+    min-height: 420px;
+    padding: 20px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-soft);
+}
+
+.table-toolbar {
+    margin-bottom: 16px;
+}
+
+.table-search {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #444;
+    border-radius: 10px;
+    outline: none;
+    background: var(--bg-input);
+    color: var(--text);
+    font: inherit;
+}
+
+.table-search:focus {
+    border-color: var(--accent);
+}
+
+.table-search:disabled {
+    background: var(--bg-disabled);
+    color: var(--text-disabled);
+    border-color: var(--border-subtle);
+}
+
+.table-export {
+    position: relative;
+}
+
+.table-export-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 1;
+    display: none;
+    min-width: 170px;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-panel);
+    box-shadow: var(--shadow);
+}
+
+.table-export-menu.open {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.table-export-item {
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    background: var(--bg-item);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.table-export-item:is(:hover, :focus) {
+    background: var(--bg-item-hover);
+    color: var(--accent);
+}
+
+.table-region {
+    min-height: 378px;
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: var(--bg-item);
+}
+
+.table-state {
+    display: flex;
+    min-height: 376px;
+    padding: 20px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+}
+
+.table-state h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.table-state span {
+    color: var(--text-muted);
+}
+
+.table-state.error h2 {
+    color: var(--danger);
+}
+
+.table {
+    width: 100%;
+    min-width: 800px;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-faint);
+    text-align: left;
+}
+
+.table th {
+    color: var(--text-muted);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.table-sort {
+    padding: 0;
+    border: none;
+    outline: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+}
+
+.table-sort:is(:hover, :focus),
+.table-sort.active {
+    color: var(--accent);
+}
+
+.table-sort:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 2px;
+}
+
+.table tr:last-child td {
+    border-bottom: none;
+}
+
+.table-row {
+    cursor: pointer;
+}
+
+.table-row:is(:hover, :focus) td {
+    background: var(--bg-item-hover);
+}
+
+.table-row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.table-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    min-width: 800px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-faint);
+}
+
+.table-page-btn {
+    text-align: center;
+}
+
+.table-page-info {
+    color: var(--text-muted);
+    font-size: 13px;
+}

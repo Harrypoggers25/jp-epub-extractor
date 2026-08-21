@@ -7,6 +7,7 @@
     <title>Japanese Epub Dictionary</title>
 
     <link rel="stylesheet" href="/css/shared.css">
+    <link rel="stylesheet" href="/css/table.css">
     <link rel="stylesheet" href="/css/word.css">
 </head>
 
@@ -21,23 +22,23 @@
                     <div class="header-actions">
                         <a class="header-btn" href="/book">New book</a>
                         <a class="header-btn" href="/review/unsure">Unsure words</a>
-                        <div id="wordExport" class="word-export">
+                        <div id="wordExport" class="table-export">
                             <button id="btnExport" class="header-btn" aria-haspopup="true" aria-expanded="false"
                                 disabled>Export</button>
-                            <div id="exportMenu" class="word-export-menu" aria-hidden="true">
-                                <button id="btnExportJson" class="word-export-item" type="button">JSON</button>
-                                <button id="btnExportFormatted" class="word-export-item" type="button">JSON formatted</button>
+                            <div id="exportMenu" class="table-export-menu" aria-hidden="true">
+                                <button id="btnExportJson" class="table-export-item" type="button">JSON</button>
+                                <button id="btnExportFormatted" class="table-export-item" type="button">JSON formatted</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="word-panel">
-                    <div class="word-table-controls">
-                        <input id="wordSearch" class="word-search" type="text" placeholder="Search words..."
+                <div class="table-panel">
+                    <div class="table-toolbar">
+                        <input id="wordSearch" class="table-search" type="text" placeholder="Search words..."
                             autocomplete="off" aria-label="Search words" disabled>
                     </div>
-                    <div id="wordTable" class="word-table-region" aria-label="Permanent words"></div>
+                    <div id="wordTable" class="table-region" aria-label="Permanent words"></div>
                 </div>
             </div>
         </main>

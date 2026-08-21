@@ -1,4 +1,5 @@
 import { Word } from "./api.helper.js";
+import { filterItems, getNextSort, paginateItems, sortItems } from "./table.helper.js";
 import { asyncHandler, createElement, eventHandler, focusElem, focusable, setClass } from "./tools.helper.js";
 
 class WordList {
@@ -102,7 +103,7 @@ class WordList {
 		const { wordTable } = this.elems;
 		wordTable.innerHTML = '';
 
-		const state = createElement('div', `word-table-state ${className}`);
+		const state = createElement('div', `table-state ${className}`);
 		state.setAttribute('role', className === 'error' ? 'alert' : 'status');
 		state.appendChild(createElement('h2', null, title));
 		if (message) state.appendChild(createElement('span', null, message));
@@ -123,19 +124,16 @@ class WordList {
 		}
 
 		const sortedWords = this.getSortedWords(filteredWords);
-		const totalPages = Math.max(1, Math.ceil(sortedWords.length / this.wordPerPage));
-		if (this.page > totalPages) this.page = totalPages;
-
-		const start = (this.page - 1) * this.wordPerPage;
-		const words = sortedWords.slice(start, start + this.wordPerPage);
-		wordTable.appendChild(this.createTable(words));
-		wordTable.appendChild(this.createPagination(totalPages));
+		const page = paginateItems(sortedWords, this.page, this.wordPerPage);
+		this.page = page.page;
+		wordTable.appendChild(this.createTable(page.items));
+		wordTable.appendChild(this.createPagination(page.totalPages));
 	}
 	getFilteredWords() {
 		if (!this.searchText) return this.words;
 
 		const searchText = this.searchText.toLowerCase();
-		return this.words.filter(word => {
+		return filterItems(this.words, word => {
 			const { reading, meaning } = this.getDisplayWord(word);
 			return [word.w_basic_form, reading, word.wt_name, meaning].some(text => {
 				return text.toLowerCase().includes(searchText);
@@ -143,9 +141,7 @@ class WordList {
 		});
 	}
 	getSortedWords(words) {
-		if (!this.sort.column) return words;
-
-		return [...words].sort((word1, word2) => {
+		return sortItems(words, this.sort.column && ((word1, word2) => {
 			const value1 = this.getSortValue(word1);
 			const value2 = this.getSortValue(word2);
 			const result = this.sort.column === 'occurrence_count'
@@ -157,7 +153,7 @@ class WordList {
 			if (basicFormResult) return basicFormResult;
 
 			return this.collator.compare(word1.wt_name, word2.wt_name);
-		});
+		}));
 	}
 	getSortValue(word) {
 		const { reading, meaning } = this.getDisplayWord(word);
@@ -171,12 +167,7 @@ class WordList {
 		}
 	}
 	sortBy(column) {
-		if (this.sort.column === column) {
-			this.sort.direction = this.sort.direction === 'asc' ? 'desc' : 'asc';
-		} else {
-			this.sort = { column, direction: 'asc' };
-		}
-
+		this.sort = getNextSort(this.sort, column);
 		this.renderWords();
 	}
 	setPage(page) {
@@ -184,7 +175,7 @@ class WordList {
 		this.renderWords();
 	}
 	createTable(words) {
-		const table = createElement('table', 'word-table');
+		const table = createElement('table', 'table');
 		const header = createElement('thead');
 		const headerRow = createElement('tr');
 		[
@@ -213,7 +204,7 @@ class WordList {
 		header.setAttribute('aria-sort', active ? (this.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none');
 
 		const direction = active ? (this.sort.direction === 'asc' ? ' ↑' : ' ↓') : '';
-		const button = createElement('button', `word-sort${active ? ' active' : ''}`, `${text}${direction}`);
+		const button = createElement('button', `table-sort${active ? ' active' : ''}`, `${text}${direction}`);
 		button.type = 'button';
 		button.onclick = eventHandler(() => this.sortBy(column));
 		header.appendChild(button);
@@ -221,19 +212,19 @@ class WordList {
 		return header;
 	}
 	createPagination(totalPages) {
-		const pagination = createElement('div', 'word-pagination');
+		const pagination = createElement('div', 'table-pagination');
 
-		const previous = createElement('button', 'header-btn word-page-btn', 'Previous');
+		const previous = createElement('button', 'header-btn table-page-btn', 'Previous');
 		previous.type = 'button';
 		previous.disabled = this.page === 1;
 		previous.onclick = eventHandler(() => this.setPage(this.page - 1));
 		pagination.appendChild(previous);
 
-		const pageInfo = createElement('span', 'word-page-info', `Page ${this.page} of ${totalPages}`);
+		const pageInfo = createElement('span', 'table-page-info', `Page ${this.page} of ${totalPages}`);
 		pageInfo.setAttribute('aria-live', 'polite');
 		pagination.appendChild(pageInfo);
 
-		const next = createElement('button', 'header-btn word-page-btn', 'Next');
+		const next = createElement('button', 'header-btn table-page-btn', 'Next');
 		next.type = 'button';
 		next.disabled = this.page === totalPages;
 		next.onclick = eventHandler(() => this.setPage(this.page + 1));
@@ -242,7 +233,7 @@ class WordList {
 		return pagination;
 	}
 	createWordRow(word) {
-		const row = createElement('tr', 'word-row');
+		const row = createElement('tr', 'table-row');
 		const openDetail = () => wordDetailModal.open(word, row);
 		focusable(row);
 		row.setAttribute('aria-haspopup', 'dialog');
