@@ -1,5 +1,4 @@
 .table-panel {
-    min-height: 420px;
     padding: 20px;
     background: var(--bg-panel);
     border: 1px solid var(--border);
@@ -74,7 +73,6 @@
 }
 
 .table-region {
-    min-height: 378px;
     overflow-x: auto;
     border: 1px solid var(--border-subtle);
     border-radius: 10px;
@@ -83,7 +81,6 @@
 
 .table-state {
     display: flex;
-    min-height: 376px;
     padding: 20px;
     align-items: center;
     justify-content: center;
@@ -126,6 +123,9 @@
 }
 
 .table-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 0;
     border: none;
     outline: none;
@@ -135,6 +135,12 @@
     text-transform: inherit;
     letter-spacing: inherit;
     cursor: pointer;
+}
+
+.table-sort-indicator {
+    display: inline-flex;
+    width: 1em;
+    justify-content: center;
 }
 
 .table-sort:is(:hover, :focus),
@@ -168,18 +174,86 @@
 .table-pagination {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
     gap: 12px;
-    min-width: 800px;
     padding: 12px 16px;
     border-top: 1px solid var(--border-faint);
 }
 
-.table-page-btn {
-    text-align: center;
+.table-page-size,
+.table-pagination-controls,
+.table-page-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
+.table-page-size,
 .table-page-info {
     color: var(--text-muted);
     font-size: 13px;
+}
+
+.table-page-size {
+    position: relative;
+}
+
+.table-page-size::after {
+    position: absolute;
+    top: 50%;
+    right: 11px;
+    width: 6px;
+    height: 6px;
+    border-right: 1px solid var(--text-muted);
+    border-bottom: 1px solid var(--text-muted);
+    content: '';
+    pointer-events: none;
+    transform: translateY(-65%) rotate(45deg);
+}
+
+.table-page-size select,
+.table-page-input {
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    outline: none;
+    background: var(--bg-input);
+    color: var(--text);
+    font: inherit;
+}
+
+.table-page-size select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 6px 24px 6px 10px;
+}
+
+.table-page-input {
+    width: 48px;
+    padding: 6px;
+    text-align: center;
+}
+
+.table-page-size select:focus,
+.table-page-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.table-page-btn {
+    min-width: 34px;
+    padding: 8px;
+    text-align: center;
+}
+
+@media (max-width: 700px) {
+    .table-pagination {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .table-pagination-controls {
+        width: 100%;
+        flex-wrap: wrap;
+    }
 }

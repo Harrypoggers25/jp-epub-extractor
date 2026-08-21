@@ -7,31 +7,31 @@ export function sortItems(items, compare) {
 }
 
 export function getNextSort(sort, column) {
-	if (sort.column === column) {
-		return {
-			column,
-			direction: sort.direction === 'asc' ? 'desc' : 'asc',
-		};
-	}
+	if (sort.column !== column) return { column, direction: 'asc' };
+	if (sort.direction === 'asc') return { column, direction: 'desc' };
+	if (sort.direction === 'desc') return { column: null, direction: null };
 
 	return { column, direction: 'asc' };
 }
 
 export function getPageCount(items, itemPerPage) {
-	return Math.max(1, Math.ceil(items.length / itemPerPage));
+	if (!items.length) return 0;
+	if (!itemPerPage) return 1;
+	return Math.ceil(items.length / itemPerPage);
 }
 
 export function clampPage(page, totalPages) {
+	if (!totalPages) return 0;
 	return Math.min(Math.max(page, 1), totalPages);
 }
 
 export function paginateItems(items, page, itemPerPage) {
 	const totalPages = getPageCount(items, itemPerPage);
 	const currentPage = clampPage(page, totalPages);
-	const start = (currentPage - 1) * itemPerPage;
+	const start = itemPerPage ? (currentPage - 1) * itemPerPage : 0;
 
 	return {
-		items: items.slice(start, start + itemPerPage),
+		items: items.slice(start, itemPerPage ? start + itemPerPage : undefined),
 		page: currentPage,
 		totalPages,
 	};

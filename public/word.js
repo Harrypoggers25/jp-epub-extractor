@@ -16,9 +16,9 @@ class WordList {
 
 		this.words = null;
 		this.searchText = '';
-		this.sort = { column: null, direction: 'asc' };
+		this.sort = { column: null, direction: null };
 		this.page = 1;
-		this.wordPerPage = 25;
+		this.wordPerPage = 50;
 		this.collator = new Intl.Collator('ja', { numeric: true, sensitivity: 'base' });
 
 		this.elems.wordSearch.oninput = eventHandler(ev => {
@@ -47,7 +47,7 @@ class WordList {
 				return;
 			}
 
-			this.words = words;
+			this.words = [...words];
 			this.elems.wordSearch.disabled = !words.length;
 			this.setExportEnabled(words.length);
 			this.renderWords();
@@ -127,7 +127,7 @@ class WordList {
 		const page = paginateItems(sortedWords, this.page, this.wordPerPage);
 		this.page = page.page;
 		wordTable.appendChild(this.createTable(page.items));
-		wordTable.appendChild(this.createPagination(page.totalPages));
+		wordTable.appendChild(this.createPagination(page));
 	}
 	getFilteredWords() {
 		if (!this.searchText) return this.words;
@@ -141,7 +141,7 @@ class WordList {
 		});
 	}
 	getSortedWords(words) {
-		return sortItems(words, this.sort.column && ((word1, word2) => {
+		return sortItems(words, this.sort.column && this.sort.direction && ((word1, word2) => {
 			const value1 = this.getSortValue(word1);
 			const value2 = this.getSortValue(word2);
 			const result = this.sort.column === 'occurrence_count'
@@ -168,10 +168,16 @@ class WordList {
 	}
 	sortBy(column) {
 		this.sort = getNextSort(this.sort, column);
+		this.page = 1;
 		this.renderWords();
 	}
 	setPage(page) {
 		this.page = page;
+		this.renderWords();
+	}
+	setWordPerPage(wordPerPage) {
+		this.wordPerPage = wordPerPage === 'all' ? null : Number(wordPerPage);
+		this.page = 1;
 		this.renderWords();
 	}
 	createTable(words) {
@@ -203,34 +209,90 @@ class WordList {
 		const active = this.sort.column === column;
 		header.setAttribute('aria-sort', active ? (this.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none');
 
-		const direction = active ? (this.sort.direction === 'asc' ? ' ↑' : ' ↓') : '';
-		const button = createElement('button', `table-sort${active ? ' active' : ''}`, `${text}${direction}`);
+		const direction = active ? (this.sort.direction === 'asc' ? '↑' : '↓') : '';
+		const button = createElement('button', `table-sort${active ? ' active' : ''}`);
 		button.type = 'button';
+		button.appendChild(createElement('span', 'table-sort-label', text));
+		const indicator = createElement('span', 'table-sort-indicator', direction);
+		indicator.setAttribute('aria-hidden', 'true');
+		button.appendChild(indicator);
 		button.onclick = eventHandler(() => this.sortBy(column));
 		header.appendChild(button);
 
 		return header;
 	}
-	createPagination(totalPages) {
+	createPagination(page) {
+		const { totalPages } = page;
 		const pagination = createElement('div', 'table-pagination');
+		pagination.appendChild(this.createPageSizeControl());
 
-		const previous = createElement('button', 'header-btn table-page-btn', 'Previous');
-		previous.type = 'button';
-		previous.disabled = this.page === 1;
-		previous.onclick = eventHandler(() => this.setPage(this.page - 1));
-		pagination.appendChild(previous);
+		const controls = createElement('div', 'table-pagination-controls');
+		const createPageButton = (text, label, targetPage, disabled) => {
+			const button = createElement('button', 'header-btn table-page-btn', text);
+			button.type = 'button';
+			button.setAttribute('aria-label', label);
+			button.disabled = disabled;
+			button.onclick = eventHandler(() => this.setPage(targetPage));
+			return button;
+		};
 
-		const pageInfo = createElement('span', 'table-page-info', `Page ${this.page} of ${totalPages}`);
-		pageInfo.setAttribute('aria-live', 'polite');
-		pagination.appendChild(pageInfo);
-
-		const next = createElement('button', 'header-btn table-page-btn', 'Next');
-		next.type = 'button';
-		next.disabled = this.page === totalPages;
-		next.onclick = eventHandler(() => this.setPage(this.page + 1));
-		pagination.appendChild(next);
+		const firstPage = this.page === 1;
+		const lastPage = this.page === totalPages;
+		controls.appendChild(createPageButton('<<', 'First page', 1, firstPage));
+		controls.appendChild(createPageButton('<', 'Previous page', this.page - 1, firstPage));
+		controls.appendChild(this.createPageInput(totalPages));
+		controls.appendChild(createPageButton('>', 'Next page', this.page + 1, lastPage));
+		controls.appendChild(createPageButton('>>', 'Last page', totalPages, lastPage));
+		pagination.appendChild(controls);
 
 		return pagination;
+	}
+	createPageSizeControl() {
+		const container = createElement('label', 'table-page-size');
+		container.appendChild(createElement('span', null, 'Rows per page:'));
+
+		const select = createElement('select');
+		select.setAttribute('aria-label', 'Rows per page');
+		[25, 50, 100, 250, 'all'].forEach(value => {
+			const option = createElement('option', null, value === 'all' ? 'All' : `${value}`);
+			option.value = value;
+			option.selected = this.wordPerPage === (value === 'all' ? null : value);
+			select.appendChild(option);
+		});
+		select.onchange = eventHandler(ev => this.setWordPerPage(ev.target.value));
+		container.appendChild(select);
+
+		return container;
+	}
+	createPageInput(totalPages) {
+		const pageInfo = createElement('div', 'table-page-info');
+		pageInfo.setAttribute('aria-live', 'polite');
+		pageInfo.appendChild(createElement('span', null, 'Page'));
+
+		const input = createElement('input', 'table-page-input');
+		input.type = 'number';
+		input.min = '1';
+		input.max = `${totalPages}`;
+		input.step = '1';
+		input.value = `${this.page}`;
+		input.setAttribute('aria-label', 'Page number');
+		input.addEventListener('keydown', ev => {
+			if (ev.key !== 'Enter') return;
+
+			ev.preventDefault();
+			const value = input.value.trim();
+			const page = Number(value);
+			if (!value || !Number.isInteger(page)) {
+				input.value = `${this.page}`;
+				return;
+			}
+
+			this.setPage(page);
+		});
+		pageInfo.appendChild(input);
+		pageInfo.appendChild(createElement('span', null, `of ${totalPages}`));
+
+		return pageInfo;
 	}
 	createWordRow(word) {
 		const row = createElement('tr', 'table-row');
@@ -352,13 +414,19 @@ class WordDetailModal {
 		const advancedMetadata = this.createAdvancedMetadata(word);
 		if (advancedMetadata) summary.appendChild(advancedMetadata);
 		modalBox.appendChild(summary);
-		modalBox.appendChild(this.createDictionarySection(entries));
+		const dictionary = this.createDictionarySection(entries);
+		dictionary.onkeydown = ev => {
+			if (ev.key !== 'Tab' || ev.shiftKey) return;
+			ev.preventDefault();
+			focusElem(close);
+		};
+		modalBox.appendChild(dictionary);
 
 		wordDetailModal.appendChild(modalBox);
 		wordDetailModal.setAttribute('aria-hidden', 'false');
 		this.opener = opener;
 		setClass(wordDetailModal, 'open', true);
-		focusElem(close);
+		focusElem(dictionary);
 	}
 	close() {
 		const { wordDetailModal } = this.elems;
@@ -383,6 +451,8 @@ class WordDetailModal {
 	}
 	createDictionarySection(entries) {
 		const section = createElement('section', 'word-detail-dictionary');
+		focusable(section);
+		section.setAttribute('role', 'region');
 		section.setAttribute('aria-label', 'Dictionary entries');
 
 		const dictionaryEntries = entries.filter(entry => this.isDictionaryEntry(entry));
