@@ -1,14 +1,44 @@
 import { BookBuffer, JishoBuffer, SentenceBuffer, TokenBuffer, WordBuffer } from "./api.helper.js";
 import { asyncHandler, createElement, eventHandler, focusElem, setClass } from "./tools.helper.js";
 
+const isEditable = elem => {
+	return elem instanceof HTMLElement && (elem.matches('input, textarea, select') || elem.isContentEditable);
+}
+
 const KeydownHandlers = {
+	page: ev => {
+		if (isEditable(ev.target) || document.querySelector('.overlay.open')) return;
+		if (buffer.isReady()) return KeydownHandlers.ready(ev);
+		if (buffer.isSetup()) return KeydownHandlers.setup.page(ev);
+		if (buffer.isSummary()) return KeydownHandlers.summary(ev);
+	},
+	ready: ev => {
+		switch (ev.key) {
+			case 'u':
+				if (buffer.elems.btnUpload.disabled) return;
+				ev.preventDefault();
+				buffer.elems.btnUpload.click();
+				break;
+			case 'r':
+				ev.preventDefault();
+				buffer.elems.btnReview.click();
+				break;
+		}
+	},
 	setup: {
 		bookName: async ev => {
 			if (ev.key !== 'Enter' || buffer.elems.btnSetupNext.disabled) return;
 
 			ev.preventDefault();
-			await buffer.next();
+			const next = buffer.next();
 			buffer.focusSectionNav();
+			await next;
+		},
+		page: ev => {
+			if (ev.key !== 'd' || buffer.elems.btnDiscard.disabled) return;
+
+			ev.preventDefault();
+			buffer.elems.btnDiscard.click();
 		}
 	},
 	sections: {
@@ -21,11 +51,11 @@ const KeydownHandlers = {
 			switch (ev.key) {
 				case 'j':
 				case 'ArrowDown':
-					nextNav = navs[index + 1];
+					nextNav = navs[(index + 1) % navs.length];
 					break;
 				case 'k':
 				case 'ArrowUp':
-					nextNav = navs[index - 1];
+					nextNav = navs[(index - 1 + navs.length) % navs.length];
 					break;
 				case 'g':
 				case 'Home':
@@ -35,6 +65,22 @@ const KeydownHandlers = {
 				case 'End':
 					nextNav = navs.at(-1);
 					break;
+				case 'x':
+					ev.preventDefault();
+					buffer.toggleFocusedSection(Number(nav.dataset.sectionNo));
+					return;
+				case 'c':
+					ev.preventDefault();
+					if (!buffer.elems.btnNextBuffer.disabled) buffer.elems.btnNextBuffer.click();
+					return;
+				case 'q':
+					ev.preventDefault();
+					if (!buffer.elems.btnPrevBuffer.disabled) buffer.elems.btnPrevBuffer.click();
+					return;
+				case 'd':
+					ev.preventDefault();
+					if (!buffer.elems.btnDiscard.disabled) buffer.elems.btnDiscard.click();
+					return;
 				default:
 					return;
 			}
@@ -43,18 +89,32 @@ const KeydownHandlers = {
 			if (nextNav) focusElem(nextNav);
 		}
 	},
+	summary: ev => {
+		if (ev.key !== 'c' || buffer.elems.btnNextBuffer.disabled) return;
+
+		ev.preventDefault();
+		buffer.elems.btnNextBuffer.click();
+	},
 	overlays: {
 		error: ev => {
-			if (ev.key !== 'Escape') return;
+			if (ev.key !== 'Escape' && ev.key !== 'q') return;
 
 			ev.preventDefault();
 			errorOverlay.close();
 		},
 		discard: ev => {
-			if (ev.key !== 'Escape') return;
-
-			ev.preventDefault();
-			discardOverlay.close();
+			switch (ev.key) {
+				case 'Escape':
+				case 'q':
+					ev.preventDefault();
+					discardOverlay.close();
+					break;
+				case 'c':
+					if (discardOverlay.elems.btnDiscardConfirm.disabled) return;
+					ev.preventDefault();
+					discardOverlay.elems.btnDiscardConfirm.click();
+					break;
+			}
 		}
 	}
 }
@@ -111,6 +171,7 @@ class ErrorOverlay {
 		}
 
 		this.elems.btnErrorClose.blur();
+		buffer.focusCurrentContext();
 	}
 }
 
@@ -151,6 +212,7 @@ class DiscardOverlay {
 		}
 
 		this.elems.btnDiscardCancel.blur();
+		buffer.focusCurrentContext();
 	}
 }
 
@@ -160,6 +222,7 @@ class Buffer {
 			bookStatus: document.getElementById('bookStatus'),
 			uploadInput: document.getElementById('uploadInput'),
 			btnUpload: document.getElementById('btnUpload'),
+			btnReview: document.getElementById('btnReview'),
 			btnDiscard: document.getElementById('btnDiscard'),
 			bookSetupDetails: document.getElementById('bookSetupDetails'),
 			selectedFile: document.getElementById('selectedFile'),
@@ -177,6 +240,7 @@ class Buffer {
 		}
 
 		this.bookBuffer = null;
+		this.loaded = false;
 		this.bufferIndex = null;
 		this.selectedFile = null;
 		this.selectedSections = new Set();
@@ -189,6 +253,7 @@ class Buffer {
 		this.isConfirming = false;
 
 		this.elems.btnUpload.onclick = eventHandler(() => this.elems.uploadInput.click());
+		document.addEventListener('keydown', ev => KeydownHandlers.page(ev));
 		this.elems.uploadInput.onchange = eventHandler(async ev => {
 			const file = ev.target.files?.[0];
 			if (!file) return;
@@ -217,6 +282,7 @@ class Buffer {
 			errorOverlay.open('Unable to load the current book. Please try again.');
 			this.setBook(null);
 			this.render();
+			this.loaded = true;
 			return;
 		}
 
@@ -224,6 +290,7 @@ class Buffer {
 		if (!bookBuffer) {
 			this.bufferIndex = null;
 			this.render();
+			this.loaded = true;
 			return;
 		}
 
@@ -231,6 +298,7 @@ class Buffer {
 			this.bufferIndex = null;
 			this.elems.bookStatus.textContent = 'Enter book details';
 			this.render();
+			this.loaded = true;
 			return;
 		}
 
@@ -243,6 +311,7 @@ class Buffer {
 			this.elems.bookStatus.textContent = 'WordBuffers ready for review';
 			this.render();
 		}
+		this.loaded = true;
 	}
 	setBook(bookBuffer) {
 		this.bookBuffer = bookBuffer;
@@ -286,6 +355,7 @@ class Buffer {
 		this.bufferIndex = null;
 		this.elems.bookStatus.textContent = 'Enter book details';
 		this.render();
+		focusElem(this.elems.bookName);
 	}
 	async discard() {
 		if (!this.bookBuffer) return;
@@ -312,6 +382,15 @@ class Buffer {
 		if (index === 1) return !!this.bookBuffer?.confirmed;
 		if (index === 2) return !!this.bookBuffer?.confirmed && processingBuffer.completed;
 		return false;
+	}
+	isReady() {
+		return this.loaded && !this.bookBuffer && !this.isUploading;
+	}
+	isSetup() {
+		return this.loaded && !!this.bookBuffer && !this.bookBuffer.confirmed && this.bufferIndex === null && !this.isUploading && !this.isConfirming;
+	}
+	isSummary() {
+		return this.bufferIndex === 2 && processingBuffer.completed && !processingBuffer.running;
 	}
 	async selectBuffer(index) {
 		if (!this.canSelectBuffer(index) || processingBuffer.running) return;
@@ -402,6 +481,13 @@ class Buffer {
 		this.render();
 		this.restoreSectionFocus();
 	}
+	toggleFocusedSection(section_no) {
+		const checkbox = document.querySelector(`.checkbox[data-section-no="${section_no}"]`);
+		if (checkbox?.disabled) return;
+
+		this.setSectionFocus('nav', section_no);
+		this.toggleSection(section_no);
+	}
 	async selectSection(section_no) {
 		if (this.selectedSectionNo === section_no && this.sentenceBuffers.length) {
 			this.restoreSectionFocus();
@@ -432,6 +518,25 @@ class Buffer {
 
 		if (sectionFocus.type === 'nav') this.focusSectionNav(sectionFocus.section_no);
 		if (sectionFocus.type === 'checkbox') this.focusSectionCheckbox(sectionFocus.section_no);
+	}
+	focusCurrentContext() {
+		if (!this.bookBuffer) {
+			focusElem(this.elems.btnUpload);
+			return;
+		}
+		if (this.bufferIndex === null) {
+			focusElem(this.elems.bookName);
+			return;
+		}
+		if (this.bufferIndex === 0) {
+			this.focusSectionNav();
+			return;
+		}
+		if (this.bufferIndex === 1) {
+			focusElem(this.elems.btnPrevBuffer);
+			return;
+		}
+		if (this.bufferIndex === 2) focusElem(this.elems.btnNextBuffer);
 	}
 	async loadSection(section_no) {
 		if (section_no === null || section_no === undefined || this.bufferIndex !== 0) return;
