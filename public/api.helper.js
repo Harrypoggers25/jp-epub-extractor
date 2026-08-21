@@ -76,6 +76,47 @@ export const WordType = {
 	}
 }
 
+export const Word = {
+	findAll: async (limit, offset) => {
+		return await asyncHandler('FIND ALL WORDS', async () => {
+			const params = new URLSearchParams();
+			if (limit !== undefined) params.set('limit', limit);
+			if (offset !== undefined) params.set('offset', offset);
+
+			const query = params.size ? `?${params}` : '';
+			const response = await fetch(`/api/words${query}`, { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to find all words. Internal error');
+
+			const words = await response.json();
+			if (!words) throw new Error('Failed to find all words. Unable to find data');
+
+			return words;
+		});
+	},
+	findMany: async (w_basic_form) => {
+		return await asyncHandler('FIND WORDS', async () => {
+			const response = await fetch(`/api/words/${w_basic_form}`, { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to find words. Internal error');
+
+			const words = await response.json();
+			if (!words) throw new Error('Failed to find words. Unable to find data');
+
+			return words;
+		});
+	},
+	find: async (w_basic_form, wt_name) => {
+		return await asyncHandler('FIND WORDS', async () => {
+			const response = await fetch(`/api/words/${w_basic_form}/${wt_name}`, { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to find words. Internal error');
+
+			const words = await response.json();
+			if (!words) throw new Error('Failed to find words. Unable to find data');
+
+			return words;
+		});
+	}
+}
+
 export const WordBuffer = {
 	transform: async (w_basic_form, wt_name, body = {}) => {
 		body.state = body.state ? Array.from(body.state) : body.state;
