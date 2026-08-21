@@ -1,0 +1,35 @@
+.unsure-review-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.unsure-review-layout .unsure-review-panel {
+    min-height: 420px;
+    padding: 20px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-soft);
+}
+
+.unsure-review-layout .unsure-review-region {
+    min-height: 378px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: var(--bg-item);
+}
+
+@media (max-width: 700px) {
+    .unsure-review-layout .content {
+        padding: 20px;
+    }
+
+    .unsure-review-layout .header {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .unsure-review-layout .header-actions {
+        flex-direction: row;
+    }
+}

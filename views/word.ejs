@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Japanese Epub Dictionary</title>
+
+    <link rel="stylesheet" href="/css/shared.css">
+    <link rel="stylesheet" href="/css/word.css">
+</head>
+
+<body>
+    <div class="word-layout">
+        <main class="content">
+            <div class="container">
+                <div class="header">
+                    <div class="header-content">
+                        <h1>Japanese Epub Dictionary</h1>
+                    </div>
+                    <div class="header-actions">
+                        <a class="header-btn" href="/book">New book</a>
+                        <a class="header-btn" href="/review/unsure">Unsure words</a>
+                        <button id="btnExport" class="header-btn" disabled>Export</button>
+                    </div>
+                </div>
+
+                <div class="word-panel">
+                    <div id="wordTable" class="word-table-region" aria-label="Permanent words"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="wordDetailModal" class="overlay" aria-hidden="true"></div>
+</body>
+
+</html>

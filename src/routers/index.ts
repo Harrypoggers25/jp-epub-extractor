@@ -30,4 +30,12 @@ router.get('/review', (_, res) => {
 	res.render('review');
 });
 
+router.get('/word', (_, res) => {
+	res.render('word');
+});
+
+router.get('/review/unsure', (_, res) => {
+	res.render('unsure-review');
+});
+
 export default router;

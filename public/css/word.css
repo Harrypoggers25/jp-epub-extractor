@@ -1,0 +1,36 @@
+.word-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.word-layout .word-panel {
+    min-height: 420px;
+    padding: 20px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-soft);
+}
+
+.word-layout .word-table-region {
+    min-height: 378px;
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: var(--bg-item);
+}
+
+@media (max-width: 700px) {
+    .word-layout .content {
+        padding: 20px;
+    }
+
+    .word-layout .header {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .word-layout .header-actions {
+        flex-direction: row;
+    }
+}
