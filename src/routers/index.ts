@@ -10,6 +10,7 @@ import entryStateRouter from "./entry-state.router";
 import sentenceBufferRouter from "./sentence-buffer.router";
 import jishoBufferRouter from "./jisho-buffer.router";
 import tokenBufferRouter from "./token-buffer.router";
+import unsureWordBufferRouter from "./unsure-word-buffer.router";
 
 const router = Router();
 
@@ -21,6 +22,7 @@ router.use('/api/jisho-buffers', jishoBufferRouter);
 router.use('/api/word-buffers', wordBufferRouter);
 router.use('/api/entry-states', entryStateRouter);
 router.use('/api/words', wordRouter);
+router.use('/api/word-buffers/unsure', unsureWordBufferRouter);
 
 router.get('/review', (_, res) => {
 	res.render('review');
