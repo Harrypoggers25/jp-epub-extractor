@@ -122,6 +122,14 @@
     letter-spacing: .08em;
 }
 
+.table .table-align-center {
+    text-align: center;
+}
+
+.table .table-align-right {
+    text-align: right;
+}
+
 .table-sort {
     display: inline-flex;
     align-items: center;
@@ -156,6 +164,11 @@
 
 .table tr:last-child td {
     border-bottom: none;
+}
+
+.table-spacer td {
+    padding: 0;
+    pointer-events: none;
 }
 
 .table-row {

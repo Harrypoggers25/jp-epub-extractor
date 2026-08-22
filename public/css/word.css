@@ -3,6 +3,11 @@
     min-height: 100vh;
 }
 
+.word-layout .word-character-type,
+.word-layout .word-created-at {
+    white-space: nowrap;
+}
+
 .word-layout .word-export-button {
     position: relative;
     width: 100%;
@@ -29,10 +34,6 @@
 
 .word-layout .word-export .table-export-menu {
     min-width: 100%;
-}
-
-.word-layout .word-meaning {
-    min-width: 280px;
 }
 
 .word-layout .word-type,

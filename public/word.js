@@ -1,5 +1,6 @@
 import { Word } from "./api.helper.js";
-import { filterItems, getNextSort, paginateItems, sortItems } from "./table.helper.js";
+import { filterItems } from "./table.helper.js";
+import { Table } from "./table.js";
 import { asyncHandler, createElement, eventHandler, focusElem, focusable, setClass } from "./tools.helper.js";
 
 class WordList {
@@ -16,14 +17,24 @@ class WordList {
 
 		this.words = null;
 		this.searchText = '';
-		this.sort = { column: null, direction: null };
-		this.page = 1;
-		this.wordPerPage = 50;
 		this.collator = new Intl.Collator('ja', { numeric: true, sensitivity: 'base' });
+		this.table = new Table(this.elems.wordTable, {
+			columns: [
+				{ key: 'word', label: 'Word' },
+				{ key: 'type', label: 'Type' },
+				{ key: 'w_character_type', label: 'Character type' },
+				{ key: 'occurrence_count', label: 'Occurrences' },
+				{ key: 'created_at', label: 'Created' },
+				{ key: 'status', label: 'Status', align: 'center' },
+			],
+			createRow: word => this.createWordRow(word),
+			compareItems: (word1, word2, column) => this.compareWords(word1, word2, column.key),
+			onActivate: (word, row) => wordDetailModal.open(word, row),
+		});
 
 		this.elems.wordSearch.oninput = eventHandler(ev => {
 			this.searchText = ev.target.value.trim();
-			this.page = 1;
+			this.table.resetPage();
 			this.renderWords();
 		});
 		this.elems.btnExport.onclick = eventHandler(() => this.toggleExportMenu());
@@ -101,7 +112,7 @@ class WordList {
 	}
 	renderState(title, message, className = '') {
 		const { wordTable } = this.elems;
-		wordTable.innerHTML = '';
+		this.table.clear();
 
 		const state = createElement('div', `table-state ${className}`);
 		state.setAttribute('role', className === 'error' ? 'alert' : 'status');
@@ -110,8 +121,6 @@ class WordList {
 		wordTable.appendChild(state);
 	}
 	renderWords() {
-		const { wordTable } = this.elems;
-		wordTable.innerHTML = '';
 		if (!this.words.length) {
 			this.renderEmpty();
 			return;
@@ -123,200 +132,55 @@ class WordList {
 			return;
 		}
 
-		const sortedWords = this.getSortedWords(filteredWords);
-		const page = paginateItems(sortedWords, this.page, this.wordPerPage);
-		this.page = page.page;
-		wordTable.appendChild(this.createTable(page.items));
-		wordTable.appendChild(this.createPagination(page));
+		this.table.render(filteredWords);
 	}
 	getFilteredWords() {
 		if (!this.searchText) return this.words;
 
 		const searchText = this.searchText.toLowerCase();
 		return filterItems(this.words, word => {
-			const { reading, meaning } = this.getDisplayWord(word);
-			return [word.w_basic_form, reading, word.wt_name, meaning].some(text => {
+			return [word.w_basic_form, word.wt_name, word.w_character_type].some(text => {
 				return text.toLowerCase().includes(searchText);
 			});
 		});
 	}
-	getSortedWords(words) {
-		return sortItems(words, this.sort.column && this.sort.direction && ((word1, word2) => {
-			const value1 = this.getSortValue(word1);
-			const value2 = this.getSortValue(word2);
-			const result = this.sort.column === 'occurrence_count'
-				? value1 - value2
-				: this.collator.compare(value1, value2);
-			if (result) return this.sort.direction === 'asc' ? result : -result;
+	compareWords(word1, word2, column) {
+		const value1 = this.getSortValue(word1, column);
+		const value2 = this.getSortValue(word2, column);
+		const result = ['occurrence_count', 'created_at'].includes(column)
+			? value1 - value2
+			: this.collator.compare(value1, value2);
+		if (result) return result;
 
-			const basicFormResult = this.collator.compare(word1.w_basic_form, word2.w_basic_form);
-			if (basicFormResult) return basicFormResult;
+		const basicFormResult = this.collator.compare(word1.w_basic_form, word2.w_basic_form);
+		if (basicFormResult) return basicFormResult;
 
-			return this.collator.compare(word1.wt_name, word2.wt_name);
-		}));
+		return this.collator.compare(word1.wt_name, word2.wt_name);
 	}
-	getSortValue(word) {
-		const { reading, meaning } = this.getDisplayWord(word);
-		switch (this.sort.column) {
+	getSortValue(word, column) {
+		switch (column) {
 			case 'word': return word.w_basic_form;
-			case 'reading': return reading;
 			case 'type': return word.wt_name;
-			case 'meaning': return meaning;
+			case 'w_character_type': return word.w_character_type;
 			case 'occurrence_count': return word.occurrence_count;
+			case 'created_at': return this.getCreatedAtTimestamp(word);
 			case 'status': return this.getStatus(word);
 		}
 	}
-	sortBy(column) {
-		this.sort = getNextSort(this.sort, column);
-		this.page = 1;
-		this.renderWords();
-	}
-	setPage(page) {
-		this.page = page;
-		this.renderWords();
-	}
-	setWordPerPage(wordPerPage) {
-		this.wordPerPage = wordPerPage === 'all' ? null : Number(wordPerPage);
-		this.page = 1;
-		this.renderWords();
-	}
-	createTable(words) {
-		const table = createElement('table', 'table');
-		const header = createElement('thead');
-		const headerRow = createElement('tr');
-		[
-			['word', 'Word'],
-			['reading', 'Reading'],
-			['type', 'Type'],
-			['meaning', 'Meaning'],
-			['occurrence_count', 'Occurrences'],
-			['status', 'Status'],
-		].forEach(([column, text]) => {
-			headerRow.appendChild(this.createTableHeader(column, text));
-		});
-		header.appendChild(headerRow);
-		table.appendChild(header);
-
-		const body = createElement('tbody');
-		words.forEach(word => body.appendChild(this.createWordRow(word)));
-		table.appendChild(body);
-
-		return table;
-	}
-	createTableHeader(column, text) {
-		const header = createElement('th');
-		header.scope = 'col';
-		const active = this.sort.column === column;
-		header.setAttribute('aria-sort', active ? (this.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none');
-
-		const direction = active ? (this.sort.direction === 'asc' ? '↑' : '↓') : '';
-		const button = createElement('button', `table-sort${active ? ' active' : ''}`);
-		button.type = 'button';
-		button.appendChild(createElement('span', 'table-sort-label', text));
-		const indicator = createElement('span', 'table-sort-indicator', direction);
-		indicator.setAttribute('aria-hidden', 'true');
-		button.appendChild(indicator);
-		button.onclick = eventHandler(() => this.sortBy(column));
-		header.appendChild(button);
-
-		return header;
-	}
-	createPagination(page) {
-		const { totalPages } = page;
-		const pagination = createElement('div', 'table-pagination');
-		pagination.appendChild(this.createPageSizeControl());
-
-		const controls = createElement('div', 'table-pagination-controls');
-		const createPageButton = (text, label, targetPage, disabled) => {
-			const button = createElement('button', 'header-btn table-page-btn', text);
-			button.type = 'button';
-			button.setAttribute('aria-label', label);
-			button.disabled = disabled;
-			button.onclick = eventHandler(() => this.setPage(targetPage));
-			return button;
-		};
-
-		const firstPage = this.page === 1;
-		const lastPage = this.page === totalPages;
-		controls.appendChild(createPageButton('<<', 'First page', 1, firstPage));
-		controls.appendChild(createPageButton('<', 'Previous page', this.page - 1, firstPage));
-		controls.appendChild(this.createPageInput(totalPages));
-		controls.appendChild(createPageButton('>', 'Next page', this.page + 1, lastPage));
-		controls.appendChild(createPageButton('>>', 'Last page', totalPages, lastPage));
-		pagination.appendChild(controls);
-
-		return pagination;
-	}
-	createPageSizeControl() {
-		const container = createElement('label', 'table-page-size');
-		container.appendChild(createElement('span', null, 'Rows per page:'));
-
-		const select = createElement('select');
-		select.setAttribute('aria-label', 'Rows per page');
-		[25, 50, 100, 250, 'all'].forEach(value => {
-			const option = createElement('option', null, value === 'all' ? 'All' : `${value}`);
-			option.value = value;
-			option.selected = this.wordPerPage === (value === 'all' ? null : value);
-			select.appendChild(option);
-		});
-		select.onchange = eventHandler(ev => this.setWordPerPage(ev.target.value));
-		container.appendChild(select);
-
-		return container;
-	}
-	createPageInput(totalPages) {
-		const pageInfo = createElement('div', 'table-page-info');
-		pageInfo.setAttribute('aria-live', 'polite');
-		pageInfo.appendChild(createElement('span', null, 'Page'));
-
-		const input = createElement('input', 'table-page-input');
-		input.type = 'number';
-		input.min = '1';
-		input.max = `${totalPages}`;
-		input.step = '1';
-		input.value = `${this.page}`;
-		input.setAttribute('aria-label', 'Page number');
-		input.addEventListener('keydown', ev => {
-			if (ev.key !== 'Enter') return;
-
-			ev.preventDefault();
-			const value = input.value.trim();
-			const page = Number(value);
-			if (!value || !Number.isInteger(page)) {
-				input.value = `${this.page}`;
-				return;
-			}
-
-			this.setPage(page);
-		});
-		pageInfo.appendChild(input);
-		pageInfo.appendChild(createElement('span', null, `of ${totalPages}`));
-
-		return pageInfo;
-	}
 	createWordRow(word) {
-		const row = createElement('tr', 'table-row');
-		const openDetail = () => wordDetailModal.open(word, row);
-		focusable(row);
+		const row = createElement('tr');
 		row.setAttribute('aria-haspopup', 'dialog');
 		row.setAttribute('aria-label', `Show details for ${word.w_basic_form}`);
-		row.onclick = eventHandler(openDetail);
-		row.addEventListener('keydown', ev => {
-			if (ev.key !== 'Enter' && ev.key !== ' ') return;
-			ev.preventDefault();
-			openDetail();
-		});
 
-		const { reading, meaning } = this.getDisplayWord(word);
 		row.appendChild(createElement('td', null, word.w_basic_form));
-		row.appendChild(createElement('td', null, reading));
 
 		const wordType = createElement('td');
 		wordType.appendChild(createElement('span', 'word-type', word.wt_name));
 		row.appendChild(wordType);
 
-		row.appendChild(createElement('td', 'word-meaning', meaning));
+		row.appendChild(createElement('td', 'word-character-type', word.w_character_type));
 		row.appendChild(createElement('td', null, `${word.occurrence_count}`));
+		row.appendChild(createElement('td', 'word-created-at', this.getCreatedAt(word)));
 
 		const status = createElement('td');
 		const statusText = this.getStatus(word);
@@ -325,12 +189,20 @@ class WordList {
 
 		return row;
 	}
-	getDisplayWord(word) {
-		const entries = this.getEntries(word);
-		return {
-			reading: this.getReading(entries),
-			meaning: this.getMeaning(entries),
-		};
+	getCreatedAtTimestamp(word) {
+		const timestamp = Date.parse(word.created_at);
+		return Number.isNaN(timestamp) ? 0 : timestamp;
+	}
+	getCreatedAt(word) {
+		const timestamp = this.getCreatedAtTimestamp(word);
+		if (!timestamp) return '—';
+
+		return new Date(timestamp).toLocaleDateString('en-GB', {
+			timeZone: 'UTC',
+			day: '2-digit',
+			month: 'short',
+			year: 'numeric',
+		});
 	}
 	getStatus(word) {
 		return word.ignore ? 'Ignored' : '—';
@@ -350,20 +222,6 @@ class WordList {
 				return typeof form?.reading === 'string' && form.reading.trim();
 			})?.reading;
 			if (reading) return reading.trim();
-		}
-
-		return '—';
-	}
-	getMeaning(entries) {
-		for (const entry of entries) {
-			if (!Array.isArray(entry?.senses)) continue;
-			for (const sense of entry.senses) {
-				if (!Array.isArray(sense?.english_definitions)) continue;
-				const definition = sense.english_definitions.find(definition => {
-					return typeof definition === 'string' && definition.trim();
-				});
-				if (definition) return definition;
-			}
 		}
 
 		return '—';
