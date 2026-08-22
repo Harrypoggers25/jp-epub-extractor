@@ -3,6 +3,12 @@
     min-height: 100vh;
 }
 
+.book-layout .header-btn:focus,
+.book-layout .header-btn:focus-visible,
+.book-layout .header-btn:active {
+    outline: none !important;
+}
+
 .book-panel,
 .buffer-panel {
     background: var(--bg-panel);
@@ -200,6 +206,23 @@
 
 .section-nav {
     flex: 1;
+}
+
+.section-nav:is(:hover, :focus) {
+    background: var(--bg-item-hover);
+    border-color: var(--accent);
+    box-shadow: var(--shadow-soft), 0 8px 30px var(--accent-glow);
+    color: var(--accent);
+}
+
+.section-nav.selected {
+    border-color: var(--success);
+}
+
+.section-nav.selected:is(:hover, :focus) {
+    border-color: var(--success);
+    box-shadow: var(--shadow-soft), 0 8px 30px var(--success-glow);
+    color: var(--success);
 }
 
 .section-item .checkbox {

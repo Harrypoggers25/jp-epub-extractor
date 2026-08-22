@@ -19,10 +19,6 @@ const KeydownHandlers = {
 				ev.preventDefault();
 				buffer.elems.btnUpload.click();
 				break;
-			case 'r':
-				ev.preventDefault();
-				buffer.elems.btnReview.click();
-				break;
 		}
 	},
 	setup: {
@@ -30,9 +26,7 @@ const KeydownHandlers = {
 			if (ev.key !== 'Enter' || buffer.elems.btnSetupNext.disabled) return;
 
 			ev.preventDefault();
-			const next = buffer.next();
-			buffer.focusSectionNav();
-			await next;
+			await buffer.next();
 		},
 		page: ev => {
 			if (ev.key !== 'd' || buffer.elems.btnDiscard.disabled) return;
@@ -65,6 +59,16 @@ const KeydownHandlers = {
 				case 'End':
 					nextNav = navs.at(-1);
 					break;
+				case 'h':
+				case 'ArrowLeft':
+					ev.preventDefault();
+					buffer.scrollSectionPreview(-1);
+					return;
+				case 'l':
+				case 'ArrowRight':
+					ev.preventDefault();
+					buffer.scrollSectionPreview(1);
+					return;
 				case 'x':
 					ev.preventDefault();
 					buffer.toggleFocusedSection(Number(nav.dataset.sectionNo));
@@ -86,7 +90,7 @@ const KeydownHandlers = {
 			}
 
 			ev.preventDefault();
-			if (nextNav) focusElem(nextNav);
+			if (nextNav) buffer.focusSectionNav(Number(nextNav.dataset.sectionNo));
 		}
 	},
 	summary: ev => {
@@ -155,6 +159,12 @@ class ErrorOverlay {
 		this.lastFocused = document.activeElement;
 		this.elems.errorOverlayMessage.textContent = message;
 		setClass(this.elems.errorOverlay, 'open', true);
+		this.focus();
+	}
+	isOpen() {
+		return this.elems.errorOverlay.classList.contains('open');
+	}
+	focus() {
 		focusElem(this.elems.btnErrorClose);
 	}
 	close() {
@@ -171,7 +181,7 @@ class ErrorOverlay {
 		}
 
 		this.elems.btnErrorClose.blur();
-		buffer.focusCurrentContext();
+		buffer.focusCurrentContext(true);
 	}
 }
 
@@ -196,6 +206,12 @@ class DiscardOverlay {
 	open() {
 		this.lastFocused = document.activeElement;
 		setClass(this.elems.discardOverlay, 'open', true);
+		this.focus();
+	}
+	isOpen() {
+		return this.elems.discardOverlay.classList.contains('open');
+	}
+	focus() {
 		focusElem(this.elems.btnDiscardCancel);
 	}
 	close(restoreFocus = true) {
@@ -212,17 +228,18 @@ class DiscardOverlay {
 		}
 
 		this.elems.btnDiscardCancel.blur();
-		buffer.focusCurrentContext();
+		buffer.focusCurrentContext(true);
 	}
 }
 
 class Buffer {
 	constructor() {
 		this.elems = {
+			bookLayout: document.querySelector('.book-layout'),
 			bookStatus: document.getElementById('bookStatus'),
 			uploadInput: document.getElementById('uploadInput'),
 			btnUpload: document.getElementById('btnUpload'),
-			btnReview: document.getElementById('btnReview'),
+			btnBack: document.getElementById('btnBack'),
 			btnDiscard: document.getElementById('btnDiscard'),
 			bookSetupDetails: document.getElementById('bookSetupDetails'),
 			selectedFile: document.getElementById('selectedFile'),
@@ -246,6 +263,7 @@ class Buffer {
 		this.selectedSections = new Set();
 		this.selectedSectionNo = null;
 		this.sectionFocus = null;
+		this.lastSectionNavNo = null;
 		this.sentenceBuffers = [];
 		this.previewLimit = 50;
 		this.loadingSection = false;
@@ -254,6 +272,11 @@ class Buffer {
 
 		this.elems.btnUpload.onclick = eventHandler(() => this.elems.uploadInput.click());
 		document.addEventListener('keydown', ev => KeydownHandlers.page(ev));
+		window.addEventListener('focus', () => this.restoreFocus());
+		this.elems.bookLayout.addEventListener('click', ev => {
+			if (ev.target.closest('a, button, input, select, textarea, [tabindex]')) return;
+			this.focusCurrentContext(true);
+		});
 		this.elems.uploadInput.onchange = eventHandler(async ev => {
 			const file = ev.target.files?.[0];
 			if (!file) return;
@@ -291,6 +314,7 @@ class Buffer {
 			this.bufferIndex = null;
 			this.render();
 			this.loaded = true;
+			this.focusCurrentContext();
 			return;
 		}
 
@@ -299,6 +323,7 @@ class Buffer {
 			this.elems.bookStatus.textContent = 'Enter book details';
 			this.render();
 			this.loaded = true;
+			this.focusCurrentContext();
 			return;
 		}
 
@@ -312,11 +337,13 @@ class Buffer {
 			this.render();
 		}
 		this.loaded = true;
+		this.focusCurrentContext();
 	}
 	setBook(bookBuffer) {
 		this.bookBuffer = bookBuffer;
 		this.selectedSections = new Set(bookBuffer ? getSections(bookBuffer) : []);
 		this.selectedSectionNo = this.selectedSections.values().next().value ?? null;
+		this.lastSectionNavNo = null;
 		this.sentenceBuffers = [];
 
 		this.elems.selectedFile.textContent = bookBuffer?.book_original_name ?? 'No EPUB selected';
@@ -395,9 +422,14 @@ class Buffer {
 	async selectBuffer(index) {
 		if (!this.canSelectBuffer(index) || processingBuffer.running) return;
 
+		const previousIndex = this.bufferIndex;
 		this.bufferIndex = index;
 		this.render();
-		if (this.bufferIndex === 0) await this.loadSection(this.selectedSectionNo);
+		this.focusCurrentContext();
+		if (this.bufferIndex === 0) {
+			const loaded = await this.loadSection(this.selectedSectionNo);
+			if (previousIndex === null && loaded) this.scrollSectionsIntoView();
+		}
 		if (this.bufferIndex === 1) await processingBuffer.open(this.bookBuffer, true);
 	}
 	selectSetup() {
@@ -405,7 +437,7 @@ class Buffer {
 
 		this.bufferIndex = null;
 		this.render();
-		focusElem(this.elems.bookName);
+		this.focusCurrentContext();
 	}
 	async previous() {
 		if (processingBuffer.running) return;
@@ -498,13 +530,16 @@ class Buffer {
 		this.sentenceBuffers = [];
 		this.render();
 		this.restoreSectionFocus();
-		await this.loadSection(section_no);
+		if (await this.loadSection(section_no)) this.scrollSectionsIntoView();
 	}
 	setSectionFocus(type, section_no) {
 		this.sectionFocus = { type, section_no };
 	}
-	focusSectionNav(section_no = this.selectedSectionNo) {
-		const nav = document.querySelector(`.section-nav[data-section-no="${section_no}"]`);
+	focusSectionNav(section_no = this.lastSectionNavNo ?? this.selectedSectionNo) {
+		let nav = document.querySelector(`.section-nav[data-section-no="${section_no}"]`);
+		if (!nav && section_no !== this.selectedSectionNo) nav = document.querySelector(`.section-nav[data-section-no="${this.selectedSectionNo}"]`);
+		if (!nav) nav = document.querySelector('.section-nav');
+		if (nav) this.lastSectionNavNo = Number(nav.dataset.sectionNo);
 		focusElem(nav);
 	}
 	focusSectionCheckbox(section_no = this.selectedSectionNo) {
@@ -519,27 +554,54 @@ class Buffer {
 		if (sectionFocus.type === 'nav') this.focusSectionNav(sectionFocus.section_no);
 		if (sectionFocus.type === 'checkbox') this.focusSectionCheckbox(sectionFocus.section_no);
 	}
-	focusCurrentContext() {
-		if (!this.bookBuffer) {
+	focusCurrentContext(restoreSectionFocus = false) {
+		if (this.isReady()) {
 			focusElem(this.elems.btnUpload);
 			return;
 		}
-		if (this.bufferIndex === null) {
+		if (this.isSetup()) {
 			focusElem(this.elems.bookName);
 			return;
 		}
 		if (this.bufferIndex === 0) {
-			this.focusSectionNav();
-			return;
-		}
-		if (this.bufferIndex === 1) {
-			focusElem(this.elems.btnPrevBuffer);
+			this.focusSectionNav(restoreSectionFocus ? undefined : this.selectedSectionNo);
 			return;
 		}
 		if (this.bufferIndex === 2) focusElem(this.elems.btnNextBuffer);
 	}
+	hasMeaningfulFocus() {
+		const elem = document.activeElement;
+		return elem instanceof HTMLElement
+			&& elem !== document.body
+			&& this.elems.bookLayout.contains(elem)
+			&& !elem.disabled
+			&& !!elem.getClientRects().length;
+	}
+	restoreFocus() {
+		if (!this.loaded) return;
+		if (errorOverlay.isOpen()) return errorOverlay.focus();
+		if (discardOverlay.isOpen()) return discardOverlay.focus();
+		if (this.hasMeaningfulFocus()) return;
+
+		this.focusCurrentContext(true);
+	}
+	scrollSectionsIntoView() {
+		this.elems.sectionSelector?.scrollIntoView({
+			behavior: 'smooth',
+			block: 'start'
+		});
+	}
+	scrollSectionPreview(direction) {
+		const preview = this.elems.sectionPreview;
+		if (!preview) return;
+
+		preview.scrollBy({
+			left: preview.clientWidth * .3 * direction,
+			behavior: 'smooth'
+		});
+	}
 	async loadSection(section_no) {
-		if (section_no === null || section_no === undefined || this.bufferIndex !== 0) return;
+		if (section_no === null || section_no === undefined || this.bufferIndex !== 0) return false;
 
 		this.loadingSection = true;
 		this.renderSectionPreview();
@@ -548,11 +610,12 @@ class Buffer {
 		if (!sentenceBuffers) {
 			errorOverlay.open('Unable to load the selected section. Please try again.');
 			this.renderSectionPreview();
-			return;
+			return false;
 		}
 
 		this.sentenceBuffers = [...sentenceBuffers].sort((a, b) => a.sentence_no - b.sentence_no);
 		this.renderSectionPreview();
+		return true;
 	}
 	render() {
 		this.renderControls();
@@ -564,6 +627,7 @@ class Buffer {
 		const canUpload = !hasBook && !this.isUploading;
 		const canEnterSections = hasBook && !this.bookBuffer?.confirmed && !this.isUploading && !this.isConfirming && !!this.elems.bookName.value.trim();
 
+		this.elems.btnBack.hidden = !this.bookBuffer?.confirmed;
 		this.elems.btnUpload.hidden = hasBook;
 		this.elems.btnUpload.disabled = !canUpload;
 		this.elems.btnUpload.textContent = this.isUploading ? 'Uploading EPUB...' : 'Upload EPUB';
@@ -585,8 +649,10 @@ class Buffer {
 		this.elems.bufferPanel.hidden = this.bufferIndex === null;
 		setClass(this.elems.btnNextBuffer, 'success', this.bufferIndex !== null);
 
-		const canGoPrevious = this.bufferIndex === 0 ? !this.bookBuffer?.confirmed : this.bufferIndex === 1 || this.bufferIndex === 2;
-		this.elems.btnPrevBuffer.disabled = !canGoPrevious || processingBuffer.running;
+		const isProcessing = this.bufferIndex === 1;
+		const canGoPrevious = this.bufferIndex === 0 ? !this.bookBuffer?.confirmed : isProcessing || this.bufferIndex === 2;
+		this.elems.btnPrevBuffer.textContent = isProcessing ? 'Stop' : 'Previous';
+		this.elems.btnPrevBuffer.disabled = isProcessing || !canGoPrevious || processingBuffer.running;
 		this.elems.btnNextBuffer.hidden = this.bufferIndex === null;
 		if (this.bufferIndex === null) {
 			this.elems.btnNextBuffer.disabled = true;
@@ -616,6 +682,7 @@ class Buffer {
 	}
 	createSectionSelector() {
 		const container = createElement('div', 'section-selector');
+		this.elems.sectionSelector = container;
 		if (!this.bookBuffer) return container;
 
 		const listWrapper = createElement('div');
@@ -654,6 +721,9 @@ class Buffer {
 		nav.onclick = eventHandler(async () => {
 			this.setSectionFocus('nav', section_no);
 			await this.selectSection(section_no);
+		});
+		nav.addEventListener('focus', () => {
+			this.lastSectionNavNo = section_no;
 		});
 		nav.addEventListener('keydown', ev => KeydownHandlers.sections.nav(nav, ev));
 		item.appendChild(nav);
