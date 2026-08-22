@@ -29,7 +29,7 @@ export function transformWordBuffer(wordBuffers: Array<IWordBuffer>, entryStates
 	const filteredWords = wordBuffers.filter(wordBuffer => !isTargetWord(wordBuffer));
 	const [targetWord] = wordBuffers.filter(isTargetWord);
 	const targetState = state ?? getState(es_id);
-	if (!targetState) return { top: [], bottom: [] };
+	if (!targetState || !targetState.length) return { top: [], bottom: filteredWords };
 
 	const targetEntries = getEntries(targetWord, targetState);
 	const isTopWord = (wordBuffer: IWordBuffer) => {
