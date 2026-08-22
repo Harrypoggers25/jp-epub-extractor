@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EPUB Extraction</title>
+
+    <link rel="stylesheet" href="/css/shared.css">
+    <link rel="stylesheet" href="/css/book.css">
+</head>
+
+<body>
+    <div class="book-layout">
+        <main class="content">
+            <div class="container">
+                <div class="header">
+                    <div class="header-content">
+                        <h1>EPUB Extraction</h1>
+                        <div class="meta">
+                            <div id="bookStatus" class="badge">Ready to upload</div>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        <a id="btnBack" class="header-btn" href="/review" hidden>Back</a>
+                    </div>
+                </div>
+
+                <div class="book-panel">
+                    <div class="book-upload-row">
+                        <input id="uploadInput" type="file" accept=".epub,application/epub+zip" hidden>
+                        <button id="btnUpload" class="header-btn">Upload EPUB</button>
+                    </div>
+                    <div id="bookSetupDetails" class="book-setup-details" hidden>
+                        <div class="book-file-row">
+                            <span class="book-label">Selected file</span>
+                            <span id="selectedFile" class="book-file">No EPUB selected</span>
+                        </div>
+                        <div class="book-name-row">
+                            <label class="book-label book-name-label" for="bookName">Book name</label>
+                            <input id="bookName" class="book-input" type="text" placeholder="Enter a book name" disabled>
+                        </div>
+                        <div class="book-setup-actions">
+                            <button id="btnDiscard" class="header-btn danger" disabled>Discard current book</button>
+                            <button id="btnSetupNext" class="header-btn success" disabled>Next</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="bufferPanel" class="buffer-panel" hidden>
+                    <div class="buffer-steps">
+                        <button id="btnBufferSections" class="header-btn buffer-step" disabled>1. Sections</button>
+                        <button id="btnBufferProcessing" class="header-btn buffer-step" disabled>2. Processing</button>
+                        <button id="btnBufferSummary" class="header-btn buffer-step" disabled>3. Summary</button>
+                    </div>
+                    <div id="bufferContent" class="buffer-content"></div>
+                    <div class="buffer-navigation">
+                        <button id="btnPrevBuffer" class="header-btn" disabled>Previous</button>
+                        <button id="btnNextBuffer" class="header-btn" disabled>Next</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="overlay" id="errorOverlay">
+        <div class="modal-box error-modal-box">
+            <h3>Error</h3>
+            <span id="errorOverlayMessage" class="overlay-message"></span>
+            <div class="modal-actions">
+                <button class="modal-btn confirm" id="btnErrorClose">Close</button>
+            </div>
+        </div>
+    </div>
+    <div class="overlay" id="discardOverlay">
+        <div class="modal-box">
+            <h3>Discard current book?</h3>
+            <span class="overlay-message">This will reset any/all selected options for the current book buffer. Proceed to discard?</span>
+            <div class="modal-actions">
+                <button class="modal-btn" id="btnDiscardCancel">Cancel</button>
+                <button class="modal-btn danger" id="btnDiscardConfirm">Discard</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/tools.helper.js"></script>
+    <script type="module" src="/api.helper.js"></script>
+    <script type="module" src="/book.js"></script>
+</body>
+
+</html>

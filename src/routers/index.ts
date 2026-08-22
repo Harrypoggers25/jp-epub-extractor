@@ -24,8 +24,20 @@ router.use('/api/entry-states', entryStateRouter);
 router.use('/api/words', wordRouter);
 router.use('/api/word-buffers/unsure', unsureWordBufferRouter);
 
+router.get('/book', (_, res) => {
+	res.render('book');
+});
+
 router.get('/review', (_, res) => {
 	res.render('review');
+});
+
+router.get('/word', (_, res) => {
+	res.render('word');
+});
+
+router.get('/review/unsure', (_, res) => {
+	res.render('unsure-review');
 });
 
 export default router;
