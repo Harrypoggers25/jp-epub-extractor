@@ -3,6 +3,34 @@
     min-height: 100vh;
 }
 
+.word-layout .word-export-button {
+    position: relative;
+    width: 100%;
+    text-align: left;
+}
+
+.word-layout .word-export-button::after {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    width: 6px;
+    height: 6px;
+    border-right: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
+    content: '';
+    pointer-events: none;
+    transform: translateY(-65%) rotate(45deg);
+    transition: transform .2s;
+}
+
+.word-layout .word-export-button[aria-expanded="true"]::after {
+    transform: translateY(-35%) rotate(225deg);
+}
+
+.word-layout .word-export .table-export-menu {
+    min-width: 100%;
+}
+
 .word-layout .word-meaning {
     min-width: 280px;
 }
