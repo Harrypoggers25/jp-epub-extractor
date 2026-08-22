@@ -8,7 +8,7 @@ import Message from "@harrypoggers25/message";
 import Route from "@harrypoggers25/route";
 
 // SERVICES
-import { transformWordBuffer } from "../services/work-buffers.service";
+import { transformWordBuffer } from "../services/word-buffers.service";
 
 export namespace EntryStateHandler {
 	export const create = Route.asyncHandler(async (req, res) => {

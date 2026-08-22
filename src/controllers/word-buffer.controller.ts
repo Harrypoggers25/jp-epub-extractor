@@ -13,13 +13,13 @@ import Message from "@harrypoggers25/message";
 import Route from "@harrypoggers25/route";
 
 import Jisho from "../services/jisho.service";
-import { transformWordBuffer } from "../services/work-buffers.service";
+import { transformWordBuffer } from "../services/word-buffers.service";
 import { isArrayObj } from "../helpers/json.helper";
 
 export namespace WordBufferHandler {
 	export const count = Route.asyncHandler(async (_, res) => {
 		const wordBuffers = await WordBuffer.find();
-		if (!wordBuffers) throw new Error(Message.failed(['find', 'sentence buffer count']));
+		if (!wordBuffers) throw new Error(Message.failed(['find', 'word buffer count']));
 
 		res.status(200).json({ count: wordBuffers.length });
 	});
@@ -52,27 +52,27 @@ export namespace WordBufferHandler {
 	});
 
 	export const findAll = Route.asyncHandler(async (_, res) => {
-		const words = await WordBuffer.find({ orderBy: { w_character_type: 'DESC', w_basic_form: 'ASC', wt_name: 'ASC' } });
-		if (!words) throw new Error(Message.failed(['find', 'all words']));
+		const wordBuffers = await WordBuffer.find({ orderBy: { w_character_type: 'DESC', w_basic_form: 'ASC', wt_name: 'ASC' } });
+		if (!wordBuffers) throw new Error(Message.failed(['find', 'all word buffers']));
 
-		res.status(200).json(words);
+		res.status(200).json(wordBuffers);
 	});
 
 	export const findMany = Route.asyncHandler(async (req, res) => {
 		const w_basic_form = req.params.w_basic_form as string;
-		const words = await WordBuffer.find({ like: { w_basic_form: `${w_basic_form}%` } });
-		if (!words) throw new Error(Message.failed(['find', 'words', { w_basic_form }]));
+		const wordBuffers = await WordBuffer.find({ like: { w_basic_form: `${w_basic_form}%` } });
+		if (!wordBuffers) throw new Error(Message.failed(['find', 'word buffers', { w_basic_form }]));
 
-		res.status(200).json(words);
+		res.status(200).json(wordBuffers);
 	});
 
 	export const find = Route.asyncHandler(async (req, res) => {
 		const w_basic_form = req.params.w_basic_form as string;
 		const wt_name = req.params.wt_name as string;
-		const words = await WordBuffer.find({ where: { w_basic_form, wt_name } });
-		if (!words || !words.length) throw new Error(Message.failed(['find', 'word', { w_basic_form, wt_name }]));
+		const wordBuffers = await WordBuffer.find({ where: { w_basic_form, wt_name } });
+		if (!wordBuffers || !wordBuffers.length) throw new Error(Message.failed(['find', 'word buffer', { w_basic_form, wt_name }]));
 
-		res.status(200).json(words[0]);
+		res.status(200).json(wordBuffers[0]);
 	});
 
 	export const filter = Route.asyncEventStreamHandler(async (_, res, write) => {
