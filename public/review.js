@@ -598,15 +598,17 @@ class Buffer {
 			if (!entryState) return;
 
 			if (entryState.merged_with) {
-				const unmergedEntryStates = await EntryState.unmerge(es_id);
-				if (!unmergedEntryStates) return;
-				const [entryState1, entryState2] = unmergedEntryStates;
-				const setEntry = (entryState, es_id) => {
+				const entryStates = await EntryState.unmerge(es_id);
+				if (!entryStates) return;
+
+				const setEntry = (entryState) => {
+					const { es_id } = entryState;
 					delete entryState.es_id;
 					buffer.entryStates.entryStates[es_id] = entryState;
 				}
-				setEntry(entryState1, entryState1.es_id);
-				setEntry(entryState2, entryState2.es_id);
+				for (const entryState of entryStates) {
+					setEntry(entryState);
+				}
 
 				sidebar.renderSearchResults(sidebar.wordBuffers);
 				this.syncButtonState(es_id, buttons);
@@ -919,16 +921,17 @@ class MergeModal {
 		if (!this.selected) return;
 
 		const [es_id1, es_id2] = [wordId(this.target), wordId(this.selected)];
-		const mergedEntryStates = await EntryState.merge(es_id1, es_id2);
-		if (!mergedEntryStates) return;
+		const entryStates = await EntryState.merge(es_id1, es_id2);
+		if (!entryStates) return;
 
-		const [entryState1, entryState2] = mergedEntryStates;
-		const setEntry = (entryState, es_id) => {
+		const setEntry = (entryState) => {
+			const { es_id } = entryState;
 			delete entryState.es_id;
 			buffer.entryStates.entryStates[es_id] = entryState;
 		}
-		setEntry(entryState1, es_id1);
-		setEntry(entryState2, es_id2);
+		for (const entryState of entryStates) {
+			setEntry(entryState);
+		}
 
 		sidebar.renderSearchResults();
 		buffer.syncButtonState(es_id1);
