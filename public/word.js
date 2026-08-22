@@ -3,6 +3,65 @@ import { filterItems } from "./table.helper.js";
 import { Table } from "./table.js";
 import { asyncHandler, createElement, eventHandler, focusElem, focusable, setClass } from "./tools.helper.js";
 
+const KeydownHandlers = {
+	wordList: {
+		export: ev => {
+			if (ev.key !== 'Escape' || !wordList.elems.exportMenu.classList.contains('open')) return;
+
+			wordList.closeExportMenu();
+			wordList.elems.btnExport.focus();
+		},
+	},
+	wordDetailModal: {
+		modal: ev => {
+			if (ev.key !== 'Escape') return;
+
+			ev.preventDefault();
+			wordDetailModal.close();
+		},
+		dictionary: (ev, close) => {
+			if (ev.key !== 'Tab' || ev.shiftKey) return;
+
+			ev.preventDefault();
+			focusElem(close);
+		},
+		card: (card, ev) => {
+			const cards = wordDetailModal.getDictionaryCards();
+			const index = cards.indexOf(card);
+			switch (ev.key) {
+				case 'j':
+					if (!cards[index + 1]) return;
+
+					ev.preventDefault();
+					wordDetailModal.focusCard(cards[index + 1]);
+					break;
+				case 'k':
+					if (!cards[index - 1]) return;
+
+					ev.preventDefault();
+					wordDetailModal.focusCard(cards[index - 1]);
+					break;
+				case 'g':
+					ev.preventDefault();
+					wordDetailModal.focusCard(cards[0]);
+					break;
+				case 'G':
+					ev.preventDefault();
+					wordDetailModal.focusCard(cards.at(-1));
+					break;
+				case 'ArrowDown':
+					ev.preventDefault();
+					wordDetailModal.scrollDictionary(1);
+					break;
+				case 'ArrowUp':
+					ev.preventDefault();
+					wordDetailModal.scrollDictionary(-1);
+					break;
+			}
+		},
+	},
+}
+
 class WordList {
 	constructor() {
 		this.elems = {
@@ -43,11 +102,8 @@ class WordList {
 		document.addEventListener('click', ev => {
 			if (!this.elems.wordExport.contains(ev.target)) this.closeExportMenu();
 		});
-		document.addEventListener('keydown', ev => {
-			if (ev.key !== 'Escape' || !this.elems.exportMenu.classList.contains('open')) return;
-			this.closeExportMenu();
-			this.elems.btnExport.focus();
-		});
+		this.elems.btnExport.addEventListener('keydown', KeydownHandlers.wordList.export);
+		this.elems.exportMenu.addEventListener('keydown', KeydownHandlers.wordList.export);
 	}
 	async load() {
 		this.renderLoading();
@@ -232,17 +288,13 @@ class WordDetailModal {
 	constructor() {
 		this.elems = {
 			wordDetailModal: document.getElementById('wordDetailModal'),
+			dictionary: null,
 		}
 
 		this.opener = null;
 
 		this.elems.wordDetailModal.onclick = eventHandler(ev => {
 			if (ev.target === this.elems.wordDetailModal) this.close();
-		});
-		document.addEventListener('keydown', ev => {
-			if (ev.key !== 'Escape' || !this.elems.wordDetailModal.classList.contains('open')) return;
-			ev.preventDefault();
-			this.close();
 		});
 	}
 	open(word, opener) {
@@ -254,6 +306,7 @@ class WordDetailModal {
 		modalBox.setAttribute('role', 'dialog');
 		modalBox.setAttribute('aria-modal', 'true');
 		modalBox.setAttribute('aria-labelledby', 'wordDetailTitle');
+		modalBox.addEventListener('keydown', KeydownHandlers.wordDetailModal.modal);
 
 		const actions = createElement('div', 'modal-actions');
 		const close = createElement('button', 'header-btn', 'Close');
@@ -273,27 +326,49 @@ class WordDetailModal {
 		if (advancedMetadata) summary.appendChild(advancedMetadata);
 		modalBox.appendChild(summary);
 		const dictionary = this.createDictionarySection(entries);
-		dictionary.onkeydown = ev => {
-			if (ev.key !== 'Tab' || ev.shiftKey) return;
-			ev.preventDefault();
-			focusElem(close);
-		};
+		dictionary.addEventListener('keydown', ev => KeydownHandlers.wordDetailModal.dictionary(ev, close));
 		modalBox.appendChild(dictionary);
 
 		wordDetailModal.appendChild(modalBox);
 		wordDetailModal.setAttribute('aria-hidden', 'false');
 		this.opener = opener;
+		this.elems.dictionary = dictionary;
 		setClass(wordDetailModal, 'open', true);
-		focusElem(dictionary);
+		const [card] = this.getDictionaryCards();
+		if (card) this.focusCard(card);
+		else focusElem(close);
 	}
 	close() {
 		const { wordDetailModal } = this.elems;
 		const opener = this.opener;
 		this.opener = null;
+		this.elems.dictionary = null;
 		setClass(wordDetailModal, 'open', false);
 		wordDetailModal.setAttribute('aria-hidden', 'true');
 		wordDetailModal.innerHTML = '';
 		if (opener?.isConnected) focusElem(opener);
+	}
+	getDictionaryCards() {
+		return Array.from(this.elems.dictionary?.getElementsByClassName('entry') ?? []);
+	}
+	focusCard(card) {
+		const { dictionary } = this.elems;
+		if (!card || !dictionary) return;
+
+		card.focus({ preventScroll: true });
+		const cardRect = card.getBoundingClientRect();
+		const dictionaryRect = dictionary.getBoundingClientRect();
+		const top = dictionary.scrollTop + cardRect.top - dictionaryRect.top - 12;
+		dictionary.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+	}
+	scrollDictionary(direction) {
+		const { dictionary } = this.elems;
+		if (!dictionary) return;
+
+		dictionary.scrollBy({
+			top: dictionary.clientHeight * .25 * direction,
+			behavior: 'smooth',
+		});
 	}
 	createSummary(word, entries) {
 		const summary = createElement('div', 'word-detail-summary');
@@ -309,7 +384,6 @@ class WordDetailModal {
 	}
 	createDictionarySection(entries) {
 		const section = createElement('section', 'word-detail-dictionary');
-		focusable(section);
 		section.setAttribute('role', 'region');
 		section.setAttribute('aria-label', 'Dictionary entries');
 
@@ -341,6 +415,9 @@ class WordDetailModal {
 		const card = createElement('div', 'entry');
 		const header = createElement('div', 'entry-header');
 		const slug = typeof entry.slug === 'string' && entry.slug.trim() ? entry.slug : '—';
+		focusable(card);
+		card.setAttribute('aria-label', `Dictionary entry ${slug}`);
+		card.addEventListener('keydown', ev => KeydownHandlers.wordDetailModal.card(card, ev));
 		header.appendChild(createElement('div', 'slug', slug));
 
 		const badges = createElement('div');
