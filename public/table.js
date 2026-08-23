@@ -46,7 +46,6 @@ export class Table {
 		this.sort = { column: null, direction: null };
 		this.page = 1;
 		this.itemPerPage = options.itemPerPage ?? 50;
-		this.rowHeight = 0;
 		this.items = [];
 		this.collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 	}
@@ -60,7 +59,6 @@ export class Table {
 		this.page = page.page;
 		const table = this.createTable(page.items);
 		this.elems.table.appendChild(table);
-		this.reserveRows(table, page);
 		this.elems.table.appendChild(this.createPagination(page));
 	}
 	clear() {
@@ -95,8 +93,10 @@ export class Table {
 		this.render(this.items);
 	}
 	setPage(page) {
+		const paginationTop = this.getPaginationTop();
 		this.page = page;
 		this.render(this.items);
+		this.compensatePaginationScroll(paginationTop);
 	}
 	setItemPerPage(itemPerPage) {
 		this.itemPerPage = itemPerPage === 'all' ? null : Number(itemPerPage);
@@ -240,27 +240,15 @@ export class Table {
 
 		this.setPage(page);
 	}
-	reserveRows(table, page) {
-		if (!this.itemPerPage || page.totalPages < 2) return;
-
-		const rowHeight = this.getRowHeight(table);
-		if (!rowHeight) return;
-		if (page.items.length === this.itemPerPage) {
-			this.rowHeight = rowHeight;
-			return;
-		}
-
-		const missingRows = this.itemPerPage - page.items.length;
-		const spacer = createElement('tr', 'table-spacer');
-		spacer.setAttribute('aria-hidden', 'true');
-		const cell = createElement('td');
-		cell.colSpan = table.tHead.rows[0].cells.length;
-		cell.style.height = `${(this.rowHeight || rowHeight) * missingRows}px`;
-		spacer.appendChild(cell);
-		table.tBodies[0].appendChild(spacer);
+	getPaginationTop() {
+		return this.elems.table.querySelector('.table-pagination')?.getBoundingClientRect().top;
 	}
-	getRowHeight(table) {
-		const row = table.tBodies[0].rows[0];
-		return row?.getBoundingClientRect().height ?? 0;
+	compensatePaginationScroll(paginationTop) {
+		if (paginationTop === undefined) return;
+
+		const newPaginationTop = this.getPaginationTop();
+		if (newPaginationTop === undefined) return;
+
+		window.scrollBy(0, newPaginationTop - paginationTop);
 	}
 }
