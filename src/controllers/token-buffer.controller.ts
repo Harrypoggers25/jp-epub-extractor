@@ -84,9 +84,9 @@ export namespace TokenBufferHandler {
 			for (const { token_id, wt_name, w_basic_form, w_reading, surface_form, w_pos_details, wt_description } of parsedSentence) {
 				if (!w_reading || ignores.has(token_id)) continue;
 
-				const words = await Word.find({ like: { token_ids: `%${token_id}%` }, transaction });
-				if (!words) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['find', 'words'] }));
-				if (words.length) {
+				const words1 = await Word.find({ like: { token_ids: `%${token_id}%` }, transaction });
+				if (!words1) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['find', 'words', { token_id }] }));
+				if (words1.length) {
 					ignores.add(token_id);
 					existing_tokens += 1;
 
@@ -94,6 +94,27 @@ export namespace TokenBufferHandler {
 					if (!bookBuffer) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['update', 'book buffer', { existing_tokens }] }));
 					continue;
 				}
+
+				const words2 = await Word.find({ where: { w_basic_form, wt_name }, transaction });
+				if (!words2) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['find', 'words', { w_basic_form, wt_name }] }));
+				if (words2.length) {
+					ignores.add(token_id);
+					existing_tokens += 1;
+
+					const token_ids = (() => {
+						const token_ids = new Set(words2[0].token_ids.split(',').map(token_id => +token_id));
+						token_ids.add(token_id);
+						return Array.from(token_ids).sort((a, b) => a - b).join(',');
+					})();
+
+					const word = await Word.update({ token_ids }, { where: { w_basic_form, wt_name }, transaction });
+					if (!word) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['update', 'word', { w_basic_form, wt_name }] }));
+
+					const bookBuffer = await BookBuffer.updateByPk(book_id, { existing_tokens }, { transaction });
+					if (!bookBuffer) throw new Error(Message.failed(['tokenize', 'book buffer', book_id], { causer: ['update', 'book buffer', { existing_tokens }] }));
+					continue;
+				}
+
 
 				const created_at = new Date();
 				const wordTypes = await WordType.find({ where: { wt_name }, transaction });
