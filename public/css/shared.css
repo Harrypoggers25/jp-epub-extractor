@@ -111,6 +111,10 @@ body {
     color: var(--accent);
 }
 
+.header-btn:focus-visible {
+    outline: none;
+}
+
 .header-btn.selected {
     border-color: var(--accent);
 }
