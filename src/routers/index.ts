@@ -32,7 +32,7 @@ router.get('/review', (_, res) => {
 	res.render('review');
 });
 
-router.get('/word', (_, res) => {
+router.get('/', (_, res) => {
 	res.render('word');
 });
 
