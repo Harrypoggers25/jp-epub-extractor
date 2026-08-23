@@ -529,6 +529,8 @@ class Buffer {
 			setClass(badge, 'hidden', true);
 			badge.textContent = '';
 		}
+		hideBadge(mergeCount)
+		hideBadge(mergeCount)
 
 		if (entryState?.merged_with) {
 			hideBadge(mergeCount);
@@ -537,8 +539,15 @@ class Buffer {
 		}
 		hideBadge(mergeWith);
 
-		if (entryState?.can_merge) showBadge(mergeCount, `Merge possibilities: ${entryState.can_merge}`);
-		else hideBadge(mergeCount);
+		(async () => {
+			const { w_basic_form, wt_name } = this.selected;
+			const transformed = await WordBuffer.transform(w_basic_form, wt_name);
+			if (!transformed) return;
+
+			const can_merge = transformed.top.length;
+			if (can_merge) showBadge(mergeCount, `Merge possibilities: ${can_merge}`);
+			else hideBadge(mergeCount);
+		})();
 	}
 	renderEntries(disabled) {
 		const { j_response } = this.wordBuffer;
@@ -1081,7 +1090,7 @@ const mergeModal = new MergeModal();
 const sentenceModal = new SentenceModal();
 const confirmOverlay = new ConfirmOverlay();
 
-const nextPageUrl = '/book';
+const nextPageUrl = '/';
 
 asyncHandler('MAIN INIT', async () => {
 	await buffer.entryStates.load();
