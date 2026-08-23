@@ -70,6 +70,7 @@ const KeydownHandlers = {
 					buffer.scrollSectionPreview(1);
 					return;
 				case 'x':
+				case ' ':
 					ev.preventDefault();
 					buffer.toggleFocusedSection(Number(nav.dataset.sectionNo));
 					return;

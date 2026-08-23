@@ -82,35 +82,50 @@ export namespace EntryStateHandler {
 	export const merge = Route.asyncHandler(async (req, res) => {
 		const es_id1 = req.params.es_id1 as string;
 		const es_id2 = req.params.es_id2 as string;
-
 		const wordBuffers = await WordBuffer.find();
 		if (!wordBuffers) throw new Error(Message.failed(['merge', 'entry state', { es_id1, es_id2 }], { causer: ['find', 'all word buffers'] }));
 
-		const entryStates = await EntryState.find();
-		if (!entryStates) throw new Error(Message.failed(['merge', 'entry state', { es_id1, es_id2 }], { causer: ['find', 'all entry states'] }));
-
 		const transaction = await db.transaction();
+		const updated: Array<IEntryState> = [];
+
 		const updatedEntryState1 = await EntryState.updateByPk(es_id1, { merged_with: es_id2, can_merge: 0 }, { transaction });
 		if (!updatedEntryState1) throw new Error(Message.failed(['merge', 'entry state', { es_id1, es_id2 }], {
 			causer: ['update', 'entry state', es_id1]
 		}));
+		updated.push(updatedEntryState1);
 
 		const updatedEntryState2 = await EntryState.updateByPk(es_id2, { can_merge: 0 }, { transaction });
 		if (!updatedEntryState2) throw new Error(Message.failed(['merge', 'entry state', { es_id1, es_id2 }], {
 			causer: ['update', 'entry state', es_id2]
 		}));
+		updated.push(updatedEntryState2);
+
+		const entryStates = await EntryState.find({ transaction });
+		if (!entryStates) throw new Error(Message.failed(['merge', 'entry state', { es_id1, es_id2 }], { causer: ['find', 'all entry states'] }));
+
+		// const isOtherEntryState = (entryState: IEntryState) => entryState.es_id !== es_id1 && entryState.es_id !== es_id2 && !entryState.merged_with;
+		// for (const entryState of entryStates.filter(isOtherEntryState)) {
+		// 	const { es_id } = entryState;
+		// 	console.log(es_id);
+		// 	const can_merge = transformWordBuffer(wordBuffers, entryStates, es_id).top.length;
+		// 	if (can_merge === entryState.can_merge) continue;
+		//
+		// 	const updatedEntryState = await EntryState.updateByPk(es_id, { can_merge }, { transaction });
+		// 	if (!updatedEntryState) throw new Error(Message.failed(['merge', 'entry state', { es_id1, es_id2 }], {
+		// 		causer: ['update', 'entry state', entryState.es_id]
+		// 	}));
+		// 	updated.push(updatedEntryState);
+		// }
 
 		await transaction.commit();
-		res.status(200).json([updatedEntryState1, updatedEntryState2]);
+		res.status(200).json(updated);
 	});
 
 	export const unmerge = Route.asyncHandler(async (req, res) => {
 		const es_id1 = req.params.es_id as string;
-
 		const es_id2 = await (async () => {
 			const entryState = await EntryState.findByPk(es_id1);
 			if (!entryState) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { causer: ['find', 'entry state', es_id1] }));
-
 			return entryState.merged_with;
 		})();
 		if (!es_id2) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { subMessage: 'Entry is not currently merged' }));
@@ -119,50 +134,62 @@ export namespace EntryStateHandler {
 		if (!wordBuffers) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { causer: ['find', 'all word buffers'] }));
 
 		const transaction = await db.transaction();
+		const updated: Array<IEntryState> = [];
+
 		const updatedEntryState1 = await (async () => {
 			const es_id = es_id1;
-			const merged_with = null;
-			const updatedEntryState = await EntryState.updateByPk(es_id, { merged_with }, { transaction });
+			const updatedEntryState = await EntryState.updateByPk(es_id, { merged_with: null }, { transaction });
 			if (!updatedEntryState) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
-				causer: ['update', 'entry state', { es_id, merged_with }]
+				causer: ['update', 'entry state', { es_id, merged_with: null }]
 			}));
-
 			const entryStates = await EntryState.find({ transaction });
 			if (!entryStates) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { causer: ['find', 'all entry states'] }));
-
 			const can_merge = transformWordBuffer(wordBuffers, entryStates, es_id1).top.length;
 			const entryState = await EntryState.updateByPk(es_id1, { can_merge }, { transaction });
 			if (!entryState) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
 				causer: ['update', 'entry state', { es_id, can_merge }]
 			}));
-
 			return entryState;
 		})();
+		updated.push(updatedEntryState1);
+
 		const updatedEntryState2 = await (async () => {
 			const es_id = es_id2;
-
 			const can_merge = await (async () => {
 				const mergedEntryStates = await EntryState.find({ where: { merged_with: es_id }, transaction });
 				if (!mergedEntryStates) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
 					causer: ['find', 'entry states', { merged_with: es_id }]
 				}));
-
 				if (mergedEntryStates.length) return 0;
-
 				const entryStates = await EntryState.find({ transaction });
 				if (!entryStates) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { causer: ['find', 'all entry states'] }));
-
 				return transformWordBuffer(wordBuffers, entryStates, es_id).top.length;
 			})();
 			const entryState = await EntryState.updateByPk(es_id, { can_merge }, { transaction });
-			if (!entryState) throw new Error(Message.failed(['merge', 'entry state', { es_id1, es_id2 }], {
+			if (!entryState) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
 				causer: ['update', 'entry state', { es_id, can_merge }]
 			}));
-
 			return entryState;
 		})();
+		updated.push(updatedEntryState2);
+
+		// const entryStates = await EntryState.find({ transaction });
+		// if (!entryStates) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { causer: ['find', 'all entry states'] }));
+		//
+		// const isOtherEntryState = (entryState: IEntryState) => entryState.es_id !== es_id1 && entryState.es_id !== es_id2 && !entryState.merged_with;
+		// for (const entryState of entryStates.filter(isOtherEntryState)) {
+		// 	const { es_id } = entryState;
+		// 	const can_merge = transformWordBuffer(wordBuffers, entryStates, es_id).top.length;
+		// 	if (can_merge === entryState.can_merge) continue;
+		// 	const updatedEntryState = await EntryState.updateByPk(es_id, { can_merge }, { transaction });
+		// 	if (!updatedEntryState) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
+		// 		causer: ['update', 'entry state', es_id]
+		// 	}));
+		// 	updated.push(updatedEntryState);
+		// }
+
 		await transaction.commit();
-		res.status(200).json([updatedEntryState1, updatedEntryState2]);
+		res.status(200).json(updated);
 	});
 
 	export const update = Route.asyncHandler(async (req, res) => {
