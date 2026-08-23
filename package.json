@@ -28,7 +28,7 @@
   "dependencies": {
     "@harrypoggers25/app-express": "^1.1.0",
     "@harrypoggers25/color-utils": "^1.0.1",
-    "@harrypoggers25/db-postgresql": "^1.4.4",
+    "@harrypoggers25/db-postgresql": "^1.4.5",
     "@harrypoggers25/env": "^1.0.0",
     "@harrypoggers25/message": "^1.1.0",
     "@harrypoggers25/route": "^1.1.1",
