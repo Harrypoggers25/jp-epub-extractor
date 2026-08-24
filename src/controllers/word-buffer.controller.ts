@@ -43,11 +43,20 @@ export namespace WordBufferHandler {
 		}));
 
 		const entryStates = await EntryState.find();
-		if (!entryStates) throw new Error(Message.failed(['transform', 'word buffers', { w_basic_form, wt_name }], { causer: ['find', 'all entry states'] }));
+		if (!entryStates) throw new Error(Message.failed(['transform', 'word buffers', { w_basic_form, wt_name }], {
+			causer: ['find', 'all entry states']
+		}));
 
-		const es_id = `${w_basic_form}_${wt_name}`;
+		const targetWord = await (async () => {
+			const wordBuffers = await WordBuffer.find({ where: { w_basic_form, wt_name } });
+			if (!wordBuffers || !wordBuffers.length) throw new Error(Message.failed(['transform', 'word buffers', { w_basic_form, wt_name }], {
+				causer: ['find', 'target word', { w_basic_form, wt_name }]
+			}));
 
-		const { top, bottom } = transformWordBuffer(wordBuffers, entryStates, es_id, state);
+			return wordBuffers[0];
+		})();
+
+		const { top, bottom } = transformWordBuffer(wordBuffers, entryStates, targetWord, state);
 		res.status(200).json({ top, bottom });
 	});
 

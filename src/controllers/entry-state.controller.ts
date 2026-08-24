@@ -31,7 +31,8 @@ export namespace EntryStateHandler {
 		const result: Record<string, IEntryState> = {};
 		const es_ids = new Set<string>();
 		const transaction = await db.transaction();
-		for (const { w_basic_form, wt_name } of wordBuffers) {
+		for (const wordBuffer of wordBuffers) {
+			const { w_basic_form, wt_name } = wordBuffer;
 			const es_id = `${w_basic_form}_${wt_name}`;
 			const can_merge = await (async () => {
 				const entryState = await EntryState.findByPk(es_id);
@@ -44,7 +45,7 @@ export namespace EntryStateHandler {
 				const entryStates = await EntryState.find();
 				if (!entryStates) throw new Error(Message.failed(['sync', 'all entry states'], { causer: ['find', 'all entry states'] }));
 
-				return transformWordBuffer(wordBuffers, entryStates, es_id).top.length;
+				return transformWordBuffer(wordBuffers, entryStates, wordBuffer).top.length;
 			})();
 			const updatedEntryState = await EntryState.update({ can_merge }, { where: { es_id }, transaction });
 			if (!updatedEntryState) throw new Error(Message.failed(['update', 'entry state', es_id]));
@@ -136,15 +137,24 @@ export namespace EntryStateHandler {
 		const transaction = await db.transaction();
 		const updated: Array<IEntryState> = [];
 
+		const getTargetWord = async (w_basic_form: string, wt_name: string) => {
+			const wordBuffers = await WordBuffer.find({ where: { w_basic_form, wt_name }, transaction });
+			return wordBuffers?.[0];
+		}
 		const updatedEntryState1 = await (async () => {
 			const es_id = es_id1;
+			const [w_basic_form, wt_name] = es_id.split('_');
 			const updatedEntryState = await EntryState.updateByPk(es_id, { merged_with: null }, { transaction });
 			if (!updatedEntryState) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
 				causer: ['update', 'entry state', { es_id, merged_with: null }]
 			}));
 			const entryStates = await EntryState.find({ transaction });
 			if (!entryStates) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { causer: ['find', 'all entry states'] }));
-			const can_merge = transformWordBuffer(wordBuffers, entryStates, es_id1).top.length;
+			const targetWord = await getTargetWord(w_basic_form, wt_name);
+			if (!targetWord) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
+				causer: ['find', 'target word', { w_basic_form, wt_name }]
+			}));
+			const can_merge = transformWordBuffer(wordBuffers, entryStates, targetWord).top.length;
 			const entryState = await EntryState.updateByPk(es_id1, { can_merge }, { transaction });
 			if (!entryState) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
 				causer: ['update', 'entry state', { es_id, can_merge }]
@@ -155,6 +165,7 @@ export namespace EntryStateHandler {
 
 		const updatedEntryState2 = await (async () => {
 			const es_id = es_id2;
+			const [w_basic_form, wt_name] = es_id.split('_');
 			const can_merge = await (async () => {
 				const mergedEntryStates = await EntryState.find({ where: { merged_with: es_id }, transaction });
 				if (!mergedEntryStates) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
@@ -163,7 +174,11 @@ export namespace EntryStateHandler {
 				if (mergedEntryStates.length) return 0;
 				const entryStates = await EntryState.find({ transaction });
 				if (!entryStates) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { causer: ['find', 'all entry states'] }));
-				return transformWordBuffer(wordBuffers, entryStates, es_id).top.length;
+				const targetWord = await getTargetWord(w_basic_form, wt_name);
+				if (!targetWord) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
+					causer: ['find', 'target word', { w_basic_form, wt_name }]
+				}));
+				return transformWordBuffer(wordBuffers, entryStates, targetWord).top.length;
 			})();
 			const entryState = await EntryState.updateByPk(es_id, { can_merge }, { transaction });
 			if (!entryState) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {

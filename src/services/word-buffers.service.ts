@@ -5,8 +5,9 @@ import { IEntryState, IWordBuffer } from "../configs/db.config";
 import { IJishoReducedWord } from "../helpers/jisho.helper";
 
 export type TransformedWordBuffers = { top: Array<IWordBuffer>, bottom: Array<IWordBuffer> };
-export function transformWordBuffer(wordBuffers: Array<IWordBuffer>, entryStates: Array<IEntryState>, es_id: string, state?: Array<number>): TransformedWordBuffers {
-	const [w_basic_form, wt_name] = es_id.split('_');
+export function transformWordBuffer(wordBuffers: Array<IWordBuffer>, entryStates: Array<IEntryState>, targetWord: IWordBuffer, state?: Array<number>): TransformedWordBuffers {
+	const { w_basic_form, wt_name } = targetWord;
+	const es_id = `${w_basic_form}_${wt_name}`;
 	const entries = Object.fromEntries(entryStates.map(entryState => {
 		const { es_id, state, ignore, unsure, can_merge, merged_with } = entryState;
 		return [es_id, { state, ignore, unsure, can_merge, merged_with }];
@@ -27,7 +28,6 @@ export function transformWordBuffer(wordBuffers: Array<IWordBuffer>, entryStates
 	}
 
 	const filteredWords = wordBuffers.filter(wordBuffer => !isTargetWord(wordBuffer));
-	const [targetWord] = wordBuffers.filter(isTargetWord);
 	const targetState = state ?? getState(es_id);
 	if (!targetState || !targetState.length) return { top: [], bottom: filteredWords };
 
@@ -44,5 +44,5 @@ export function transformWordBuffer(wordBuffers: Array<IWordBuffer>, entryStates
 		return targetEntries.every(targetEntry => entries.some(entry => entry.slug === targetEntry.slug));
 	};
 
-	return { top: filteredWords.filter(isTopWord), bottom: filteredWords.filter(WordBuffer => !isTopWord(WordBuffer)) };
+	return { top: filteredWords.filter(isTopWord), bottom: filteredWords.filter(wordBuffer => !isTopWord(wordBuffer)) };
 }
