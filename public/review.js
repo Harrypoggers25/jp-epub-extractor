@@ -215,7 +215,7 @@ const KeydownHandlers = {
 		card: async (card, ev, clickHandler) => {
 			switch (ev.key) {
 				case 's':
-					mergeModal.modalSearchInput.focus();
+					mergeModal.elems.mergeModalSearchInput.focus();
 					break;
 				case 'ArrowDown':
 				case 'j':
@@ -952,6 +952,7 @@ class MergeModal {
 	}
 	renderModelItems(wordBuffers) {
 		this.elems.mergeModalList.innerHTML = '';
+		this.modalItems = {};
 		wordBuffers.forEach(wordBuffer => {
 			const es_id = wordId(wordBuffer);
 			this.modalItems[es_id] = this.createModalItem(wordBuffer);
