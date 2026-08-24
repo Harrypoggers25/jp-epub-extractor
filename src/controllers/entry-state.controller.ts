@@ -25,25 +25,32 @@ export namespace EntryStateHandler {
 	});
 
 	export const sync = Route.asyncHandler(async (_, res) => {
-		const wordBuffers = await WordBuffer.find();
-		if (!wordBuffers) throw new Error(Message.failed(['sync', 'all entry states'], { causer: ['find', 'all word buffers'] }));
-
 		const result: Record<string, IEntryState> = {};
 		const es_ids = new Set<string>();
 		const transaction = await db.transaction();
+
+		const wordBuffers = await WordBuffer.find({ transaction });
+		if (!wordBuffers) throw new Error(Message.failed(['sync', 'all entry states'], {
+			causer: ['find', 'all word buffers']
+		}));
+
 		for (const wordBuffer of wordBuffers) {
 			const { w_basic_form, wt_name } = wordBuffer;
 			const es_id = `${w_basic_form}_${wt_name}`;
 			const can_merge = await (async () => {
 				const entryState = await EntryState.findByPk(es_id);
-				if (!entryState) throw new Error(Message.failed(['sync', 'entry state'], { causer: ['find', 'entry state', es_id] }));
+				if (!entryState) throw new Error(Message.failed(['sync', 'entry state'], {
+					causer: ['find', 'entry state', es_id]
+				}));
 				if (entryState.merged_with) {
 					es_ids.add(entryState.merged_with);
 					return 0;
 				}
 
 				const entryStates = await EntryState.find();
-				if (!entryStates) throw new Error(Message.failed(['sync', 'all entry states'], { causer: ['find', 'all entry states'] }));
+				if (!entryStates) throw new Error(Message.failed(['sync', 'all entry states'], {
+					causer: ['find', 'all entry states']
+				}));
 
 				return transformWordBuffer(wordBuffers, entryStates, wordBuffer).top.length;
 			})();
@@ -83,11 +90,9 @@ export namespace EntryStateHandler {
 	export const merge = Route.asyncHandler(async (req, res) => {
 		const es_id1 = req.params.es_id1 as string;
 		const es_id2 = req.params.es_id2 as string;
-		const wordBuffers = await WordBuffer.find();
-		if (!wordBuffers) throw new Error(Message.failed(['merge', 'entry state', { es_id1, es_id2 }], { causer: ['find', 'all word buffers'] }));
-
-		const transaction = await db.transaction();
 		const updated: Array<IEntryState> = [];
+		const transaction = await db.transaction();
+
 
 		const updatedEntryState1 = await EntryState.updateByPk(es_id1, { merged_with: es_id2, can_merge: 0 }, { transaction });
 		if (!updatedEntryState1) throw new Error(Message.failed(['merge', 'entry state', { es_id1, es_id2 }], {
@@ -104,6 +109,9 @@ export namespace EntryStateHandler {
 		const entryStates = await EntryState.find({ transaction });
 		if (!entryStates) throw new Error(Message.failed(['merge', 'entry state', { es_id1, es_id2 }], { causer: ['find', 'all entry states'] }));
 
+		// const wordBuffers = await WordBuffer.find();
+		// if (!wordBuffers) throw new Error(Message.failed(['merge', 'entry state', { es_id1, es_id2 }], { causer: ['find', 'all word buffers'] }));
+		//
 		// const isOtherEntryState = (entryState: IEntryState) => entryState.es_id !== es_id1 && entryState.es_id !== es_id2 && !entryState.merged_with;
 		// for (const entryState of entryStates.filter(isOtherEntryState)) {
 		// 	const { es_id } = entryState;
@@ -126,13 +134,19 @@ export namespace EntryStateHandler {
 		const es_id1 = req.params.es_id as string;
 		const es_id2 = await (async () => {
 			const entryState = await EntryState.findByPk(es_id1);
-			if (!entryState) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { causer: ['find', 'entry state', es_id1] }));
+			if (!entryState) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
+				causer: ['find', 'entry state', es_id1]
+			}));
+			if (!entryState.merged_with) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
+				subMessage: 'Entry is not currently merged'
+			}));
 			return entryState.merged_with;
 		})();
-		if (!es_id2) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { subMessage: 'Entry is not currently merged' }));
 
 		const wordBuffers = await WordBuffer.find();
-		if (!wordBuffers) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { causer: ['find', 'all word buffers'] }));
+		if (!wordBuffers) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
+			causer: ['find', 'all word buffers']
+		}));
 
 		const transaction = await db.transaction();
 		const updated: Array<IEntryState> = [];
@@ -149,7 +163,9 @@ export namespace EntryStateHandler {
 				causer: ['update', 'entry state', { es_id, merged_with: null }]
 			}));
 			const entryStates = await EntryState.find({ transaction });
-			if (!entryStates) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { causer: ['find', 'all entry states'] }));
+			if (!entryStates) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
+				causer: ['find', 'all entry states']
+			}));
 			const targetWord = await getTargetWord(w_basic_form, wt_name);
 			if (!targetWord) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
 				causer: ['find', 'target word', { w_basic_form, wt_name }]
@@ -173,7 +189,9 @@ export namespace EntryStateHandler {
 				}));
 				if (mergedEntryStates.length) return 0;
 				const entryStates = await EntryState.find({ transaction });
-				if (!entryStates) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], { causer: ['find', 'all entry states'] }));
+				if (!entryStates) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
+					causer: ['find', 'all entry states']
+				}));
 				const targetWord = await getTargetWord(w_basic_form, wt_name);
 				if (!targetWord) throw new Error(Message.failed(['unmerge', 'entry state', es_id1], {
 					causer: ['find', 'target word', { w_basic_form, wt_name }]
