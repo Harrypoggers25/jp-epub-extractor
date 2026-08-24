@@ -16,6 +16,10 @@ unsureEntryStateRouter.route('/:es_id')
 	.get(UnsureEntryStateHandler.find)
 	.patch(UnsureEntryStateHandler.update)
 	.delete(UnsureEntryStateHandler.remove);
+unsureEntryStateRouter.route('/unmerge/:es_id')
+	.post(UnsureEntryStateHandler.unmerge);
+unsureEntryStateRouter.route('/merge/:es_id1/:es_id2')
+	.post(UnsureEntryStateHandler.merge);
 
 export default unsureEntryStateRouter;
 

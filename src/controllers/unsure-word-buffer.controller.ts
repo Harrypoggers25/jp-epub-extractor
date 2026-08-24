@@ -35,17 +35,26 @@ export namespace UnsureWordBufferHandler {
 			return state;
 		})();
 
-		const unsureWordBuffers = await UnsureWordBuffer.find();
-		if (!unsureWordBuffers) throw new Error(Message.failed(['transform', 'unsure word buffers', { w_basic_form, wt_name }], {
-			causer: ['find', 'all unsure word buffers']
+		const words = await Word.find();
+		if (!words) throw new Error(Message.failed(['transform', 'unsure word buffers', { w_basic_form, wt_name }], {
+			causer: ['find', 'all words']
 		}));
 
 		const unsureEntryStates = await UnsureEntryState.find();
-		if (!unsureEntryStates) throw new Error(Message.failed(['transform', 'unsure word buffers', { w_basic_form, wt_name }], { causer: ['find', 'all unsure entry states'] }));
+		if (!unsureEntryStates) throw new Error(Message.failed(['transform', 'unsure word buffers', { w_basic_form, wt_name }], {
+			causer: ['find', 'all unsure entry states']
+		}));
 
-		const es_id = `${w_basic_form}_${wt_name}`;
+		const targetWord = await (async () => {
+			const unsureWordBuffers = await UnsureWordBuffer.find({ where: { w_basic_form, wt_name } });
+			if (!unsureWordBuffers || !unsureWordBuffers.length) throw new Error(Message.failed(['transform', 'unsure word buffers', { w_basic_form, wt_name }], {
+				causer: ['find', 'target word', { w_basic_form, wt_name }]
+			}));
 
-		const { top, bottom } = transformUnsureWordBuffer(unsureWordBuffers, unsureEntryStates, es_id, state);
+			return unsureWordBuffers[0];
+		})();
+
+		const { top, bottom } = transformUnsureWordBuffer(words, unsureEntryStates, targetWord, state);
 		res.status(200).json({ top, bottom });
 	});
 
