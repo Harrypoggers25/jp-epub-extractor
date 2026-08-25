@@ -13,5 +13,9 @@ wordRouter.route('/:w_basic_form')
 wordRouter.route('/:w_basic_form/:wt_name')
 	.get(WordHandler.find)
 	.delete(WordHandler.remove);
+wordRouter.route('/transform/:w_basic_form/:wt_name')
+	.post(WordHandler.transform);
+wordRouter.route('/merge/:es_id1/:es_id2')
+	.post(WordHandler.merge);
 
 export default wordRouter;
