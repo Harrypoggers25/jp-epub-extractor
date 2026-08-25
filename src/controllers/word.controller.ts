@@ -31,9 +31,14 @@ export namespace WordHandler {
 	export const find = Route.asyncHandler(async (req, res) => {
 		const w_basic_form = req.params.w_basic_form as string;
 		const wt_name = req.params.wt_name as string;
+		const no_ignore = req.query.no_ignore as string | undefined;
 
-		const words = await Word.find({ where: { w_basic_form, wt_name } });
-		if (!words) throw new Error(Message.failed(['find', 'words', { w_basic_form, wt_name }]));
+		const words = await (async () => {
+			const words = await Word.find({ where: { w_basic_form, wt_name } });
+			if (!words) throw new Error(Message.failed(['find', 'words', { w_basic_form, wt_name }]));
+
+			return no_ignore !== 'true' ? words.filter(word => !word.ignore) : words;
+		})();
 
 		res.status(200).json(words);
 	});
