@@ -43,6 +43,27 @@ export namespace WordHandler {
 		res.status(200).json(words);
 	});
 
+	export const toggleIgnore = Route.asyncHandler(async (req, res) => {
+		const w_basic_form = req.params.w_basic_form as string;
+		const wt_name = req.params.wt_name as string;
+
+		const word = await (async () => {
+			const words = await Word.find({ where: { w_basic_form, wt_name } });
+			if (!words || !words.length) throw new Error(Message.failed(['toggle', 'ignore'], { causer: ['find', 'words', { w_basic_form, wt_name }] }));
+
+			return words[0];
+		})();
+		const updatedWord = await (async () => {
+			const ignore = !word.ignore;
+			const updateWords = await Word.update({ ignore });
+			if (!updateWords || !updateWords.length) throw new Error(Message.failed(['toggle', 'ignore'], { causer: ['update', 'words', { w_basic_form, wt_name }] }));
+
+			return updateWords[0];
+		})();
+
+		res.status(200).json(updatedWord);
+	});
+
 	export const transform = Route.asyncHandler(async (req, res) => {
 		const w_basic_form = req.params.w_basic_form as string;
 		const wt_name = req.params.wt_name as string;
