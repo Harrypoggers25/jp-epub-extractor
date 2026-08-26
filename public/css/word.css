@@ -76,6 +76,7 @@
 
 #wordDetailModal .word-detail-modal-header .modal-actions {
     flex-shrink: 0;
+    flex-wrap: wrap;
 }
 
 #wordDetailModal .word-detail-summary {
@@ -278,6 +279,111 @@
     color: var(--text-disabled);
 }
 
+#wordMergeModal .word-merge-box {
+    width: min(680px, calc(100vw - 48px));
+    max-width: none;
+    max-height: calc(100vh - 48px);
+    min-height: 0;
+}
+
+#wordMergeModal .word-merge-source {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+#wordMergeModal .word-merge-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    border: 1px solid var(--border-faint);
+    border-radius: 10px;
+    background: var(--bg-input);
+}
+
+#wordMergeModal .word-merge-group {
+    padding: 16px;
+}
+
+#wordMergeModal .word-merge-group+.word-merge-group {
+    border-top: 1px solid var(--border-faint);
+}
+
+#wordMergeModal .word-merge-group h4 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--text-muted);
+}
+
+#wordMergeModal .word-merge-empty {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+#wordMergeModal .word-merge-candidate {
+    padding: 12px 16px;
+    border-left: 4px solid var(--text-muted);
+    background: var(--bg-item);
+    transition: background .2s, border-color .2s, color .2s;
+}
+
+#wordMergeModal .word-merge-candidate+.word-merge-candidate {
+    margin-top: 8px;
+}
+
+#wordMergeModal .word-merge-candidate:not(.disabled) {
+    cursor: pointer;
+}
+
+#wordMergeModal .word-merge-candidate:not(.disabled):is(:hover, :focus) {
+    border-left-color: var(--accent);
+    background: var(--bg-item-hover);
+    box-shadow: var(--shadow-soft), 0 8px 30px var(--accent-glow);
+    outline: none;
+}
+
+#wordMergeModal .word-merge-candidate.selected {
+    border-left-color: var(--success);
+}
+
+#wordMergeModal .word-merge-candidate.selected:is(:hover, :focus) {
+    border-left-color: var(--success);
+    box-shadow: var(--shadow-soft), 0 8px 30px var(--success-glow);
+}
+
+#wordMergeModal .word-merge-candidate.selected:is(:hover, :focus) .word-merge-candidate-word {
+    color: var(--success);
+}
+
+#wordMergeModal .word-merge-candidate.disabled {
+    border-left-color: var(--border-subtle);
+    color: var(--text-muted);
+    cursor: default;
+}
+
+#wordMergeModal .word-merge-candidate-word {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+#wordMergeModal .word-merge-candidate-type,
+#wordMergeModal .word-merge-candidate-meta {
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+#wordMergeModal .word-merge-candidate-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#wordMergeModal .word-merge-candidate-ignored {
+    color: var(--warning);
+}
+
 @media (max-width: 700px) {
     .word-layout .content {
         padding: 20px;
@@ -317,5 +423,10 @@
 
     #wordDetailModal .word-detail-dictionary {
         padding: 16px 20px 20px;
+    }
+
+    #wordMergeModal .word-merge-box {
+        width: calc(100vw - 24px);
+        max-height: calc(100vh - 24px);
     }
 }

@@ -60,6 +60,15 @@ const KeydownHandlers = {
 			}
 		},
 	},
+	wordMergeModal: {
+		modal: ev => {
+			if (ev.key !== 'Escape') return;
+
+			ev.preventDefault();
+			wordMergeModal.close();
+		},
+
+	},
 }
 
 class WordList {
@@ -279,6 +288,14 @@ class WordList {
 
 		return this.getRow(updatedWord);
 	}
+	mergeWords(sourceWord, updatedTargetWord) {
+		this.words = this.words
+			.filter(word => !this.isSameWord(word, sourceWord))
+			.map(word => this.isSameWord(word, updatedTargetWord) ? updatedTargetWord : word);
+		this.renderWords();
+
+		return this.getRow(updatedTargetWord) ?? this.table.getRows()[0];
+	}
 	getEntries(word) {
 		try {
 			const entries = JSON.parse(word.j_response);
@@ -336,6 +353,13 @@ class WordDetailModal {
 		});
 		actions.appendChild(ignore);
 
+		const merge = createElement('button', 'header-btn', 'Merge');
+		merge.type = 'button';
+		merge.onclick = eventHandler(async () => {
+			await wordMergeModal.open(word, merge);
+		});
+		actions.appendChild(merge);
+
 		const close = createElement('button', 'header-btn', 'Close');
 		close.type = 'button';
 		close.onclick = eventHandler(() => this.close());
@@ -377,7 +401,7 @@ class WordDetailModal {
 		this.render(updatedWord);
 		focusElem(this.elems.wordDetailModal.querySelector('.word-detail-modal-header .modal-actions button'));
 	}
-	close() {
+	close(restoreFocus = true) {
 		const { wordDetailModal } = this.elems;
 		const opener = this.opener;
 		this.opener = null;
@@ -385,7 +409,7 @@ class WordDetailModal {
 		setClass(wordDetailModal, 'open', false);
 		wordDetailModal.setAttribute('aria-hidden', 'true');
 		wordDetailModal.innerHTML = '';
-		if (opener?.isConnected) focusElem(opener);
+		if (restoreFocus && opener?.isConnected) focusElem(opener);
 	}
 	getDictionaryCards() {
 		return Array.from(this.elems.dictionary?.getElementsByClassName('entry') ?? []);
@@ -561,8 +585,174 @@ class WordDetailModal {
 	}
 }
 
+class WordMergeModal {
+	constructor() {
+		this.elems = {
+			wordMergeModal: document.getElementById('wordMergeModal'),
+		};
+		this.source = null;
+		this.selected = null;
+		this.opener = null;
+
+		this.elems.wordMergeModal.onclick = eventHandler(ev => {
+			if (ev.target === this.elems.wordMergeModal) this.close();
+		});
+	}
+	async open(source, opener) {
+		this.source = source;
+		this.opener = opener;
+		this.selected = null;
+		this.renderLoading();
+		setClass(this.elems.wordMergeModal, 'open', true);
+		this.elems.wordMergeModal.setAttribute('aria-hidden', 'false');
+
+		const transformed = await Word.transform(source.w_basic_form, source.wt_name);
+		if (!transformed) {
+			this.renderError();
+			focusElem(this.elems.wordMergeModal.querySelector('.word-merge-cancel'));
+			return;
+		}
+
+		this.renderCandidates(transformed);
+		const [candidate] = this.getCandidates();
+		if (candidate) this.focusCandidate(candidate);
+		else focusElem(this.elems.wordMergeModal.querySelector('.word-merge-cancel'));
+	}
+	close(restoreFocus = true) {
+		const { wordMergeModal } = this.elems;
+		const opener = this.opener;
+		this.source = null;
+		this.selected = null;
+		this.opener = null;
+		setClass(wordMergeModal, 'open', false);
+		wordMergeModal.setAttribute('aria-hidden', 'true');
+		wordMergeModal.innerHTML = '';
+		if (restoreFocus && opener?.isConnected) focusElem(opener);
+	}
+	renderLoading() {
+		this.renderBox('Loading merge candidates...');
+	}
+	renderError() {
+		this.renderBox('Unable to load merge candidates', 'Please close this dialog and try again.', 'error');
+	}
+	renderBox(title, message, className = '') {
+		const { wordMergeModal } = this.elems;
+		wordMergeModal.innerHTML = '';
+		const box = createElement('div', `modal-box word-merge-box ${className}`);
+		box.setAttribute('role', 'dialog');
+		box.setAttribute('aria-modal', 'true');
+		box.setAttribute('aria-labelledby', 'wordMergeTitle');
+		box.addEventListener('keydown', KeydownHandlers.wordMergeModal.modal);
+		const heading = createElement('h3', null, title);
+		heading.id = 'wordMergeTitle';
+		box.appendChild(heading);
+		if (message) box.appendChild(createElement('p', 'overlay-message', message));
+		const actions = createElement('div', 'modal-actions');
+		const cancel = createElement('button', 'header-btn word-merge-cancel', 'Close');
+		cancel.type = 'button';
+		cancel.onclick = eventHandler(() => this.close());
+		actions.appendChild(cancel);
+		box.appendChild(actions);
+		wordMergeModal.appendChild(box);
+	}
+	renderCandidates(transformed) {
+		const { top, bottom } = transformed;
+		const { wordMergeModal } = this.elems;
+		wordMergeModal.innerHTML = '';
+
+		const box = createElement('div', 'modal-box word-merge-box');
+		box.setAttribute('role', 'dialog');
+		box.setAttribute('aria-modal', 'true');
+		box.setAttribute('aria-labelledby', 'wordMergeTitle');
+		box.addEventListener('keydown', KeydownHandlers.wordMergeModal.modal);
+		const heading = createElement('h3', null, 'Merge permanent word');
+		heading.id = 'wordMergeTitle';
+		box.appendChild(heading);
+		box.appendChild(createElement('p', 'word-merge-source', `${this.source.w_basic_form} [ ${this.source.wt_name} ] will be merged into the selected compatible word.`));
+
+		const list = createElement('div', 'word-merge-list');
+		list.appendChild(this.createCandidateGroup('Compatible merge targets', top, true));
+		list.appendChild(this.createCandidateGroup('Incompatible words', bottom, false));
+		box.appendChild(list);
+
+		const actions = createElement('div', 'modal-actions');
+		const cancel = createElement('button', 'header-btn word-merge-cancel', 'Cancel');
+		cancel.type = 'button';
+		cancel.onclick = eventHandler(() => this.close());
+		actions.appendChild(cancel);
+		const confirm = createElement('button', 'header-btn success word-merge-confirm', 'Merge');
+		confirm.type = 'button';
+		confirm.disabled = true;
+		confirm.onclick = eventHandler(async () => {
+			await this.confirm(confirm);
+		});
+		actions.appendChild(confirm);
+		box.appendChild(actions);
+		wordMergeModal.appendChild(box);
+	}
+	createCandidateGroup(title, words, selectable) {
+		const group = createElement('section', `word-merge-group${selectable ? ' compatible' : ' incompatible'}`);
+		group.appendChild(createElement('h4', null, title));
+		if (!words.length) {
+			group.appendChild(createElement('p', 'word-merge-empty', selectable ? 'No compatible merge targets.' : 'No incompatible words.'));
+			return group;
+		}
+
+		words.forEach(word => group.appendChild(this.createCandidate(word, selectable)));
+		return group;
+	}
+	createCandidate(word, selectable) {
+		const card = createElement('div', `word-merge-candidate${selectable ? '' : ' disabled'}`);
+		card.appendChild(createElement('div', 'word-merge-candidate-word', word.w_basic_form));
+		card.appendChild(createElement('div', 'word-merge-candidate-type', word.wt_name));
+		const metadata = createElement('div', 'word-merge-candidate-meta');
+		metadata.appendChild(createElement('span', null, `${word.occurrence_count} occurrences`));
+		metadata.appendChild(createElement('span', null, word.w_character_type));
+		if (word.ignore) metadata.appendChild(createElement('span', 'word-merge-candidate-ignored', 'Ignored'));
+		card.appendChild(metadata);
+		if (!selectable) {
+			card.setAttribute('aria-disabled', 'true');
+			return card;
+		}
+
+		focusable(card);
+		card.setAttribute('aria-label', `Select ${word.w_basic_form} [ ${word.wt_name} ] as merge target`);
+		card.onclick = eventHandler(() => this.selectCandidate(word, card));
+		return card;
+	}
+	selectCandidate(word, card) {
+		this.selected = word;
+		this.getCandidates().forEach(candidate => setClass(candidate, 'selected', false));
+		setClass(card, 'selected', true);
+		this.elems.wordMergeModal.querySelector('.word-merge-confirm').disabled = false;
+	}
+	getCandidates() {
+		return Array.from(this.elems.wordMergeModal.getElementsByClassName('word-merge-candidate'))
+			.filter(card => !card.classList.contains('disabled'));
+	}
+	focusCandidate(candidate) {
+		if (candidate) focusElem(candidate);
+	}
+	async confirm(button) {
+		if (!this.source || !this.selected) return;
+
+		button.disabled = true;
+		const updatedTarget = await Word.merge(wordList.getWordId(this.source), wordList.getWordId(this.selected));
+		if (!updatedTarget) {
+			button.disabled = false;
+			return;
+		}
+
+		const focusTarget = wordList.mergeWords(this.source, updatedTarget);
+		wordDetailModal.close(false);
+		this.close(false);
+		focusElem(focusTarget ?? wordList.elems.wordSearch);
+	}
+}
+
 const wordList = new WordList();
 const wordDetailModal = new WordDetailModal();
+const wordMergeModal = new WordMergeModal();
 
 asyncHandler('MAIN INIT', async () => {
 	await wordList.load();

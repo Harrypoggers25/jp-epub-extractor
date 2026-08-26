@@ -127,6 +127,32 @@ export const Word = {
 
 			return word;
 		});
+	},
+	transform: async (w_basic_form, wt_name) => {
+		return await asyncHandler('TRANSFORM WORD', async () => {
+			const response = await fetch(`/api/words/transform/${encodeURIComponent(w_basic_form)}/${encodeURIComponent(wt_name)}`, {
+				method: 'POST',
+			});
+			if (!response.ok) throw new Error('Failed to transform word. Internal error');
+
+			const words = await response.json();
+			if (!words?.top || !words?.bottom) throw new Error('Failed to transform word. Unable to find data');
+
+			return words;
+		});
+	},
+	merge: async (sourceId, targetId) => {
+		return await asyncHandler('MERGE WORD', async () => {
+			const response = await fetch(`/api/words/merge/${encodeURIComponent(sourceId)}/${encodeURIComponent(targetId)}`, {
+				method: 'POST',
+			});
+			if (!response.ok) throw new Error('Failed to merge word. Internal error');
+
+			const word = await response.json();
+			if (!word) throw new Error('Failed to merge word. Unable to update data');
+
+			return word;
+		});
 	}
 }
 
