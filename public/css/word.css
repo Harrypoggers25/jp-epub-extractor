@@ -100,25 +100,32 @@
     margin-top: 12px;
 }
 
+#wordDetailModal .word-detail-dictionary,
+#wordMergeModal .word-merge-list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) var(--bg-input);
+}
+
 #wordDetailModal .word-detail-dictionary {
     flex: 1 1 auto;
     min-height: 0;
     padding: 20px 28px 28px;
     overflow-y: auto;
     background: var(--bg-item);
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) var(--bg-input);
 }
 
-#wordDetailModal .word-detail-dictionary::-webkit-scrollbar {
+#wordDetailModal .word-detail-dictionary::-webkit-scrollbar,
+#wordMergeModal .word-merge-list::-webkit-scrollbar {
     width: 10px;
 }
 
-#wordDetailModal .word-detail-dictionary::-webkit-scrollbar-track {
+#wordDetailModal .word-detail-dictionary::-webkit-scrollbar-track,
+#wordMergeModal .word-merge-list::-webkit-scrollbar-track {
     background: var(--bg-input);
 }
 
-#wordDetailModal .word-detail-dictionary::-webkit-scrollbar-thumb {
+#wordDetailModal .word-detail-dictionary::-webkit-scrollbar-thumb,
+#wordMergeModal .word-merge-list::-webkit-scrollbar-thumb {
     border: 3px solid transparent;
     border-radius: 999px;
     background: var(--border);

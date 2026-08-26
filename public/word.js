@@ -67,7 +67,37 @@ const KeydownHandlers = {
 			ev.preventDefault();
 			wordMergeModal.close();
 		},
-
+		candidate: (candidate, ev) => {
+			const candidates = wordMergeModal.getCandidates();
+			const index = candidates.indexOf(candidate);
+			switch (ev.key) {
+				case 'j':
+				case 'ArrowDown':
+					ev.preventDefault();
+					wordMergeModal.focusCandidate(candidates[index + 1]);
+					break;
+				case 'k':
+				case 'ArrowUp':
+					ev.preventDefault();
+					wordMergeModal.focusCandidate(candidates[index - 1]);
+					break;
+				case 'g':
+				case 'Home':
+					ev.preventDefault();
+					wordMergeModal.focusCandidate(candidates[0]);
+					break;
+				case 'G':
+				case 'End':
+					ev.preventDefault();
+					wordMergeModal.focusCandidate(candidates.at(-1));
+					break;
+				case 'Enter':
+				case ' ':
+					ev.preventDefault();
+					candidate.click();
+					break;
+			}
+		},
 	},
 }
 
@@ -718,13 +748,15 @@ class WordMergeModal {
 		focusable(card);
 		card.setAttribute('aria-label', `Select ${word.w_basic_form} [ ${word.wt_name} ] as merge target`);
 		card.onclick = eventHandler(() => this.selectCandidate(word, card));
+		card.addEventListener('keydown', ev => KeydownHandlers.wordMergeModal.candidate(card, ev));
 		return card;
 	}
 	selectCandidate(word, card) {
-		this.selected = word;
+		const selected = this.selected === word;
+		this.selected = selected ? null : word;
 		this.getCandidates().forEach(candidate => setClass(candidate, 'selected', false));
-		setClass(card, 'selected', true);
-		this.elems.wordMergeModal.querySelector('.word-merge-confirm').disabled = false;
+		setClass(card, 'selected', !selected);
+		this.elems.wordMergeModal.querySelector('.word-merge-confirm').disabled = !this.selected;
 	}
 	getCandidates() {
 		return Array.from(this.elems.wordMergeModal.getElementsByClassName('word-merge-candidate'))
