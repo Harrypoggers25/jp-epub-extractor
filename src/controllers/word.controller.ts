@@ -55,7 +55,7 @@ export namespace WordHandler {
 		})();
 		const updatedWord = await (async () => {
 			const ignore = !word.ignore;
-			const updateWords = await Word.update({ ignore });
+			const updateWords = await Word.update({ ignore }, { where: { w_basic_form, wt_name } });
 			if (!updateWords || !updateWords.length) throw new Error(Message.failed(['toggle', 'ignore'], { causer: ['update', 'words', { w_basic_form, wt_name }] }));
 
 			return updateWords[0];
