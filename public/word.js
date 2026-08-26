@@ -225,6 +225,7 @@ class WordList {
 	}
 	createWordRow(word) {
 		const row = createElement('tr');
+		row.dataset.wordId = this.getWordId(word);
 		row.setAttribute('aria-haspopup', 'dialog');
 		row.setAttribute('aria-label', `Show details for ${word.w_basic_form}`);
 
@@ -263,6 +264,21 @@ class WordList {
 	getStatus(word) {
 		return word.ignore ? 'Ignored' : '—';
 	}
+	getWordId(word) {
+		return `${word.w_basic_form}_${word.wt_name}`;
+	}
+	isSameWord(word1, word2) {
+		return this.getWordId(word1) === this.getWordId(word2);
+	}
+	getRow(word) {
+		return this.table.getRows().find(row => row.dataset.wordId === this.getWordId(word));
+	}
+	updateWord(updatedWord) {
+		this.words = this.words.map(word => this.isSameWord(word, updatedWord) ? updatedWord : word);
+		this.renderWords();
+
+		return this.getRow(updatedWord);
+	}
 	getEntries(word) {
 		try {
 			const entries = JSON.parse(word.j_response);
@@ -298,6 +314,10 @@ class WordDetailModal {
 		});
 	}
 	open(word, opener) {
+		this.opener = opener;
+		this.render(word);
+	}
+	render(word) {
 		const { wordDetailModal } = this.elems;
 		const entries = wordList.getEntries(word);
 		wordDetailModal.innerHTML = '';
@@ -309,6 +329,13 @@ class WordDetailModal {
 		modalBox.addEventListener('keydown', KeydownHandlers.wordDetailModal.modal);
 
 		const actions = createElement('div', 'modal-actions');
+		const ignore = createElement('button', 'header-btn', word.ignore ? 'Unignore' : 'Ignore');
+		ignore.type = 'button';
+		ignore.onclick = eventHandler(async () => {
+			await this.toggleIgnore(word, ignore);
+		});
+		actions.appendChild(ignore);
+
 		const close = createElement('button', 'header-btn', 'Close');
 		close.type = 'button';
 		close.onclick = eventHandler(() => this.close());
@@ -331,12 +358,24 @@ class WordDetailModal {
 
 		wordDetailModal.appendChild(modalBox);
 		wordDetailModal.setAttribute('aria-hidden', 'false');
-		this.opener = opener;
 		this.elems.dictionary = dictionary;
 		setClass(wordDetailModal, 'open', true);
 		const [card] = this.getDictionaryCards();
 		if (card) this.focusCard(card);
 		else focusElem(close);
+	}
+	async toggleIgnore(word, button) {
+		button.disabled = true;
+		const updatedWord = await Word.toggleIgnore(word.w_basic_form, word.wt_name);
+		if (!updatedWord) {
+			button.disabled = false;
+			return;
+		}
+
+		const opener = wordList.updateWord(updatedWord);
+		this.opener = opener ?? wordList.table.getRows()[0] ?? wordList.elems.wordSearch;
+		this.render(updatedWord);
+		focusElem(this.elems.wordDetailModal.querySelector('.word-detail-modal-header .modal-actions button'));
 	}
 	close() {
 		const { wordDetailModal } = this.elems;

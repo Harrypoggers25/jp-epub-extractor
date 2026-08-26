@@ -114,6 +114,19 @@ export const Word = {
 
 			return words;
 		});
+	},
+	toggleIgnore: async (w_basic_form, wt_name) => {
+		return await asyncHandler('TOGGLE IGNORE WORD', async () => {
+			const response = await fetch(`/api/words/toggle-ignore/${encodeURIComponent(w_basic_form)}/${encodeURIComponent(wt_name)}`, {
+				method: 'POST',
+			});
+			if (!response.ok) throw new Error('Failed to toggle ignore word. Internal error');
+
+			const word = await response.json();
+			if (!word) throw new Error('Failed to toggle ignore word. Unable to update data');
+
+			return word;
+		});
 	}
 }
 
