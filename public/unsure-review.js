@@ -413,7 +413,7 @@ class Buffer {
 	syncActionState() {
 		const entryState = this.getEntryState();
 		if (!entryState || !this.elems.btnMerge || !this.elems.btnIgnore) return;
-		setClass(this.elems.btnIgnore, 'success', entryState.ignore);
+		setClass(this.elems.btnIgnore, 'selected', entryState.ignore);
 		setClass(this.elems.btnMerge, 'selected', Boolean(entryState.merged_with));
 		this.elems.btnMerge.textContent = entryState.merged_with ? 'Unmerge' : 'Merge';
 		this.elems.btnIgnore.textContent = 'Ignore';
