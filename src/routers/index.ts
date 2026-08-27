@@ -11,6 +11,7 @@ import sentenceBufferRouter from "./sentence-buffer.router";
 import jishoBufferRouter from "./jisho-buffer.router";
 import tokenBufferRouter from "./token-buffer.router";
 import unsureWordBufferRouter from "./unsure-word-buffer.router";
+import unsureEntryStateRouter from "./unsure-entry-state.router";
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.use('/api/word-buffers', wordBufferRouter);
 router.use('/api/entry-states', entryStateRouter);
 router.use('/api/words', wordRouter);
 router.use('/api/word-buffers/unsure', unsureWordBufferRouter);
+router.use('/api/entry-states/unsure', unsureEntryStateRouter);
 
 router.get('/book', (_, res) => {
 	res.render('book');
