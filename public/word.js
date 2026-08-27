@@ -308,12 +308,10 @@ class WordList {
 		const timestamp = this.getCreatedAtTimestamp(word);
 		if (!timestamp) return '—';
 
-		return new Date(timestamp).toLocaleDateString('en-GB', {
-			timeZone: 'UTC',
-			day: '2-digit',
-			month: 'short',
-			year: 'numeric',
-		});
+		const date = new Date(timestamp);
+		return [date.getUTCDate(), date.getUTCMonth() + 1, date.getUTCFullYear()]
+			.map(value => `${value}`.padStart(2, '0'))
+			.join('-');
 	}
 	getStatus(word) {
 		return word.ignore ? 'Ignored' : '—';
@@ -598,7 +596,7 @@ class WordDetailModal {
 	createAdvancedMetadata(word) {
 		const details = [];
 		if (typeof word.token_ids === 'string' && word.token_ids.trim()) details.push(['Token IDs', word.token_ids]);
-		if (typeof word.created_at === 'string' && word.created_at.trim()) details.push(['Created', word.created_at]);
+		if (typeof word.created_at === 'string' && word.created_at.trim()) details.push(['Created', wordList.getCreatedAt(word)]);
 		if (!details.length) return;
 
 		const section = createElement('div', 'word-detail-advanced');
