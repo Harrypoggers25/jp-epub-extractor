@@ -480,34 +480,43 @@
 }
 
 #mergeModal .modal-item {
-    padding: 14px;
-    border: 1px solid var(--border-subtle);
-    border-radius: 10px;
+    padding: 12px 16px;
+    border-left: 4px solid var(--text-muted);
+    background: var(--bg-item);
     cursor: pointer;
-    margin-bottom: 8px;
+    margin: 0;
+    transition: background .2s, border-color .2s, color .2s;
+}
+
+#mergeModal .modal-item + .modal-item {
+    margin-top: 8px;
 }
 
 #mergeModal .modal-item:is(:hover, :focus-visible) {
     outline: none;
-    border-color: var(--accent);
-    background: var(--accent-bg);
-    box-shadow: 0 0 0 3px var(--accent-glow);
+    border-left-color: var(--accent);
+    background: var(--bg-item-hover);
+    box-shadow: var(--shadow-soft), 0 8px 30px var(--accent-glow);
 }
 
 #mergeModal .modal-item.selected {
-    border-color: var(--success);
-    background: var(--success-bg);
+    border-left-color: var(--success);
 }
 
 #mergeModal .modal-item.selected:is(:hover, :focus-visible) {
-    border-color: var(--success);
-    background: var(--success-bg);
-    box-shadow: 0 0 0 3px var(--accent-glow);
+    border-left-color: var(--success);
+    background: var(--bg-item-hover);
+    box-shadow: var(--shadow-soft), 0 8px 30px var(--success-glow);
 }
 
 #mergeModal .modal-item.unrecommended {
-    cursor: default;
-    opacity: .68;
+    border-left-color: var(--border-subtle);
+    color: var(--text-muted);
+    opacity: 1;
+}
+
+#mergeModal .modal-item.unrecommended.selected {
+    border-left-color: var(--success);
 }
 
 #mergeModal .modal-item-word {

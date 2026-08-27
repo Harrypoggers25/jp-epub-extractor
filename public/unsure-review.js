@@ -680,7 +680,6 @@ class MergeModal {
 		if (candidate.ignore) metadata.appendChild(createElement('span', 'modal-item-ignored', 'Ignored'));
 		card.appendChild(metadata);
 		const select = () => {
-			if (!recommended) return;
 			if (this.selected && getPermanentWordTargetId(this.selected) === getPermanentWordTargetId(candidate)) {
 				this.selected = null;
 				this.elems.selected.textContent = '';
@@ -693,9 +692,8 @@ class MergeModal {
 			this.elems.confirm.disabled = false;
 			Array.from(this.elems.list.getElementsByClassName('modal-item')).forEach(item => setClass(item, 'selected', item === card));
 		};
-		if (recommended) card.onclick = eventHandler(select);
+		card.onclick = eventHandler(select);
 		card.addEventListener('keydown', ev => KeydownHandlers.mergeModal.card(card, ev));
-		if (!recommended) card.setAttribute('aria-disabled', 'true');
 		focusable(card);
 		return card;
 	}
