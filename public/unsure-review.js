@@ -656,26 +656,31 @@ class MergeModal {
 	renderCandidates() {
 		this.elems.list.innerHTML = '';
 		const { top, bottom } = this.getVisibleCandidates();
-		this.elems.list.appendChild(this.createCandidateGroup('Compatible', top, true));
-		this.elems.list.appendChild(this.createCandidateGroup('Incompatible', bottom, false));
+		this.elems.list.appendChild(this.createCandidateGroup('Recommended', top, true));
+		this.elems.list.appendChild(this.createCandidateGroup('Unrecommended', bottom, false));
 	}
-	createCandidateGroup(label, candidates, compatible) {
-		const group = createElement('section', `modal-candidate-group ${compatible ? 'compatible' : 'incompatible'}`);
+	createCandidateGroup(label, candidates, recommended) {
+		const group = createElement('section', `modal-candidate-group ${recommended ? 'recommended' : 'unrecommended'}`);
 		group.appendChild(createElement('h4', 'modal-candidate-heading', `${label} (${candidates.length})`));
 		if (!candidates.length) {
-			group.appendChild(createElement('div', 'modal-candidate-empty', compatible ? 'No compatible permanent words returned.' : 'No incompatible permanent words returned.'));
+			group.appendChild(createElement('div', 'modal-candidate-empty', recommended ? 'No recommended permanent words returned.' : 'No unrecommended permanent words returned.'));
 			return group;
 		}
-		for (const candidate of candidates) group.appendChild(this.createCandidate(candidate, compatible));
+		for (const candidate of candidates) group.appendChild(this.createCandidate(candidate, recommended));
 		return group;
 	}
-	createCandidate(candidate, compatible) {
-		const card = createElement('div', `modal-item ${compatible ? 'compatible' : 'incompatible'}`);
+	createCandidate(candidate, recommended) {
+		const card = createElement('div', `modal-item ${recommended ? 'recommended' : 'unrecommended'}`);
 		card.dataset.id = getPermanentWordTargetId(candidate);
 		card.appendChild(createElement('div', 'modal-item-word', candidate.w_basic_form));
 		card.appendChild(createElement('div', 'modal-item-type', candidate.wt_name));
+		const metadata = createElement('div', 'modal-item-meta');
+		metadata.appendChild(createElement('span', null, `${candidate.occurrence_count} occurrences`));
+		metadata.appendChild(createElement('span', null, candidate.w_character_type));
+		if (candidate.ignore) metadata.appendChild(createElement('span', 'modal-item-ignored', 'Ignored'));
+		card.appendChild(metadata);
 		const select = () => {
-			if (!compatible) return;
+			if (!recommended) return;
 			if (this.selected && getPermanentWordTargetId(this.selected) === getPermanentWordTargetId(candidate)) {
 				this.selected = null;
 				this.elems.selected.textContent = '';
@@ -688,9 +693,9 @@ class MergeModal {
 			this.elems.confirm.disabled = false;
 			Array.from(this.elems.list.getElementsByClassName('modal-item')).forEach(item => setClass(item, 'selected', item === card));
 		};
-		if (compatible) card.onclick = eventHandler(select);
+		if (recommended) card.onclick = eventHandler(select);
 		card.addEventListener('keydown', ev => KeydownHandlers.mergeModal.card(card, ev));
-		if (!compatible) card.setAttribute('aria-disabled', 'true');
+		if (!recommended) card.setAttribute('aria-disabled', 'true');
 		focusable(card);
 		return card;
 	}

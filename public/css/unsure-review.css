@@ -475,7 +475,7 @@
     box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
-#mergeModal .modal-item.incompatible {
+#mergeModal .modal-item.unrecommended {
     cursor: default;
     opacity: .68;
 }
@@ -488,6 +488,19 @@
 #mergeModal .modal-item-type {
     color: var(--text-muted);
     margin-top: 4px;
+}
+
+#mergeModal .modal-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+#mergeModal .modal-item-ignored {
+    color: var(--warning);
 }
 
 #confirmOverlay .overlay-box {
