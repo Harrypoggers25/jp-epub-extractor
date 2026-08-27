@@ -144,29 +144,40 @@
 }
 
 #wordDetailModal .word-detail-modal-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 20px;
+    display: contents;
 }
 
 #wordDetailModal .word-detail-modal-header .modal-actions {
-    flex-shrink: 0;
-    flex-wrap: wrap;
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: start;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+#wordDetailModal .word-detail-modal-header .modal-actions .header-btn {
+    width: 88px;
+    text-align: center;
 }
 
 #wordDetailModal .word-detail-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: 20px;
     flex-shrink: 0;
     padding: 28px 28px 20px;
     border-bottom: 1px solid var(--border-faint);
 }
 
 #wordDetailModal .word-detail-title {
+    grid-column: 1;
     margin: 0;
     font-size: 34px;
 }
 
 #wordDetailModal .word-detail-meta {
+    grid-column: 1;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -343,6 +354,7 @@
 }
 
 #wordDetailModal .word-detail-advanced {
+    grid-column: 1;
     display: grid;
     gap: 8px;
     margin-top: 16px;
@@ -363,10 +375,12 @@
 }
 
 #wordMergeModal .word-merge-box {
+    box-sizing: border-box;
     width: min(680px, calc(100vw - 48px));
     max-width: none;
+    height: min(662px, calc(100vh - 48px));
+    min-height: min(662px, calc(100vh - 48px));
     max-height: calc(100vh - 48px);
-    min-height: 0;
 }
 
 #wordMergeModal .word-merge-source {
@@ -492,14 +506,6 @@
         max-height: calc(100vh - 24px);
     }
 
-    #wordDetailModal .word-detail-modal-header {
-        flex-direction: column;
-    }
-
-    #wordDetailModal .word-detail-modal-header .modal-actions {
-        align-self: flex-end;
-    }
-
     #wordDetailModal .word-detail-summary {
         padding: 20px 20px 16px;
     }
@@ -510,6 +516,8 @@
 
     #wordMergeModal .word-merge-box {
         width: calc(100vw - 24px);
+        height: min(662px, calc(100vh - 24px));
+        min-height: min(662px, calc(100vh - 24px));
         max-height: calc(100vh - 24px);
     }
 }

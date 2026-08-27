@@ -389,19 +389,20 @@ class WordDetailModal {
 		modalBox.addEventListener('keydown', KeydownHandlers.wordDetailModal.modal);
 
 		const actions = createElement('div', 'modal-actions');
-		const ignore = createElement('button', 'header-btn', word.ignore ? 'Unignore' : 'Ignore');
-		ignore.type = 'button';
-		ignore.onclick = eventHandler(async () => {
-			await this.toggleIgnore(word, ignore);
-		});
-		actions.appendChild(ignore);
-
 		const merge = createElement('button', 'header-btn', 'Merge');
 		merge.type = 'button';
 		merge.onclick = eventHandler(async () => {
 			await wordMergeModal.open(word, merge);
 		});
 		actions.appendChild(merge);
+
+		const ignore = createElement('button', 'header-btn', 'Ignore');
+		setClass(ignore, 'selected', word.ignore);
+		ignore.type = 'button';
+		ignore.onclick = eventHandler(async () => {
+			await this.toggleIgnore(word, ignore);
+		});
+		actions.appendChild(ignore);
 
 		const close = createElement('button', 'header-btn', 'Close');
 		close.type = 'button';
