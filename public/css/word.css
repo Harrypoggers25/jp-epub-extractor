@@ -36,6 +36,18 @@
     min-width: 100%;
 }
 
+.word-layout .header-btn.continue-entry {
+    border-color: var(--warning);
+    color: var(--warning);
+}
+
+.word-layout .header-btn.continue-entry:is(:hover, :focus) {
+    background: var(--warning-bg-hover);
+    border-color: var(--warning);
+    box-shadow: var(--shadow-soft), 0 8px 30px var(--warning-glow);
+    color: var(--warning);
+}
+
 .word-layout .word-type,
 .word-layout .word-status.ignored {
     display: inline-block;

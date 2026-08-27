@@ -1,4 +1,4 @@
-import { Word } from "./api.helper.js";
+import { BookBuffer, Word } from "./api.helper.js";
 import { filterItems } from "./table.helper.js";
 import { Table } from "./table.js";
 import { asyncHandler, createElement, eventHandler, focusElem, focusable, setClass } from "./tools.helper.js";
@@ -99,6 +99,21 @@ const KeydownHandlers = {
 			}
 		},
 	},
+}
+
+class BookEntry {
+	constructor() {
+		this.elems = {
+			btnBook: document.getElementById('btnBook'),
+		}
+	}
+	async load() {
+		const bookBuffer = await BookBuffer.findCurrent();
+		if (!bookBuffer) return;
+
+		this.elems.btnBook.textContent = 'Continue entry';
+		setClass(this.elems.btnBook, 'continue-entry', true);
+	}
 }
 
 class WordList {
@@ -782,10 +797,11 @@ class WordMergeModal {
 	}
 }
 
+const bookEntry = new BookEntry();
 const wordList = new WordList();
 const wordDetailModal = new WordDetailModal();
 const wordMergeModal = new WordMergeModal();
 
 asyncHandler('MAIN INIT', async () => {
-	await wordList.load();
+	await Promise.all([bookEntry.load(), wordList.load()]);
 });
