@@ -23,8 +23,8 @@ router.use('/api/jisho-buffers', jishoBufferRouter);
 router.use('/api/word-buffers', wordBufferRouter);
 router.use('/api/entry-states', entryStateRouter);
 router.use('/api/words', wordRouter);
-router.use('/api/word-buffers/unsure', unsureWordBufferRouter);
-router.use('/api/entry-states/unsure', unsureEntryStateRouter);
+router.use('/api/unsure/word-buffers', unsureWordBufferRouter);
+router.use('/api/unsure/entry-states', unsureEntryStateRouter);
 
 router.get('/book', (_, res) => {
 	res.render('book');
