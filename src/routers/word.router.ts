@@ -11,8 +11,7 @@ wordRouter.route('/')
 wordRouter.route('/:w_basic_form')
 	.get(WordHandler.findMany);
 wordRouter.route('/:w_basic_form/:wt_name')
-	.get(WordHandler.find)
-	.delete(WordHandler.remove);
+	.get(WordHandler.find);
 wordRouter.route('/toggle-ignore/:w_basic_form/:wt_name')
 	.post(WordHandler.toggleIgnore);
 wordRouter.route('/transform/:w_basic_form/:wt_name')

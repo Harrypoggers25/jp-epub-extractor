@@ -127,13 +127,5 @@ export namespace WordHandler {
 		await transaction.commit();
 		res.status(200).json(updatedWord);
 	});
-
-	export const remove = Route.asyncHandler(async (req, res) => {
-		const w_id = +req.params.w_id;
-		const word = await Word.deleteByPk(w_id);
-		if (!word) throw new Error(Message.failed(['delete', 'word', w_id]));
-
-		res.status(200).json(word);
-	});
 }
 
