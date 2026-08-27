@@ -173,7 +173,7 @@ export const parseUnsureWordBuffer = wordBuffer => {
 export const UnsureWordBuffer = {
 	findAll: async () => {
 		return await asyncHandler('FIND ALL UNSURE WORD BUFFERS', async () => {
-			const response = await fetch('/api/word-buffers/unsure', { method: 'GET' });
+			const response = await fetch('/api/unsure/word-buffers', { method: 'GET' });
 			if (!response.ok) throw new Error('Failed to find all unsure word buffers. Internal error');
 
 			const wordBuffers = await response.json();
@@ -184,7 +184,7 @@ export const UnsureWordBuffer = {
 	},
 	findMany: async (w_basic_form) => {
 		return await asyncHandler('FIND UNSURE WORD BUFFERS', async () => {
-			const response = await fetch(`/api/word-buffers/unsure/${encodeURIComponent(w_basic_form)}`, { method: 'GET' });
+			const response = await fetch(`/api/unsure/word-buffers/${encodeURIComponent(w_basic_form)}`, { method: 'GET' });
 			if (!response.ok) throw new Error('Failed to find unsure word buffers. Internal error');
 
 			const wordBuffers = await response.json();
@@ -195,7 +195,7 @@ export const UnsureWordBuffer = {
 	},
 	find: async (w_basic_form, wt_name) => {
 		return await asyncHandler('FIND UNSURE WORD BUFFER', async () => {
-			const response = await fetch(`/api/word-buffers/unsure/${encodeURIComponent(w_basic_form)}/${encodeURIComponent(wt_name)}`, { method: 'GET' });
+			const response = await fetch(`/api/unsure/word-buffers/${encodeURIComponent(w_basic_form)}/${encodeURIComponent(wt_name)}`, { method: 'GET' });
 			if (!response.ok) throw new Error('Failed to find unsure word buffer. Internal error');
 
 			const wordBuffer = await response.json();
@@ -206,7 +206,7 @@ export const UnsureWordBuffer = {
 	},
 	count: async () => {
 		return await asyncHandler('COUNT UNSURE WORD BUFFERS', async () => {
-			const response = await fetch('/api/word-buffers/unsure/count', { method: 'GET' });
+			const response = await fetch('/api/unsure/word-buffers/count', { method: 'GET' });
 			if (!response.ok) throw new Error('Failed to count unsure word buffers. Internal error');
 
 			const data = await response.json();
@@ -218,7 +218,7 @@ export const UnsureWordBuffer = {
 	transform: async (w_basic_form, wt_name, body = {}) => {
 		body.state = body.state ? Array.from(body.state) : body.state;
 		return await asyncHandler('TRANSFORM UNSURE WORD BUFFERS', async () => {
-			const response = await fetch(`/api/word-buffers/unsure/transform/${encodeURIComponent(w_basic_form)}/${encodeURIComponent(wt_name)}`, {
+			const response = await fetch(`/api/unsure/word-buffers/transform/${encodeURIComponent(w_basic_form)}/${encodeURIComponent(wt_name)}`, {
 				method: 'POST',
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(body),
@@ -233,7 +233,7 @@ export const UnsureWordBuffer = {
 	},
 	confirm: (onmessage, onerror, onclose) => {
 		return asyncHandler('CONFIRM UNSURE WORD BUFFERS', () => {
-			const eventSource = new PostEventSource('/api/word-buffers/unsure/confirm');
+			const eventSource = new PostEventSource('/api/unsure/word-buffers/confirm');
 
 			eventSource.onmessage = async event => {
 				await onmessage(JSON.parse(event.data), eventSource);
@@ -266,7 +266,7 @@ const parseUnsureEntryState = entryState => {
 export const UnsureEntryState = {
 	findAll: async () => {
 		return await asyncHandler('FIND ALL UNSURE ENTRY STATES', async () => {
-			const response = await fetch('/api/unsure-entry-states', { method: 'GET' });
+			const response = await fetch('/api/unsure/entry-states', { method: 'GET' });
 			if (!response.ok) throw new Error('Failed to find all unsure entry states. Internal error');
 
 			const entryStates = await response.json();
@@ -277,7 +277,7 @@ export const UnsureEntryState = {
 	},
 	find: async es_id => {
 		return await asyncHandler('FIND UNSURE ENTRY STATE', async () => {
-			const response = await fetch(`/api/unsure-entry-states/${encodeURIComponent(es_id)}`, { method: 'GET' });
+			const response = await fetch(`/api/unsure/entry-states/${encodeURIComponent(es_id)}`, { method: 'GET' });
 			if (!response.ok) throw new Error(`Failed to find unsure entry state [${es_id}]. Internal error`);
 
 			const entryState = await response.json();
@@ -289,7 +289,7 @@ export const UnsureEntryState = {
 	update: async (es_id, body) => {
 		if (body.state) body.state = Array.from(body.state).sort((a, b) => a - b);
 		return await asyncHandler('UPDATE UNSURE ENTRY STATE', async () => {
-			const response = await fetch(`/api/unsure-entry-states/${encodeURIComponent(es_id)}`, {
+			const response = await fetch(`/api/unsure/entry-states/${encodeURIComponent(es_id)}`, {
 				method: 'PATCH',
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(body),
@@ -304,7 +304,7 @@ export const UnsureEntryState = {
 	},
 	merge: async (source_es_id, target_word_id) => {
 		return await asyncHandler('MERGE UNSURE ENTRY STATE', async () => {
-			const response = await fetch(`/api/unsure-entry-states/merge/${encodeURIComponent(source_es_id)}/${encodeURIComponent(target_word_id)}`, { method: 'POST' });
+			const response = await fetch(`/api/unsure/entry-states/merge/${encodeURIComponent(source_es_id)}/${encodeURIComponent(target_word_id)}`, { method: 'POST' });
 			if (!response.ok) throw new Error(`Failed to merge unsure entry state [${source_es_id}]. Internal error`);
 
 			const entryState = await response.json();
@@ -315,7 +315,7 @@ export const UnsureEntryState = {
 	},
 	unmerge: async source_es_id => {
 		return await asyncHandler('UNMERGE UNSURE ENTRY STATE', async () => {
-			const response = await fetch(`/api/unsure-entry-states/unmerge/${encodeURIComponent(source_es_id)}`, { method: 'POST' });
+			const response = await fetch(`/api/unsure/entry-states/unmerge/${encodeURIComponent(source_es_id)}`, { method: 'POST' });
 			if (!response.ok) throw new Error(`Failed to unmerge unsure entry state [${source_es_id}]. Internal error`);
 
 			const entryState = await response.json();
