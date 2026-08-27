@@ -388,6 +388,21 @@
     color: var(--text-muted);
 }
 
+#wordMergeModal .word-merge-search {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-input);
+    color: var(--text);
+}
+
+#wordMergeModal .word-merge-search:focus-visible {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+    outline: none;
+}
+
 #wordMergeModal .word-merge-list {
     flex: 1 1 auto;
     min-height: 0;
@@ -429,11 +444,11 @@
     margin-top: 8px;
 }
 
-#wordMergeModal .word-merge-candidate:not(.disabled) {
+#wordMergeModal .word-merge-candidate {
     cursor: pointer;
 }
 
-#wordMergeModal .word-merge-candidate:not(.disabled):is(:hover, :focus) {
+#wordMergeModal .word-merge-candidate:is(:hover, :focus) {
     border-left-color: var(--accent);
     background: var(--bg-item-hover);
     box-shadow: var(--shadow-soft), 0 8px 30px var(--accent-glow);
@@ -453,10 +468,12 @@
     color: var(--success);
 }
 
-#wordMergeModal .word-merge-candidate.disabled {
-    border-left-color: var(--border-subtle);
+#wordMergeModal .word-merge-candidate.unrecommended {
     color: var(--text-muted);
-    cursor: default;
+}
+
+#wordMergeModal .word-merge-candidate.unrecommended.selected {
+    border-left-color: var(--success);
 }
 
 #wordMergeModal .word-merge-candidate-word {

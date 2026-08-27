@@ -67,6 +67,16 @@ const KeydownHandlers = {
 			ev.preventDefault();
 			wordMergeModal.close();
 		},
+		search: ev => {
+			if (ev.key === 'Enter') {
+				ev.preventDefault();
+				wordMergeModal.focusCandidate(wordMergeModal.getCandidates()[0]);
+			}
+			if (ev.key === 'Escape') {
+				ev.preventDefault();
+				wordMergeModal.close();
+			}
+		},
 		candidate: (candidate, ev) => {
 			const candidates = wordMergeModal.getCandidates();
 			const index = candidates.indexOf(candidate);
@@ -637,6 +647,7 @@ class WordMergeModal {
 		this.source = null;
 		this.selected = null;
 		this.opener = null;
+		this.candidates = { top: [], bottom: [] };
 
 		this.elems.wordMergeModal.onclick = eventHandler(ev => {
 			if (ev.target === this.elems.wordMergeModal) this.close();
@@ -646,6 +657,7 @@ class WordMergeModal {
 		this.source = source;
 		this.opener = opener;
 		this.selected = null;
+		this.candidates = { top: [], bottom: [] };
 		this.renderLoading();
 		setClass(this.elems.wordMergeModal, 'open', true);
 		this.elems.wordMergeModal.setAttribute('aria-hidden', 'false');
@@ -668,6 +680,7 @@ class WordMergeModal {
 		this.source = null;
 		this.selected = null;
 		this.opener = null;
+		this.candidates = { top: [], bottom: [] };
 		setClass(wordMergeModal, 'open', false);
 		wordMergeModal.setAttribute('aria-hidden', 'true');
 		wordMergeModal.innerHTML = '';
@@ -700,7 +713,10 @@ class WordMergeModal {
 		wordMergeModal.appendChild(box);
 	}
 	renderCandidates(transformed) {
-		const { top, bottom } = transformed;
+		this.candidates = {
+			top: transformed.top ?? [],
+			bottom: transformed.bottom ?? [],
+		};
 		const { wordMergeModal } = this.elems;
 		wordMergeModal.innerHTML = '';
 
@@ -713,10 +729,15 @@ class WordMergeModal {
 		heading.id = 'wordMergeTitle';
 		box.appendChild(heading);
 		box.appendChild(createElement('p', 'word-merge-source', `${this.source.w_basic_form} [ ${this.source.wt_name} ] will be merged into the selected compatible word.`));
+		const search = createElement('input', 'word-merge-search');
+		search.type = 'text';
+		search.placeholder = 'Search permanent words...';
+		search.autocomplete = 'off';
+		search.oninput = () => this.renderCandidateGroups();
+		search.addEventListener('keydown', KeydownHandlers.wordMergeModal.search);
+		box.appendChild(search);
 
 		const list = createElement('div', 'word-merge-list');
-		list.appendChild(this.createCandidateGroup('Compatible merge targets', top, true));
-		list.appendChild(this.createCandidateGroup('Incompatible words', bottom, false));
 		box.appendChild(list);
 
 		const actions = createElement('div', 'modal-actions');
@@ -733,20 +754,39 @@ class WordMergeModal {
 		actions.appendChild(confirm);
 		box.appendChild(actions);
 		wordMergeModal.appendChild(box);
+		this.renderCandidateGroups();
 	}
-	createCandidateGroup(title, words, selectable) {
-		const group = createElement('section', `word-merge-group${selectable ? ' compatible' : ' incompatible'}`);
+	getVisibleCandidates() {
+		const search = this.elems.wordMergeModal.querySelector('.word-merge-search');
+		const text = search?.value.trim() ?? '';
+		const matches = word => !text || `${word.w_basic_form} ${word.wt_name}`.includes(text);
+		return {
+			top: this.candidates.top.filter(matches),
+			bottom: this.candidates.bottom.filter(matches),
+		};
+	}
+	renderCandidateGroups() {
+		const list = this.elems.wordMergeModal.querySelector('.word-merge-list');
+		if (!list) return;
+
+		const { top, bottom } = this.getVisibleCandidates();
+		list.innerHTML = '';
+		list.appendChild(this.createCandidateGroup(`Recommended (${top.length})`, top, true));
+		list.appendChild(this.createCandidateGroup(`Unrecommended (${bottom.length})`, bottom, false));
+	}
+	createCandidateGroup(title, words, recommended) {
+		const group = createElement('section', `word-merge-group ${recommended ? 'recommended' : 'unrecommended'}`);
 		group.appendChild(createElement('h4', null, title));
 		if (!words.length) {
-			group.appendChild(createElement('p', 'word-merge-empty', selectable ? 'No compatible merge targets.' : 'No incompatible words.'));
+			group.appendChild(createElement('p', 'word-merge-empty', recommended ? 'No recommended merge targets.' : 'No unrecommended words.'));
 			return group;
 		}
 
-		words.forEach(word => group.appendChild(this.createCandidate(word, selectable)));
+		words.forEach(word => group.appendChild(this.createCandidate(word, recommended)));
 		return group;
 	}
-	createCandidate(word, selectable) {
-		const card = createElement('div', `word-merge-candidate${selectable ? '' : ' disabled'}`);
+	createCandidate(word, recommended) {
+		const card = createElement('div', `word-merge-candidate ${recommended ? 'recommended' : 'unrecommended'}`);
 		card.appendChild(createElement('div', 'word-merge-candidate-word', word.w_basic_form));
 		card.appendChild(createElement('div', 'word-merge-candidate-type', word.wt_name));
 		const metadata = createElement('div', 'word-merge-candidate-meta');
@@ -754,11 +794,6 @@ class WordMergeModal {
 		metadata.appendChild(createElement('span', null, word.w_character_type));
 		if (word.ignore) metadata.appendChild(createElement('span', 'word-merge-candidate-ignored', 'Ignored'));
 		card.appendChild(metadata);
-		if (!selectable) {
-			card.setAttribute('aria-disabled', 'true');
-			return card;
-		}
-
 		focusable(card);
 		card.setAttribute('aria-label', `Select ${word.w_basic_form} [ ${word.wt_name} ] as merge target`);
 		card.onclick = eventHandler(() => this.selectCandidate(word, card));
@@ -773,8 +808,7 @@ class WordMergeModal {
 		this.elems.wordMergeModal.querySelector('.word-merge-confirm').disabled = !this.selected;
 	}
 	getCandidates() {
-		return Array.from(this.elems.wordMergeModal.getElementsByClassName('word-merge-candidate'))
-			.filter(card => !card.classList.contains('disabled'));
+		return Array.from(this.elems.wordMergeModal.getElementsByClassName('word-merge-candidate'));
 	}
 	focusCandidate(candidate) {
 		if (candidate) focusElem(candidate);
