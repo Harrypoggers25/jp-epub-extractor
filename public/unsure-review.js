@@ -145,7 +145,7 @@ class EntryStates {
 		return entryStates;
 	}
 	verify(wordBuffers) {
-		return wordBuffers.every(wordBuffer => {
+		return wordBuffers.some(wordBuffer => {
 			const entryState = this.get(wordId(wordBuffer));
 			return entryState && !entryState.state_invalid && (entryState.state.size || entryState.ignore || entryState.merged_with);
 		});
