@@ -82,28 +82,42 @@ export namespace UnsureWordBufferHandler {
 		res.status(200).json(unsureWordBuffers[0]);
 	});
 
+	interface IEntries extends Record<string, { state: string, ignore: boolean, can_merge: number, merged_with: string | null }> { }
 	export const confirm = Route.asyncEventStreamHandler(async (_, res, write) => {
-		const unsureWordBuffers = await UnsureWordBuffer.find();
-		if (!unsureWordBuffers) throw new Error(Message.failed(['confirm', 'unsure word buffers'], {
-			causer: ['find', 'unsure word buffers']
-		}));
-
-		const entryStates = await (async () => {
+		const unsureEntryStates1: IEntries = await (async () => {
 			const entryStates = await UnsureEntryState.find();
 			if (!entryStates) throw new Error(Message.failed(['confirm', 'unsure word buffers'], {
 				causer: ['find', 'unsure entry states']
 			}));
 
-			return Object.fromEntries(entryStates.map(entryState => {
+			return Object.fromEntries(entryStates.filter(entryState => {
+				const state = JSON.parse(entryState.state) as Array<number>;
+				const { ignore, merged_with } = entryState;
+				return state.length || ignore || merged_with;
+			}).map(entryState => {
 				const { es_id, state, ignore, can_merge, merged_with } = entryState;
 				return [es_id, { state, ignore, can_merge, merged_with }];
 			}));
 		})();
 
+		const unsureWordBuffers1 = await (async () => {
+			const unsureWordBuffers = await UnsureWordBuffer.find();
+			if (!unsureWordBuffers) throw new Error(Message.failed(['confirm', 'unsure word buffers'], {
+				causer: ['find', 'unsure word buffers']
+			}));
+
+			return unsureWordBuffers.filter(unsureWordBuffer => {
+				const { w_basic_form, wt_name } = unsureWordBuffer;
+				const es_id = `${w_basic_form}_${wt_name}`;
+				return unsureEntryStates1[es_id] !== undefined;
+			});
+		})();
+
+
 		const unsureWordBuffers2: Array<IUnsureWordBuffer> = [];
-		const unsureEntryStates2: typeof entryStates = {};
+		const unsureEntryStates2: IEntries = {};
 		const sortTokenId = (token_ids: string) => token_ids.split(',').map(token_id => +token_id).sort((a, b) => a - b).join(',');
-		const combine = (unsureWordBuffer: IUnsureWordBuffer, unsureEntryStates: typeof unsureEntryStates2) => {
+		const combine = (unsureWordBuffer: IUnsureWordBuffer, unsureEntryStates: IEntries) => {
 			const token_ids = sortTokenId(unsureWordBuffer.token_ids);
 			const { w_basic_form, wt_name, w_character_type, occurrence_count } = unsureWordBuffer;
 			const es_id = `${w_basic_form}_${wt_name}`;
@@ -125,13 +139,13 @@ export namespace UnsureWordBufferHandler {
 		}));
 		const transaction = await db.transaction();
 		let i = 0;
-		for (const unsureWordBuffer of unsureWordBuffers) {
-			const { token_ids, w_basic_form, wt_name, j_response, w_character_type, occurrence_count, es_id, ignore, merged_with } = combine(unsureWordBuffer, entryStates);
+		for (const unsureWordBuffer of unsureWordBuffers1) {
+			const { token_ids, w_basic_form, wt_name, j_response, w_character_type, occurrence_count, es_id, ignore, merged_with } = combine(unsureWordBuffer, unsureEntryStates1);
 			const created_at = new Date();
 
 			if (merged_with) {
 				unsureWordBuffers2.push(unsureWordBuffer);
-				unsureEntryStates2[es_id] = entryStates[es_id];
+				unsureEntryStates2[es_id] = unsureEntryStates1[es_id];
 				continue;
 			}
 
@@ -149,7 +163,7 @@ export namespace UnsureWordBufferHandler {
 			if (!deletedUnsureEntryState) throw new Error(Message.failed(['confirm', 'unsure word buffers'], {
 				causer: ['delete', 'unsure entry state', { es_id }]
 			}));
-			const percentage = Math.round((i + 1) / unsureWordBuffers.length * 100 * 100) / 100;
+			const percentage = Math.round((i + 1) / unsureWordBuffers1.length * 100 * 100) / 100;
 			i += 1;
 			write(writeResponse({
 				percentage,
@@ -191,7 +205,7 @@ export namespace UnsureWordBufferHandler {
 				causer: ['delete', 'unsure entry state', { es_id }]
 			}));
 
-			const percentage = Math.round((i + 1) / unsureWordBuffers.length * 100 * 100) / 100;
+			const percentage = Math.round((i + 1) / unsureWordBuffers1.length * 100 * 100) / 100;
 			i += 1;
 			write(writeResponse({
 				percentage,
