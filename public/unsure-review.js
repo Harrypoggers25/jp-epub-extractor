@@ -601,16 +601,23 @@ class MergeModal {
 	}
 	async open() {
 		this.opener = buffer.elems.btnMerge;
-		const candidates = await buffer.transformCandidates();
-		if (!candidates) return;
-		this.candidates = buffer.candidates;
 		this.elems.target.textContent = `${buffer.selected.w_basic_form} [${buffer.selected.wt_name}]`;
 		this.elems.selected.textContent = '';
 		this.elems.searchInput.value = '';
+		this.elems.searchInput.disabled = true;
 		this.selected = null;
 		this.elems.confirm.disabled = true;
-		this.renderCandidates();
+		this.renderLoading();
 		setClass(this.elems.overlay, 'open', true);
+		const candidates = await buffer.transformCandidates();
+		if (!candidates) {
+			this.close();
+			return;
+		}
+		if (!this.elems.overlay.classList.contains('open')) return;
+		this.candidates = buffer.candidates;
+		this.elems.searchInput.disabled = false;
+		this.renderCandidates();
 		this.focusFirstCandidate();
 	}
 	close() {
@@ -618,11 +625,16 @@ class MergeModal {
 		this.elems.target.textContent = '';
 		this.elems.selected.textContent = '';
 		this.elems.searchInput.value = '';
+		this.elems.searchInput.disabled = false;
 		this.elems.list.innerHTML = '';
 		this.candidates = { top: [], bottom: [] };
 		this.selected = null;
 		this.elems.confirm.disabled = true;
 		this.opener?.focus({ preventScroll: true });
+	}
+	renderLoading() {
+		this.elems.list.innerHTML = '';
+		this.elems.list.appendChild(createElement('div', 'modal-candidate-empty', 'Loading merge candidates...'));
 	}
 	async confirm() {
 		if (!this.selected || !buffer.selected) return;
