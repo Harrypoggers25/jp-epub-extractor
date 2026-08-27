@@ -5,12 +5,58 @@
 
 .word-layout .table {
     table-layout: fixed;
+    min-width: 760px;
+}
+
+.word-layout .table th:nth-child(2),
+.word-layout .table td:nth-child(2) {
+    width: 108px;
+}
+
+.word-layout .table th:nth-child(3),
+.word-layout .table td:nth-child(3) {
+    width: 108px;
+}
+
+.word-layout .table th:nth-child(4),
+.word-layout .table td:nth-child(4) {
+    width: 108px;
+}
+
+.word-layout .table th:nth-child(5),
+.word-layout .table td:nth-child(5) {
+    width: 125px;
+}
+
+.word-layout .table th:nth-child(6),
+.word-layout .table td:nth-child(6) {
+    width: 100px;
 }
 
 .word-layout .table th:first-child,
 .word-layout .table td:first-child {
-    width: 34%;
+    min-width: 0;
 }
+
+.word-layout .table th {
+    padding-inline: 10px;
+    font-size: 12px;
+    letter-spacing: .06em;
+}
+
+.word-layout .table-sort {
+    white-space: nowrap;
+}
+
+.word-layout .table th:nth-child(3) .table-sort {
+    white-space: normal;
+}
+
+.word-layout .table th:nth-child(3) .table-sort-label {
+    min-width: 0;
+    white-space: pre-line;
+}
+
 
 .word-layout .word-character-type,
 .word-layout .word-created-at {

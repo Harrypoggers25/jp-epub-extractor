@@ -135,7 +135,7 @@ class WordList {
 			columns: [
 				{ key: 'word', label: 'Word' },
 				{ key: 'type', label: 'Type' },
-				{ key: 'w_character_type', label: 'Character type' },
+				{ key: 'w_character_type', label: 'Character\nType' },
 				{ key: 'occurrence_count', label: 'Occurrences' },
 				{ key: 'created_at', label: 'Created' },
 				{ key: 'status', label: 'Status', align: 'center' },
