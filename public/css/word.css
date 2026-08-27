@@ -3,6 +3,15 @@
     min-height: 100vh;
 }
 
+.word-layout .table {
+    table-layout: fixed;
+}
+
+.word-layout .table th:first-child,
+.word-layout .table td:first-child {
+    width: 34%;
+}
+
 .word-layout .word-character-type,
 .word-layout .word-created-at {
     white-space: nowrap;
