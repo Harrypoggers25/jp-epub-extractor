@@ -1,5 +1,5 @@
 // CONFIGS
-import { WordBuffer, db, UnsureEntryState, IUnsureEntryState, Word, UnsureWordBuffer } from "../configs/db.config";
+import { db, UnsureEntryState, IUnsureEntryState, Word, UnsureWordBuffer } from "../configs/db.config";
 
 // MODULES
 import Message from "@harrypoggers25/message";
@@ -113,11 +113,11 @@ export namespace UnsureEntryStateHandler {
 		}));
 		updated.push(updatedUnsureEntryState2);
 
-		const unsureEntryStates = await UnsureEntryState.find({ transaction });
-		if (!unsureEntryStates) throw new Error(Message.failed(['merge', 'unsure entry state', { es_id1, es_id2 }], {
-			causer: ['find', 'all unsure entry states']
-		}));
-
+		// const unsureEntryStates = await UnsureEntryState.find({ transaction });
+		// if (!unsureEntryStates) throw new Error(Message.failed(['merge', 'unsure entry state', { es_id1, es_id2 }], {
+		// 	causer: ['find', 'all unsure entry states']
+		// }));
+		//
 		// const wordBuffers = await WordBuffer.find();
 		// if (!wordBuffers) throw new Error(Message.failed(['merge', 'unsure entry state', { es_id1, es_id2 }], { causer: ['find', 'all word buffers'] }));
 		//
