@@ -17,10 +17,19 @@
     white-space: nowrap;
 }
 
+.word-layout .header-actions > .header-btn,
+.word-layout .word-export {
+    width: 124px;
+}
+
+.word-layout .header-actions > .header-btn {
+    text-align: center;
+}
+
 .word-layout .word-export-button {
     position: relative;
     width: 100%;
-    text-align: left;
+    text-align: center;
 }
 
 .word-layout .word-export-button::after {
