@@ -101,17 +101,11 @@ export namespace UnsureEntryStateHandler {
 		const updated: Array<IUnsureEntryState> = [];
 		const transaction = await db.transaction();
 
-		const updatedUnsureEntryState1 = await UnsureEntryState.updateByPk(es_id1, { merged_with: es_id2, can_merge: 0 }, { transaction });
-		if (!updatedUnsureEntryState1) throw new Error(Message.failed(['merge', 'unsure entry state', { es_id1, es_id2 }], {
+		const updatedUnsureEntryState = await UnsureEntryState.updateByPk(es_id1, { merged_with: es_id2, can_merge: 0 }, { transaction });
+		if (!updatedUnsureEntryState) throw new Error(Message.failed(['merge', 'unsure entry state', { es_id1, es_id2 }], {
 			causer: ['update', 'unsure entry state', es_id1]
 		}));
-		updated.push(updatedUnsureEntryState1);
-
-		const updatedUnsureEntryState2 = await UnsureEntryState.updateByPk(es_id2, { can_merge: 0 }, { transaction });
-		if (!updatedUnsureEntryState2) throw new Error(Message.failed(['merge', 'unsure entry state', { es_id1, es_id2 }], {
-			causer: ['update', 'unsure entry state', es_id2]
-		}));
-		updated.push(updatedUnsureEntryState2);
+		updated.push(updatedUnsureEntryState);
 
 		// const unsureEntryStates = await UnsureEntryState.find({ transaction });
 		// if (!unsureEntryStates) throw new Error(Message.failed(['merge', 'unsure entry state', { es_id1, es_id2 }], {
@@ -173,7 +167,9 @@ export namespace UnsureEntryStateHandler {
 				causer: ['update', 'unsure entry state', { es_id, merged_with: null }]
 			}));
 			const unsureEntryStates = await UnsureEntryState.find({ transaction });
-			if (!unsureEntryStates) throw new Error(Message.failed(['unmerge', 'unsure entry state', es_id1], { causer: ['find', 'all unsure entry states'] }));
+			if (!unsureEntryStates) throw new Error(Message.failed(['unmerge', 'unsure entry state', es_id1], {
+				causer: ['find', 'all unsure entry states']
+			}));
 			const targetWord = await getTargetWord(w_basic_form, wt_name);
 			if (!targetWord) throw new Error(Message.failed(['unmerge', 'unsure entry state', es_id1], {
 				causer: ['find', 'target word', { w_basic_form, wt_name }]
@@ -186,31 +182,6 @@ export namespace UnsureEntryStateHandler {
 			return unsureEntryState;
 		})();
 		updated.push(updatedUnsureEntryState1);
-
-		const updatedUnsureEntryState2 = await (async () => {
-			const es_id = es_id2;
-			const [w_basic_form, wt_name] = es_id.split('_');
-			const can_merge = await (async () => {
-				const mergedUnsureEntryStates = await UnsureEntryState.find({ where: { merged_with: es_id }, transaction });
-				if (!mergedUnsureEntryStates) throw new Error(Message.failed(['unmerge', 'unsure entry state', es_id1], {
-					causer: ['find', 'unsure entry states', { merged_with: es_id }]
-				}));
-				if (mergedUnsureEntryStates.length) return 0;
-				const unsureEntryStates = await UnsureEntryState.find({ transaction });
-				if (!unsureEntryStates) throw new Error(Message.failed(['unmerge', 'unsure entry state', es_id1], { causer: ['find', 'all unsure entry states'] }));
-				const targetWord = await getTargetWord(w_basic_form, wt_name);
-				if (!targetWord) throw new Error(Message.failed(['unmerge', 'unsure entry state', es_id1], {
-					causer: ['find', 'target word', { w_basic_form, wt_name }]
-				}));
-				return transformUnsureWordBuffer(words, unsureEntryStates, targetWord).top.length;
-			})();
-			const unsureEntryState = await UnsureEntryState.updateByPk(es_id, { can_merge }, { transaction });
-			if (!unsureEntryState) throw new Error(Message.failed(['unmerge', 'unsure entry state', es_id1], {
-				causer: ['update', 'unsure entry state', { es_id, can_merge }]
-			}));
-			return unsureEntryState;
-		})();
-		updated.push(updatedUnsureEntryState2);
 
 		// const unsureEntryStates = await UnsureEntryState.find({ transaction });
 		// if (!unsureEntryStates) throw new Error(Message.failed(['unmerge', 'unsure entry state', es_id1], { causer: ['find', 'all unsure entry states'] }));
