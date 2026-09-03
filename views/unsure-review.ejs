@@ -12,23 +12,49 @@
 
 <body>
     <div class="unsure-review-layout">
+        <aside class="unsure-review-sidebar">
+            <div class="unsure-review-sidebar-header">
+                <h2>Unsure word list</h2>
+                <input id="unsureSearchInput" class="unsure-search-input" type="text" placeholder="Search Japanese..."
+                    autocomplete="off">
+            </div>
+            <div id="unsureSearchResults" class="unsure-search-results" aria-label="Unsure word list"></div>
+            <div class="unsure-review-sidebar-footer">
+                <span id="unsureSearchResultCount" aria-live="polite"></span>
+                <button class="confirm-btn" id="btnConfirm" disabled>Confirm</button>
+            </div>
+        </aside>
         <main class="content">
             <div class="container">
-                <div class="header">
-                    <div class="header-content">
-                        <h1>Unsure words</h1>
-                    </div>
-                    <div class="header-actions">
-                        <a class="header-btn" href="/word">Return</a>
-                    </div>
-                </div>
-
                 <div class="unsure-review-panel">
-                    <div id="unsureReviewContent" class="unsure-review-region" aria-label="Unsure words"></div>
+                    <div id="unsureReviewContent" class="unsure-review-region" aria-live="polite"></div>
                 </div>
             </div>
         </main>
     </div>
+    <div class="overlay" id="mergeModal">
+        <div class="modal-box unsure-merge-modal">
+            <h3>Selected unsure word: <span id="mergeModalTargetWord"></span></h3>
+            <h3>Merge with: <span id="mergeModalSelectedWord"></span></h3>
+            <input class="modal-search" id="mergeModalSearchInput" type="text" placeholder="Search permanent words..."
+                autocomplete="off">
+            <div class="modal-list" id="mergeModalList"></div>
+            <div class="modal-actions">
+                <button class="modal-btn" id="mergeModalCancel">Cancel</button>
+                <button class="modal-btn confirm" id="mergeModalConfirm" disabled>Confirm</button>
+            </div>
+        </div>
+    </div>
+    <div class="overlay" id="confirmOverlay">
+        <div class="overlay-box">
+            <h3>Confirming: <span id="confirmOverlayProgress"></span></h3>
+            <span id="confirmOverlayMessage"></span>
+            <button class="modal-btn" id="confirmOverlayClose" hidden>Close</button>
+        </div>
+    </div>
+    <script type="module" src="/tools.helper.js"></script>
+    <script type="module" src="/api.helper.js"></script>
+    <script type="module" src="/unsure-review.js"></script>
 </body>
 
 </html>

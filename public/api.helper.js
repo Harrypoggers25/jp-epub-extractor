@@ -114,6 +114,215 @@ export const Word = {
 
 			return words;
 		});
+	},
+	toggleIgnore: async (w_basic_form, wt_name) => {
+		return await asyncHandler('TOGGLE IGNORE WORD', async () => {
+			const response = await fetch(`/api/words/toggle-ignore/${encodeURIComponent(w_basic_form)}/${encodeURIComponent(wt_name)}`, {
+				method: 'POST',
+			});
+			if (!response.ok) throw new Error('Failed to toggle ignore word. Internal error');
+
+			const word = await response.json();
+			if (!word) throw new Error('Failed to toggle ignore word. Unable to update data');
+
+			return word;
+		});
+	},
+	transform: async (w_basic_form, wt_name) => {
+		return await asyncHandler('TRANSFORM WORD', async () => {
+			const response = await fetch(`/api/words/transform/${encodeURIComponent(w_basic_form)}/${encodeURIComponent(wt_name)}`, {
+				method: 'POST',
+			});
+			if (!response.ok) throw new Error('Failed to transform word. Internal error');
+
+			const words = await response.json();
+			if (!words?.top || !words?.bottom) throw new Error('Failed to transform word. Unable to find data');
+
+			return words;
+		});
+	},
+	merge: async (sourceId, targetId) => {
+		return await asyncHandler('MERGE WORD', async () => {
+			const response = await fetch(`/api/words/merge/${encodeURIComponent(sourceId)}/${encodeURIComponent(targetId)}`, {
+				method: 'POST',
+			});
+			if (!response.ok) throw new Error('Failed to merge word. Internal error');
+
+			const word = await response.json();
+			if (!word) throw new Error('Failed to merge word. Unable to update data');
+
+			return word;
+		});
+	}
+}
+
+export const parseUnsureWordBuffer = wordBuffer => {
+	let j_response = wordBuffer.j_response;
+	let j_response_invalid = false;
+	try {
+		if (typeof j_response === 'string') j_response = JSON.parse(j_response);
+		if (!Array.isArray(j_response)) throw new Error('j_response must be an array');
+	} catch {
+		j_response = [];
+		j_response_invalid = true;
+	}
+
+	return { ...wordBuffer, j_response, j_response_invalid };
+}
+
+export const UnsureWordBuffer = {
+	findAll: async () => {
+		return await asyncHandler('FIND ALL UNSURE WORD BUFFERS', async () => {
+			const response = await fetch('/api/word-buffers/unsure', { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to find all unsure word buffers. Internal error');
+
+			const wordBuffers = await response.json();
+			if (!wordBuffers) throw new Error('Failed to find all unsure word buffers. Unable to find data');
+
+			return wordBuffers.map(parseUnsureWordBuffer);
+		});
+	},
+	findMany: async (w_basic_form) => {
+		return await asyncHandler('FIND UNSURE WORD BUFFERS', async () => {
+			const response = await fetch(`/api/word-buffers/unsure/${encodeURIComponent(w_basic_form)}`, { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to find unsure word buffers. Internal error');
+
+			const wordBuffers = await response.json();
+			if (!wordBuffers) throw new Error('Failed to find unsure word buffers. Unable to find data');
+
+			return wordBuffers.map(parseUnsureWordBuffer);
+		});
+	},
+	find: async (w_basic_form, wt_name) => {
+		return await asyncHandler('FIND UNSURE WORD BUFFER', async () => {
+			const response = await fetch(`/api/word-buffers/unsure/${encodeURIComponent(w_basic_form)}/${encodeURIComponent(wt_name)}`, { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to find unsure word buffer. Internal error');
+
+			const wordBuffer = await response.json();
+			if (!wordBuffer) throw new Error('Failed to find unsure word buffer. Unable to find data');
+
+			return parseUnsureWordBuffer(wordBuffer);
+		});
+	},
+	count: async () => {
+		return await asyncHandler('COUNT UNSURE WORD BUFFERS', async () => {
+			const response = await fetch('/api/word-buffers/unsure/count', { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to count unsure word buffers. Internal error');
+
+			const data = await response.json();
+			if (!data) throw new Error('Failed to count unsure word buffers. Unable to find data');
+
+			return data;
+		});
+	},
+	transform: async (w_basic_form, wt_name, body = {}) => {
+		body.state = body.state ? Array.from(body.state) : body.state;
+		return await asyncHandler('TRANSFORM UNSURE WORD BUFFERS', async () => {
+			const response = await fetch(`/api/word-buffers/unsure/transform/${encodeURIComponent(w_basic_form)}/${encodeURIComponent(wt_name)}`, {
+				method: 'POST',
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!response.ok) throw new Error('Failed to transform unsure word buffers. Internal error');
+
+			const transformed = await response.json();
+			if (!transformed) throw new Error('Failed to transform unsure word buffers. Unable to find data');
+
+			return transformed;
+		});
+	},
+	confirm: (onmessage, onerror, onclose) => {
+		return asyncHandler('CONFIRM UNSURE WORD BUFFERS', () => {
+			const eventSource = new PostEventSource('/api/word-buffers/unsure/confirm');
+
+			eventSource.onmessage = async event => {
+				await onmessage(JSON.parse(event.data), eventSource);
+			};
+			eventSource.onerror = error => onerror?.(error, eventSource);
+			eventSource.onclose = () => onclose?.(eventSource);
+
+			return eventSource;
+		});
+	}
+}
+
+const parseUnsureEntryState = entryState => {
+	if (Array.isArray(entryState)) entryState = entryState[0];
+	if (!entryState) return;
+
+	let state;
+	let state_invalid = false;
+	try {
+		state = JSON.parse(entryState.state);
+		if (!Array.isArray(state) || state.some(i => !Number.isInteger(i))) throw new Error('state must be an array of indexes');
+	} catch {
+		state = [];
+		state_invalid = true;
+	}
+
+	return { ...entryState, state: new Set(state), state_invalid };
+}
+
+export const UnsureEntryState = {
+	findAll: async () => {
+		return await asyncHandler('FIND ALL UNSURE ENTRY STATES', async () => {
+			const response = await fetch('/api/unsure-entry-states', { method: 'GET' });
+			if (!response.ok) throw new Error('Failed to find all unsure entry states. Internal error');
+
+			const entryStates = await response.json();
+			if (!entryStates) throw new Error('Failed to find all unsure entry states. Unable to find data');
+
+			return entryStates.map(parseUnsureEntryState).filter(Boolean);
+		});
+	},
+	find: async es_id => {
+		return await asyncHandler('FIND UNSURE ENTRY STATE', async () => {
+			const response = await fetch(`/api/unsure-entry-states/${encodeURIComponent(es_id)}`, { method: 'GET' });
+			if (!response.ok) throw new Error(`Failed to find unsure entry state [${es_id}]. Internal error`);
+
+			const entryState = await response.json();
+			if (!entryState) throw new Error(`Failed to find unsure entry state [${es_id}]. Unable to find data`);
+
+			return parseUnsureEntryState(entryState);
+		});
+	},
+	update: async (es_id, body) => {
+		if (body.state) body.state = Array.from(body.state).sort((a, b) => a - b);
+		return await asyncHandler('UPDATE UNSURE ENTRY STATE', async () => {
+			const response = await fetch(`/api/unsure-entry-states/${encodeURIComponent(es_id)}`, {
+				method: 'PATCH',
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!response.ok) throw new Error(`Failed to update unsure entry state [${es_id}]. Internal error`);
+
+			const entryState = await response.json();
+			if (!entryState) throw new Error(`Failed to update unsure entry state [${es_id}]. Unable to update data`);
+
+			return parseUnsureEntryState(entryState);
+		});
+	},
+	merge: async (source_es_id, target_word_id) => {
+		return await asyncHandler('MERGE UNSURE ENTRY STATE', async () => {
+			const response = await fetch(`/api/unsure-entry-states/merge/${encodeURIComponent(source_es_id)}/${encodeURIComponent(target_word_id)}`, { method: 'POST' });
+			if (!response.ok) throw new Error(`Failed to merge unsure entry state [${source_es_id}]. Internal error`);
+
+			const entryState = await response.json();
+			if (!entryState) throw new Error(`Failed to merge unsure entry state [${source_es_id}]. Unable to update data`);
+
+			return Array.isArray(entryState) ? entryState.map(parseUnsureEntryState).filter(Boolean) : parseUnsureEntryState(entryState);
+		});
+	},
+	unmerge: async source_es_id => {
+		return await asyncHandler('UNMERGE UNSURE ENTRY STATE', async () => {
+			const response = await fetch(`/api/unsure-entry-states/unmerge/${encodeURIComponent(source_es_id)}`, { method: 'POST' });
+			if (!response.ok) throw new Error(`Failed to unmerge unsure entry state [${source_es_id}]. Internal error`);
+
+			const entryState = await response.json();
+			if (!entryState) throw new Error(`Failed to unmerge unsure entry state [${source_es_id}]. Unable to update data`);
+
+			return Array.isArray(entryState) ? entryState.map(parseUnsureEntryState).filter(Boolean) : parseUnsureEntryState(entryState);
+		});
 	}
 }
 

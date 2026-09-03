@@ -1,6 +1,130 @@
-import { Word } from "./api.helper.js";
-import { filterItems, getNextSort, paginateItems, sortItems } from "./table.helper.js";
+import { BookBuffer, Word } from "./api.helper.js";
+import { filterItems } from "./table.helper.js";
+import { Table } from "./table.js";
 import { asyncHandler, createElement, eventHandler, focusElem, focusable, setClass } from "./tools.helper.js";
+
+const KeydownHandlers = {
+	wordList: {
+		export: ev => {
+			if (ev.key !== 'Escape' || !wordList.elems.exportMenu.classList.contains('open')) return;
+
+			wordList.closeExportMenu();
+			wordList.elems.btnExport.focus();
+		},
+	},
+	wordDetailModal: {
+		modal: ev => {
+			if (ev.key !== 'Escape') return;
+
+			ev.preventDefault();
+			wordDetailModal.close();
+		},
+		dictionary: (ev, close) => {
+			if (ev.key !== 'Tab' || ev.shiftKey) return;
+
+			ev.preventDefault();
+			focusElem(close);
+		},
+		card: (card, ev) => {
+			const cards = wordDetailModal.getDictionaryCards();
+			const index = cards.indexOf(card);
+			switch (ev.key) {
+				case 'j':
+					if (!cards[index + 1]) return;
+
+					ev.preventDefault();
+					wordDetailModal.focusCard(cards[index + 1]);
+					break;
+				case 'k':
+					if (!cards[index - 1]) return;
+
+					ev.preventDefault();
+					wordDetailModal.focusCard(cards[index - 1]);
+					break;
+				case 'g':
+					ev.preventDefault();
+					wordDetailModal.focusCard(cards[0]);
+					break;
+				case 'G':
+					ev.preventDefault();
+					wordDetailModal.focusCard(cards.at(-1));
+					break;
+				case 'ArrowDown':
+					ev.preventDefault();
+					wordDetailModal.scrollDictionary(1);
+					break;
+				case 'ArrowUp':
+					ev.preventDefault();
+					wordDetailModal.scrollDictionary(-1);
+					break;
+			}
+		},
+	},
+	wordMergeModal: {
+		modal: ev => {
+			if (ev.key !== 'Escape') return;
+
+			ev.preventDefault();
+			wordMergeModal.close();
+		},
+		search: ev => {
+			if (ev.key === 'Enter') {
+				ev.preventDefault();
+				wordMergeModal.focusCandidate(wordMergeModal.getCandidates()[0]);
+			}
+			if (ev.key === 'Escape') {
+				ev.preventDefault();
+				wordMergeModal.close();
+			}
+		},
+		candidate: (candidate, ev) => {
+			const candidates = wordMergeModal.getCandidates();
+			const index = candidates.indexOf(candidate);
+			switch (ev.key) {
+				case 'j':
+				case 'ArrowDown':
+					ev.preventDefault();
+					wordMergeModal.focusCandidate(candidates[index + 1]);
+					break;
+				case 'k':
+				case 'ArrowUp':
+					ev.preventDefault();
+					wordMergeModal.focusCandidate(candidates[index - 1]);
+					break;
+				case 'g':
+				case 'Home':
+					ev.preventDefault();
+					wordMergeModal.focusCandidate(candidates[0]);
+					break;
+				case 'G':
+				case 'End':
+					ev.preventDefault();
+					wordMergeModal.focusCandidate(candidates.at(-1));
+					break;
+				case 'Enter':
+				case ' ':
+					ev.preventDefault();
+					candidate.click();
+					break;
+			}
+		},
+	},
+}
+
+class BookEntry {
+	constructor() {
+		this.elems = {
+			btnBook: document.getElementById('btnBook'),
+		}
+	}
+	async load() {
+		const bookBuffer = await BookBuffer.findCurrent();
+		if (!bookBuffer) return;
+
+		this.elems.btnBook.textContent = 'Continue entry';
+		setClass(this.elems.btnBook, 'continue-entry', true);
+	}
+}
 
 class WordList {
 	constructor() {
@@ -16,14 +140,24 @@ class WordList {
 
 		this.words = null;
 		this.searchText = '';
-		this.sort = { column: null, direction: null };
-		this.page = 1;
-		this.wordPerPage = 50;
 		this.collator = new Intl.Collator('ja', { numeric: true, sensitivity: 'base' });
+		this.table = new Table(this.elems.wordTable, {
+			columns: [
+				{ key: 'word', label: 'Word' },
+				{ key: 'type', label: 'Type' },
+				{ key: 'w_character_type', label: 'Character\nType' },
+				{ key: 'occurrence_count', label: 'Occurrences' },
+				{ key: 'created_at', label: 'Created' },
+				{ key: 'status', label: 'Status', align: 'center' },
+			],
+			createRow: word => this.createWordRow(word),
+			compareItems: (word1, word2, column) => this.compareWords(word1, word2, column.key),
+			onActivate: (word, row) => wordDetailModal.open(word, row),
+		});
 
 		this.elems.wordSearch.oninput = eventHandler(ev => {
 			this.searchText = ev.target.value.trim();
-			this.page = 1;
+			this.table.resetPage();
 			this.renderWords();
 		});
 		this.elems.btnExport.onclick = eventHandler(() => this.toggleExportMenu());
@@ -32,11 +166,8 @@ class WordList {
 		document.addEventListener('click', ev => {
 			if (!this.elems.wordExport.contains(ev.target)) this.closeExportMenu();
 		});
-		document.addEventListener('keydown', ev => {
-			if (ev.key !== 'Escape' || !this.elems.exportMenu.classList.contains('open')) return;
-			this.closeExportMenu();
-			this.elems.btnExport.focus();
-		});
+		this.elems.btnExport.addEventListener('keydown', KeydownHandlers.wordList.export);
+		this.elems.exportMenu.addEventListener('keydown', KeydownHandlers.wordList.export);
 	}
 	async load() {
 		this.renderLoading();
@@ -101,7 +232,7 @@ class WordList {
 	}
 	renderState(title, message, className = '') {
 		const { wordTable } = this.elems;
-		wordTable.innerHTML = '';
+		this.table.clear();
 
 		const state = createElement('div', `table-state ${className}`);
 		state.setAttribute('role', className === 'error' ? 'alert' : 'status');
@@ -110,8 +241,6 @@ class WordList {
 		wordTable.appendChild(state);
 	}
 	renderWords() {
-		const { wordTable } = this.elems;
-		wordTable.innerHTML = '';
 		if (!this.words.length) {
 			this.renderEmpty();
 			return;
@@ -123,200 +252,56 @@ class WordList {
 			return;
 		}
 
-		const sortedWords = this.getSortedWords(filteredWords);
-		const page = paginateItems(sortedWords, this.page, this.wordPerPage);
-		this.page = page.page;
-		wordTable.appendChild(this.createTable(page.items));
-		wordTable.appendChild(this.createPagination(page));
+		this.table.render(filteredWords);
 	}
 	getFilteredWords() {
 		if (!this.searchText) return this.words;
 
 		const searchText = this.searchText.toLowerCase();
 		return filterItems(this.words, word => {
-			const { reading, meaning } = this.getDisplayWord(word);
-			return [word.w_basic_form, reading, word.wt_name, meaning].some(text => {
+			return [word.w_basic_form, word.wt_name, word.w_character_type].some(text => {
 				return text.toLowerCase().includes(searchText);
 			});
 		});
 	}
-	getSortedWords(words) {
-		return sortItems(words, this.sort.column && this.sort.direction && ((word1, word2) => {
-			const value1 = this.getSortValue(word1);
-			const value2 = this.getSortValue(word2);
-			const result = this.sort.column === 'occurrence_count'
-				? value1 - value2
-				: this.collator.compare(value1, value2);
-			if (result) return this.sort.direction === 'asc' ? result : -result;
+	compareWords(word1, word2, column) {
+		const value1 = this.getSortValue(word1, column);
+		const value2 = this.getSortValue(word2, column);
+		const result = ['occurrence_count', 'created_at'].includes(column)
+			? value1 - value2
+			: this.collator.compare(value1, value2);
+		if (result) return result;
 
-			const basicFormResult = this.collator.compare(word1.w_basic_form, word2.w_basic_form);
-			if (basicFormResult) return basicFormResult;
+		const basicFormResult = this.collator.compare(word1.w_basic_form, word2.w_basic_form);
+		if (basicFormResult) return basicFormResult;
 
-			return this.collator.compare(word1.wt_name, word2.wt_name);
-		}));
+		return this.collator.compare(word1.wt_name, word2.wt_name);
 	}
-	getSortValue(word) {
-		const { reading, meaning } = this.getDisplayWord(word);
-		switch (this.sort.column) {
+	getSortValue(word, column) {
+		switch (column) {
 			case 'word': return word.w_basic_form;
-			case 'reading': return reading;
 			case 'type': return word.wt_name;
-			case 'meaning': return meaning;
+			case 'w_character_type': return word.w_character_type;
 			case 'occurrence_count': return word.occurrence_count;
+			case 'created_at': return this.getCreatedAtTimestamp(word);
 			case 'status': return this.getStatus(word);
 		}
 	}
-	sortBy(column) {
-		this.sort = getNextSort(this.sort, column);
-		this.page = 1;
-		this.renderWords();
-	}
-	setPage(page) {
-		this.page = page;
-		this.renderWords();
-	}
-	setWordPerPage(wordPerPage) {
-		this.wordPerPage = wordPerPage === 'all' ? null : Number(wordPerPage);
-		this.page = 1;
-		this.renderWords();
-	}
-	createTable(words) {
-		const table = createElement('table', 'table');
-		const header = createElement('thead');
-		const headerRow = createElement('tr');
-		[
-			['word', 'Word'],
-			['reading', 'Reading'],
-			['type', 'Type'],
-			['meaning', 'Meaning'],
-			['occurrence_count', 'Occurrences'],
-			['status', 'Status'],
-		].forEach(([column, text]) => {
-			headerRow.appendChild(this.createTableHeader(column, text));
-		});
-		header.appendChild(headerRow);
-		table.appendChild(header);
-
-		const body = createElement('tbody');
-		words.forEach(word => body.appendChild(this.createWordRow(word)));
-		table.appendChild(body);
-
-		return table;
-	}
-	createTableHeader(column, text) {
-		const header = createElement('th');
-		header.scope = 'col';
-		const active = this.sort.column === column;
-		header.setAttribute('aria-sort', active ? (this.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none');
-
-		const direction = active ? (this.sort.direction === 'asc' ? '↑' : '↓') : '';
-		const button = createElement('button', `table-sort${active ? ' active' : ''}`);
-		button.type = 'button';
-		button.appendChild(createElement('span', 'table-sort-label', text));
-		const indicator = createElement('span', 'table-sort-indicator', direction);
-		indicator.setAttribute('aria-hidden', 'true');
-		button.appendChild(indicator);
-		button.onclick = eventHandler(() => this.sortBy(column));
-		header.appendChild(button);
-
-		return header;
-	}
-	createPagination(page) {
-		const { totalPages } = page;
-		const pagination = createElement('div', 'table-pagination');
-		pagination.appendChild(this.createPageSizeControl());
-
-		const controls = createElement('div', 'table-pagination-controls');
-		const createPageButton = (text, label, targetPage, disabled) => {
-			const button = createElement('button', 'header-btn table-page-btn', text);
-			button.type = 'button';
-			button.setAttribute('aria-label', label);
-			button.disabled = disabled;
-			button.onclick = eventHandler(() => this.setPage(targetPage));
-			return button;
-		};
-
-		const firstPage = this.page === 1;
-		const lastPage = this.page === totalPages;
-		controls.appendChild(createPageButton('<<', 'First page', 1, firstPage));
-		controls.appendChild(createPageButton('<', 'Previous page', this.page - 1, firstPage));
-		controls.appendChild(this.createPageInput(totalPages));
-		controls.appendChild(createPageButton('>', 'Next page', this.page + 1, lastPage));
-		controls.appendChild(createPageButton('>>', 'Last page', totalPages, lastPage));
-		pagination.appendChild(controls);
-
-		return pagination;
-	}
-	createPageSizeControl() {
-		const container = createElement('label', 'table-page-size');
-		container.appendChild(createElement('span', null, 'Rows per page:'));
-
-		const select = createElement('select');
-		select.setAttribute('aria-label', 'Rows per page');
-		[25, 50, 100, 250, 'all'].forEach(value => {
-			const option = createElement('option', null, value === 'all' ? 'All' : `${value}`);
-			option.value = value;
-			option.selected = this.wordPerPage === (value === 'all' ? null : value);
-			select.appendChild(option);
-		});
-		select.onchange = eventHandler(ev => this.setWordPerPage(ev.target.value));
-		container.appendChild(select);
-
-		return container;
-	}
-	createPageInput(totalPages) {
-		const pageInfo = createElement('div', 'table-page-info');
-		pageInfo.setAttribute('aria-live', 'polite');
-		pageInfo.appendChild(createElement('span', null, 'Page'));
-
-		const input = createElement('input', 'table-page-input');
-		input.type = 'number';
-		input.min = '1';
-		input.max = `${totalPages}`;
-		input.step = '1';
-		input.value = `${this.page}`;
-		input.setAttribute('aria-label', 'Page number');
-		input.addEventListener('keydown', ev => {
-			if (ev.key !== 'Enter') return;
-
-			ev.preventDefault();
-			const value = input.value.trim();
-			const page = Number(value);
-			if (!value || !Number.isInteger(page)) {
-				input.value = `${this.page}`;
-				return;
-			}
-
-			this.setPage(page);
-		});
-		pageInfo.appendChild(input);
-		pageInfo.appendChild(createElement('span', null, `of ${totalPages}`));
-
-		return pageInfo;
-	}
 	createWordRow(word) {
-		const row = createElement('tr', 'table-row');
-		const openDetail = () => wordDetailModal.open(word, row);
-		focusable(row);
+		const row = createElement('tr');
+		row.dataset.wordId = this.getWordId(word);
 		row.setAttribute('aria-haspopup', 'dialog');
 		row.setAttribute('aria-label', `Show details for ${word.w_basic_form}`);
-		row.onclick = eventHandler(openDetail);
-		row.addEventListener('keydown', ev => {
-			if (ev.key !== 'Enter' && ev.key !== ' ') return;
-			ev.preventDefault();
-			openDetail();
-		});
 
-		const { reading, meaning } = this.getDisplayWord(word);
 		row.appendChild(createElement('td', null, word.w_basic_form));
-		row.appendChild(createElement('td', null, reading));
 
 		const wordType = createElement('td');
 		wordType.appendChild(createElement('span', 'word-type', word.wt_name));
 		row.appendChild(wordType);
 
-		row.appendChild(createElement('td', 'word-meaning', meaning));
+		row.appendChild(createElement('td', 'word-character-type', word.w_character_type));
 		row.appendChild(createElement('td', null, `${word.occurrence_count}`));
+		row.appendChild(createElement('td', 'word-created-at', this.getCreatedAt(word)));
 
 		const status = createElement('td');
 		const statusText = this.getStatus(word);
@@ -325,15 +310,44 @@ class WordList {
 
 		return row;
 	}
-	getDisplayWord(word) {
-		const entries = this.getEntries(word);
-		return {
-			reading: this.getReading(entries),
-			meaning: this.getMeaning(entries),
-		};
+	getCreatedAtTimestamp(word) {
+		const timestamp = Date.parse(word.created_at);
+		return Number.isNaN(timestamp) ? 0 : timestamp;
+	}
+	getCreatedAt(word) {
+		const timestamp = this.getCreatedAtTimestamp(word);
+		if (!timestamp) return '—';
+
+		const date = new Date(timestamp);
+		return [date.getUTCDate(), date.getUTCMonth() + 1, date.getUTCFullYear()]
+			.map(value => `${value}`.padStart(2, '0'))
+			.join('-');
 	}
 	getStatus(word) {
 		return word.ignore ? 'Ignored' : '—';
+	}
+	getWordId(word) {
+		return `${word.w_basic_form}_${word.wt_name}`;
+	}
+	isSameWord(word1, word2) {
+		return this.getWordId(word1) === this.getWordId(word2);
+	}
+	getRow(word) {
+		return this.table.getRows().find(row => row.dataset.wordId === this.getWordId(word));
+	}
+	updateWord(updatedWord) {
+		this.words = this.words.map(word => this.isSameWord(word, updatedWord) ? updatedWord : word);
+		this.renderWords();
+
+		return this.getRow(updatedWord);
+	}
+	mergeWords(sourceWord, updatedTargetWord) {
+		this.words = this.words
+			.filter(word => !this.isSameWord(word, sourceWord))
+			.map(word => this.isSameWord(word, updatedTargetWord) ? updatedTargetWord : word);
+		this.renderWords();
+
+		return this.getRow(updatedTargetWord) ?? this.table.getRows()[0];
 	}
 	getEntries(word) {
 		try {
@@ -354,26 +368,13 @@ class WordList {
 
 		return '—';
 	}
-	getMeaning(entries) {
-		for (const entry of entries) {
-			if (!Array.isArray(entry?.senses)) continue;
-			for (const sense of entry.senses) {
-				if (!Array.isArray(sense?.english_definitions)) continue;
-				const definition = sense.english_definitions.find(definition => {
-					return typeof definition === 'string' && definition.trim();
-				});
-				if (definition) return definition;
-			}
-		}
-
-		return '—';
-	}
 }
 
 class WordDetailModal {
 	constructor() {
 		this.elems = {
 			wordDetailModal: document.getElementById('wordDetailModal'),
+			dictionary: null,
 		}
 
 		this.opener = null;
@@ -381,13 +382,12 @@ class WordDetailModal {
 		this.elems.wordDetailModal.onclick = eventHandler(ev => {
 			if (ev.target === this.elems.wordDetailModal) this.close();
 		});
-		document.addEventListener('keydown', ev => {
-			if (ev.key !== 'Escape' || !this.elems.wordDetailModal.classList.contains('open')) return;
-			ev.preventDefault();
-			this.close();
-		});
 	}
 	open(word, opener) {
+		this.opener = opener;
+		this.render(word);
+	}
+	render(word) {
 		const { wordDetailModal } = this.elems;
 		const entries = wordList.getEntries(word);
 		wordDetailModal.innerHTML = '';
@@ -396,8 +396,24 @@ class WordDetailModal {
 		modalBox.setAttribute('role', 'dialog');
 		modalBox.setAttribute('aria-modal', 'true');
 		modalBox.setAttribute('aria-labelledby', 'wordDetailTitle');
+		modalBox.addEventListener('keydown', KeydownHandlers.wordDetailModal.modal);
 
 		const actions = createElement('div', 'modal-actions');
+		const merge = createElement('button', 'header-btn', 'Merge');
+		merge.type = 'button';
+		merge.onclick = eventHandler(async () => {
+			await wordMergeModal.open(word, merge);
+		});
+		actions.appendChild(merge);
+
+		const ignore = createElement('button', 'header-btn', 'Ignore');
+		setClass(ignore, 'selected', word.ignore);
+		ignore.type = 'button';
+		ignore.onclick = eventHandler(async () => {
+			await this.toggleIgnore(word, ignore);
+		});
+		actions.appendChild(ignore);
+
 		const close = createElement('button', 'header-btn', 'Close');
 		close.type = 'button';
 		close.onclick = eventHandler(() => this.close());
@@ -415,27 +431,61 @@ class WordDetailModal {
 		if (advancedMetadata) summary.appendChild(advancedMetadata);
 		modalBox.appendChild(summary);
 		const dictionary = this.createDictionarySection(entries);
-		dictionary.onkeydown = ev => {
-			if (ev.key !== 'Tab' || ev.shiftKey) return;
-			ev.preventDefault();
-			focusElem(close);
-		};
+		dictionary.addEventListener('keydown', ev => KeydownHandlers.wordDetailModal.dictionary(ev, close));
 		modalBox.appendChild(dictionary);
 
 		wordDetailModal.appendChild(modalBox);
 		wordDetailModal.setAttribute('aria-hidden', 'false');
-		this.opener = opener;
+		this.elems.dictionary = dictionary;
 		setClass(wordDetailModal, 'open', true);
-		focusElem(dictionary);
+		const [card] = this.getDictionaryCards();
+		if (card) this.focusCard(card);
+		else focusElem(close);
 	}
-	close() {
+	async toggleIgnore(word, button) {
+		button.disabled = true;
+		const updatedWord = await Word.toggleIgnore(word.w_basic_form, word.wt_name);
+		if (!updatedWord) {
+			button.disabled = false;
+			return;
+		}
+
+		const opener = wordList.updateWord(updatedWord);
+		this.opener = opener ?? wordList.table.getRows()[0] ?? wordList.elems.wordSearch;
+		this.render(updatedWord);
+		focusElem(this.elems.wordDetailModal.querySelector('.word-detail-modal-header .modal-actions button'));
+	}
+	close(restoreFocus = true) {
 		const { wordDetailModal } = this.elems;
 		const opener = this.opener;
 		this.opener = null;
+		this.elems.dictionary = null;
 		setClass(wordDetailModal, 'open', false);
 		wordDetailModal.setAttribute('aria-hidden', 'true');
 		wordDetailModal.innerHTML = '';
-		if (opener?.isConnected) focusElem(opener);
+		if (restoreFocus && opener?.isConnected) focusElem(opener);
+	}
+	getDictionaryCards() {
+		return Array.from(this.elems.dictionary?.getElementsByClassName('entry') ?? []);
+	}
+	focusCard(card) {
+		const { dictionary } = this.elems;
+		if (!card || !dictionary) return;
+
+		card.focus({ preventScroll: true });
+		const cardRect = card.getBoundingClientRect();
+		const dictionaryRect = dictionary.getBoundingClientRect();
+		const top = dictionary.scrollTop + cardRect.top - dictionaryRect.top - 12;
+		dictionary.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+	}
+	scrollDictionary(direction) {
+		const { dictionary } = this.elems;
+		if (!dictionary) return;
+
+		dictionary.scrollBy({
+			top: dictionary.clientHeight * .25 * direction,
+			behavior: 'smooth',
+		});
 	}
 	createSummary(word, entries) {
 		const summary = createElement('div', 'word-detail-summary');
@@ -451,7 +501,6 @@ class WordDetailModal {
 	}
 	createDictionarySection(entries) {
 		const section = createElement('section', 'word-detail-dictionary');
-		focusable(section);
 		section.setAttribute('role', 'region');
 		section.setAttribute('aria-label', 'Dictionary entries');
 
@@ -483,6 +532,9 @@ class WordDetailModal {
 		const card = createElement('div', 'entry');
 		const header = createElement('div', 'entry-header');
 		const slug = typeof entry.slug === 'string' && entry.slug.trim() ? entry.slug : '—';
+		focusable(card);
+		card.setAttribute('aria-label', `Dictionary entry ${slug}`);
+		card.addEventListener('keydown', ev => KeydownHandlers.wordDetailModal.card(card, ev));
 		header.appendChild(createElement('div', 'slug', slug));
 
 		const badges = createElement('div');
@@ -555,7 +607,7 @@ class WordDetailModal {
 	createAdvancedMetadata(word) {
 		const details = [];
 		if (typeof word.token_ids === 'string' && word.token_ids.trim()) details.push(['Token IDs', word.token_ids]);
-		if (typeof word.created_at === 'string' && word.created_at.trim()) details.push(['Created', word.created_at]);
+		if (typeof word.created_at === 'string' && word.created_at.trim()) details.push(['Created', wordList.getCreatedAt(word)]);
 		if (!details.length) return;
 
 		const section = createElement('div', 'word-detail-advanced');
@@ -587,9 +639,202 @@ class WordDetailModal {
 	}
 }
 
+class WordMergeModal {
+	constructor() {
+		this.elems = {
+			wordMergeModal: document.getElementById('wordMergeModal'),
+		};
+		this.source = null;
+		this.selected = null;
+		this.opener = null;
+		this.candidates = { top: [], bottom: [] };
+
+		this.elems.wordMergeModal.onclick = eventHandler(ev => {
+			if (ev.target === this.elems.wordMergeModal) this.close();
+		});
+	}
+	async open(source, opener) {
+		this.source = source;
+		this.opener = opener;
+		this.selected = null;
+		this.candidates = { top: [], bottom: [] };
+		this.renderLoading();
+		setClass(this.elems.wordMergeModal, 'open', true);
+		this.elems.wordMergeModal.setAttribute('aria-hidden', 'false');
+
+		const transformed = await Word.transform(source.w_basic_form, source.wt_name);
+		if (!transformed) {
+			this.renderError();
+			focusElem(this.elems.wordMergeModal.querySelector('.word-merge-cancel'));
+			return;
+		}
+
+		this.renderCandidates(transformed);
+		const [candidate] = this.getCandidates();
+		if (candidate) this.focusCandidate(candidate);
+		else focusElem(this.elems.wordMergeModal.querySelector('.word-merge-cancel'));
+	}
+	close(restoreFocus = true) {
+		const { wordMergeModal } = this.elems;
+		const opener = this.opener;
+		this.source = null;
+		this.selected = null;
+		this.opener = null;
+		this.candidates = { top: [], bottom: [] };
+		setClass(wordMergeModal, 'open', false);
+		wordMergeModal.setAttribute('aria-hidden', 'true');
+		wordMergeModal.innerHTML = '';
+		if (restoreFocus && opener?.isConnected) focusElem(opener);
+	}
+	renderLoading() {
+		this.renderBox('Loading merge candidates...');
+	}
+	renderError() {
+		this.renderBox('Unable to load merge candidates', 'Please close this dialog and try again.', 'error');
+	}
+	renderBox(title, message, className = '') {
+		const { wordMergeModal } = this.elems;
+		wordMergeModal.innerHTML = '';
+		const box = createElement('div', `modal-box word-merge-box ${className}`);
+		box.setAttribute('role', 'dialog');
+		box.setAttribute('aria-modal', 'true');
+		box.setAttribute('aria-labelledby', 'wordMergeTitle');
+		box.addEventListener('keydown', KeydownHandlers.wordMergeModal.modal);
+		const heading = createElement('h3', null, title);
+		heading.id = 'wordMergeTitle';
+		box.appendChild(heading);
+		if (message) box.appendChild(createElement('p', 'overlay-message', message));
+		const actions = createElement('div', 'modal-actions');
+		const cancel = createElement('button', 'header-btn word-merge-cancel', 'Close');
+		cancel.type = 'button';
+		cancel.onclick = eventHandler(() => this.close());
+		actions.appendChild(cancel);
+		box.appendChild(actions);
+		wordMergeModal.appendChild(box);
+	}
+	renderCandidates(transformed) {
+		this.candidates = {
+			top: transformed.top ?? [],
+			bottom: transformed.bottom ?? [],
+		};
+		const { wordMergeModal } = this.elems;
+		wordMergeModal.innerHTML = '';
+
+		const box = createElement('div', 'modal-box word-merge-box');
+		box.setAttribute('role', 'dialog');
+		box.setAttribute('aria-modal', 'true');
+		box.setAttribute('aria-labelledby', 'wordMergeTitle');
+		box.addEventListener('keydown', KeydownHandlers.wordMergeModal.modal);
+		const heading = createElement('h3', null, 'Merge permanent word');
+		heading.id = 'wordMergeTitle';
+		box.appendChild(heading);
+		box.appendChild(createElement('p', 'word-merge-source', `${this.source.w_basic_form} [ ${this.source.wt_name} ] will be merged into the selected compatible word.`));
+		const search = createElement('input', 'word-merge-search');
+		search.type = 'text';
+		search.placeholder = 'Search permanent words...';
+		search.autocomplete = 'off';
+		search.oninput = () => this.renderCandidateGroups();
+		search.addEventListener('keydown', KeydownHandlers.wordMergeModal.search);
+		box.appendChild(search);
+
+		const list = createElement('div', 'word-merge-list');
+		box.appendChild(list);
+
+		const actions = createElement('div', 'modal-actions');
+		const cancel = createElement('button', 'header-btn word-merge-cancel', 'Cancel');
+		cancel.type = 'button';
+		cancel.onclick = eventHandler(() => this.close());
+		actions.appendChild(cancel);
+		const confirm = createElement('button', 'header-btn success word-merge-confirm', 'Merge');
+		confirm.type = 'button';
+		confirm.disabled = true;
+		confirm.onclick = eventHandler(async () => {
+			await this.confirm(confirm);
+		});
+		actions.appendChild(confirm);
+		box.appendChild(actions);
+		wordMergeModal.appendChild(box);
+		this.renderCandidateGroups();
+	}
+	getVisibleCandidates() {
+		const search = this.elems.wordMergeModal.querySelector('.word-merge-search');
+		const text = search?.value.trim() ?? '';
+		const matches = word => !text || `${word.w_basic_form} ${word.wt_name}`.includes(text);
+		return {
+			top: this.candidates.top.filter(matches),
+			bottom: this.candidates.bottom.filter(matches),
+		};
+	}
+	renderCandidateGroups() {
+		const list = this.elems.wordMergeModal.querySelector('.word-merge-list');
+		if (!list) return;
+
+		const { top, bottom } = this.getVisibleCandidates();
+		list.innerHTML = '';
+		list.appendChild(this.createCandidateGroup(`Recommended (${top.length})`, top, true));
+		list.appendChild(this.createCandidateGroup(`Unrecommended (${bottom.length})`, bottom, false));
+	}
+	createCandidateGroup(title, words, recommended) {
+		const group = createElement('section', `word-merge-group ${recommended ? 'recommended' : 'unrecommended'}`);
+		group.appendChild(createElement('h4', null, title));
+		if (!words.length) {
+			group.appendChild(createElement('p', 'word-merge-empty', recommended ? 'No recommended merge targets.' : 'No unrecommended words.'));
+			return group;
+		}
+
+		words.forEach(word => group.appendChild(this.createCandidate(word, recommended)));
+		return group;
+	}
+	createCandidate(word, recommended) {
+		const card = createElement('div', `word-merge-candidate ${recommended ? 'recommended' : 'unrecommended'}`);
+		card.appendChild(createElement('div', 'word-merge-candidate-word', word.w_basic_form));
+		card.appendChild(createElement('div', 'word-merge-candidate-type', word.wt_name));
+		const metadata = createElement('div', 'word-merge-candidate-meta');
+		metadata.appendChild(createElement('span', null, `${word.occurrence_count} occurrences`));
+		metadata.appendChild(createElement('span', null, word.w_character_type));
+		if (word.ignore) metadata.appendChild(createElement('span', 'word-merge-candidate-ignored', 'Ignored'));
+		card.appendChild(metadata);
+		focusable(card);
+		card.setAttribute('aria-label', `Select ${word.w_basic_form} [ ${word.wt_name} ] as merge target`);
+		card.onclick = eventHandler(() => this.selectCandidate(word, card));
+		card.addEventListener('keydown', ev => KeydownHandlers.wordMergeModal.candidate(card, ev));
+		return card;
+	}
+	selectCandidate(word, card) {
+		const selected = this.selected === word;
+		this.selected = selected ? null : word;
+		this.getCandidates().forEach(candidate => setClass(candidate, 'selected', false));
+		setClass(card, 'selected', !selected);
+		this.elems.wordMergeModal.querySelector('.word-merge-confirm').disabled = !this.selected;
+	}
+	getCandidates() {
+		return Array.from(this.elems.wordMergeModal.getElementsByClassName('word-merge-candidate'));
+	}
+	focusCandidate(candidate) {
+		if (candidate) focusElem(candidate);
+	}
+	async confirm(button) {
+		if (!this.source || !this.selected) return;
+
+		button.disabled = true;
+		const updatedTarget = await Word.merge(wordList.getWordId(this.source), wordList.getWordId(this.selected));
+		if (!updatedTarget) {
+			button.disabled = false;
+			return;
+		}
+
+		const focusTarget = wordList.mergeWords(this.source, updatedTarget);
+		wordDetailModal.close(false);
+		this.close(false);
+		focusElem(focusTarget ?? wordList.elems.wordSearch);
+	}
+}
+
+const bookEntry = new BookEntry();
 const wordList = new WordList();
 const wordDetailModal = new WordDetailModal();
+const wordMergeModal = new WordMergeModal();
 
 asyncHandler('MAIN INIT', async () => {
-	await wordList.load();
+	await Promise.all([bookEntry.load(), wordList.load()]);
 });

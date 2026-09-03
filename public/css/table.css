@@ -122,6 +122,14 @@
     letter-spacing: .08em;
 }
 
+.table .table-align-center {
+    text-align: center;
+}
+
+.table .table-align-right {
+    text-align: right;
+}
+
 .table-sort {
     display: inline-flex;
     align-items: center;
@@ -231,7 +239,15 @@
 .table-page-input {
     width: 48px;
     padding: 6px;
+    appearance: textfield;
+    -moz-appearance: textfield;
     text-align: center;
+}
+
+.table-page-input::-webkit-inner-spin-button,
+.table-page-input::-webkit-outer-spin-button {
+    margin: 0;
+    appearance: none;
 }
 
 .table-page-size select:focus,
