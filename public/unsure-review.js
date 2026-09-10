@@ -106,6 +106,12 @@ const KeydownHandlers = {
 				case 'Enter':
 				case ' ': ev.preventDefault(); if (ev.ctrlKey) mergeModal.confirm(); else card.click(); break;
 			}
+		},
+		action: ev => {
+			if (ev.key === 'Escape' || ev.key === 'q') {
+				ev.preventDefault();
+				mergeModal.close();
+			}
 		}
 	}
 }
@@ -621,15 +627,21 @@ class MergeModal {
 		this.candidates = { top: [], bottom: [] };
 		this.selected = null;
 		this.opener = null;
+		this.openRequestId = 0;
+		this.isConfirming = false;
 		this.elems.searchInput.oninput = () => this.renderCandidates();
 		this.elems.searchInput.addEventListener('keydown', KeydownHandlers.mergeModal.searchInput);
 		this.elems.cancel.onclick = eventHandler(() => this.close());
 		this.elems.confirm.onclick = eventHandler(async () => await this.confirm());
+		this.elems.cancel.addEventListener('keydown', KeydownHandlers.mergeModal.action);
+		this.elems.confirm.addEventListener('keydown', KeydownHandlers.mergeModal.action);
 		this.elems.overlay.onclick = eventHandler(ev => {
 			if (ev.target === this.elems.overlay) this.close();
 		});
 	}
 	async open() {
+		if (this.isConfirming) return;
+		const requestId = ++this.openRequestId;
 		this.opener = buffer.elems.btnMerge;
 		this.elems.target.textContent = `${buffer.selected.w_basic_form} [${buffer.selected.wt_name}]`;
 		this.elems.selected.textContent = '';
@@ -640,6 +652,7 @@ class MergeModal {
 		this.renderLoading();
 		setClass(this.elems.overlay, 'open', true);
 		const candidates = await buffer.transformCandidates();
+		if (requestId !== this.openRequestId) return;
 		if (!candidates) {
 			this.close();
 			return;
@@ -651,6 +664,8 @@ class MergeModal {
 		this.focusFirstCandidate();
 	}
 	close() {
+		if (this.isConfirming) return;
+		this.openRequestId += 1;
 		setClass(this.elems.overlay, 'open', false);
 		this.elems.target.textContent = '';
 		this.elems.selected.textContent = '';
@@ -659,6 +674,7 @@ class MergeModal {
 		this.elems.list.innerHTML = '';
 		this.candidates = { top: [], bottom: [] };
 		this.selected = null;
+		this.isConfirming = false;
 		this.elems.confirm.disabled = true;
 		this.opener?.focus({ preventScroll: true });
 	}
@@ -667,11 +683,18 @@ class MergeModal {
 		this.elems.list.appendChild(createElement('div', 'modal-candidate-empty', 'Loading merge candidates...'));
 	}
 	async confirm() {
-		if (!this.selected || !buffer.selected) return;
+		if (this.isConfirming || !this.selected || !buffer.selected) return;
+		this.isConfirming = true;
+		this.elems.confirm.disabled = true;
 		const updatedEntryStates = await entryStates.merge(wordId(buffer.selected), getPermanentWordTargetId(this.selected));
-		if (!updatedEntryStates) return;
+		if (!updatedEntryStates) {
+			this.isConfirming = false;
+			this.elems.confirm.disabled = !this.selected;
+			return;
+		}
 		buffer.renderWord();
 		sidebar.renderSearchResults();
+		this.isConfirming = false;
 		this.close();
 		buffer.elems.btnMerge?.focus({ preventScroll: true });
 	}
@@ -710,6 +733,7 @@ class MergeModal {
 		if (candidate.ignore) metadata.appendChild(createElement('span', 'modal-item-ignored', 'Ignored'));
 		card.appendChild(metadata);
 		const select = () => {
+			if (this.isConfirming) return;
 			if (this.selected && getPermanentWordTargetId(this.selected) === getPermanentWordTargetId(candidate)) {
 				this.selected = null;
 				this.elems.selected.textContent = '';
@@ -729,13 +753,14 @@ class MergeModal {
 	}
 	focusFirstCandidate() {
 		const card = this.elems.list.getElementsByClassName('modal-item')[0];
-		if (card) card.focus({ preventScroll: true });
+		if (card) focusElem(card);
+		else focusElem(this.elems.cancel);
 	}
 	focusNextCandidate(card, direction) {
 		const cards = Array.from(this.elems.list.getElementsByClassName('modal-item'));
 		if (!cards.length) return;
 		const index = cards.indexOf(card);
-		cards[(index + direction + cards.length) % cards.length].focus({ preventScroll: true });
+		focusElem(cards[(index + direction + cards.length) % cards.length]);
 	}
 }
 
