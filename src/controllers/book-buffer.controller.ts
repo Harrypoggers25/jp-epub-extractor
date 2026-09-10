@@ -29,6 +29,7 @@ export namespace BookBufferHandler {
 		const sections = JSON.stringify(Array.from({ length: parsedBook.length }, (_, i) => i));
 		const bookBuffer = await BookBuffer.create({ book_id, book_filename, book_original_name, sections, created_at }, { transaction });
 		if (!bookBuffer) throw new Error(Message.failed(['create', 'new book buffer', { book_original_name }]));
+
 		for (let section_no = 0; section_no < parsedBook.length; section_no++) {
 			const { sentences } = parsedBook[section_no];
 			for (let sentence_no = 0; sentence_no < sentences.length; sentence_no++) {
