@@ -31,8 +31,8 @@ const KeydownHandlers = {
 				case 'ArrowUp': ev.preventDefault(); sidebar.focusNextCard(card, -1); break;
 				case 'Enter':
 				case ' ': ev.preventDefault(); await sidebar.selectWord(wordBuffer, true, true); break;
-				case 'i': ev.preventDefault(); await buffer.toggleIgnore(); break;
-				case 'm': ev.preventDefault(); await buffer.toggleMerge(); break;
+				case 'i': ev.preventDefault(); await sidebar.runWordAction(wordBuffer, async () => await buffer.toggleIgnore()); break;
+				case 'm': ev.preventDefault(); await sidebar.runWordAction(wordBuffer, async () => await buffer.toggleMerge()); break;
 				case 'c': ev.preventDefault(); sidebar.elems.btnConfirm.focus(); break;
 			}
 		},
@@ -123,6 +123,13 @@ class EntryStates {
 	get(es_id) {
 		return this.entryStates[es_id];
 	}
+	isValid(wordBuffer) {
+		if (!wordBuffer) return false;
+		const entryState = this.get(wordId(wordBuffer));
+		if (!entryState || entryState.state_invalid || wordBuffer.j_response_invalid || !Array.isArray(wordBuffer.j_response)) return false;
+
+		return Array.from(entryState.state).every(index => Number.isInteger(index) && index >= 0 && index < wordBuffer.j_response.length);
+	}
 	async update(es_id, body) {
 		const entryState = await UnsureEntryState.update(es_id, body);
 		if (!entryState) return;
@@ -145,10 +152,17 @@ class EntryStates {
 		return entryStates;
 	}
 	verify(wordBuffers) {
-		return wordBuffers.some(wordBuffer => {
+		let hasEligibleWordBuffer = false;
+		for (const wordBuffer of wordBuffers) {
 			const entryState = this.get(wordId(wordBuffer));
-			return entryState && !entryState.state_invalid && (entryState.state.size || entryState.ignore || entryState.merged_with);
-		});
+			if (!entryState) continue;
+			const eligible = entryState.state_invalid || entryState.state.size || entryState.ignore || entryState.merged_with;
+			if (!eligible) continue;
+			if (!this.isValid(wordBuffer)) return false;
+			hasEligibleWordBuffer = true;
+		}
+
+		return hasEligibleWordBuffer;
 	}
 }
 
@@ -229,6 +243,13 @@ class Sidebar {
 		this.renderSearchResults();
 		if (focus) this.getCard(selectedWord)?.focus({ preventScroll: true });
 		await buffer.setWord(selectedWord, focusContent);
+	}
+	async runWordAction(wordBuffer, action) {
+		const intendedId = wordId(wordBuffer);
+		if (wordId(this.selected ?? {}) !== intendedId || wordId(buffer.selected ?? {}) !== intendedId) await this.selectWord(wordBuffer);
+		if (wordId(this.selected ?? {}) !== intendedId || wordId(buffer.selected ?? {}) !== intendedId) return;
+
+		await action();
 	}
 	renderLoading() {
 		this.elems.searchInput.disabled = true;
@@ -319,9 +340,12 @@ class Buffer {
 		this.selected = null;
 		this.candidates = { top: [], bottom: [] };
 		this.candidateRequestId = 0;
+		this.selectionGeneration = 0;
+		this.entryToggleQueue = Promise.resolve();
 	}
 	async setWord(wordBuffer, focus = false) {
 		this.candidateRequestId += 1;
+		this.selectionGeneration += 1;
 		this.selected = wordBuffer;
 		this.candidates = { top: [], bottom: [] };
 		this.renderWord();
@@ -332,7 +356,7 @@ class Buffer {
 	}
 	isEditable() {
 		const entryState = this.getEntryState();
-		return entryState && !entryState.state_invalid && !entryState.ignore && !entryState.merged_with && !this.selected.j_response_invalid;
+		return entryStates.isValid(this.selected) && !entryState.ignore && !entryState.merged_with;
 	}
 	renderLoading() {
 		this.renderState('Loading unsure word...');
@@ -355,7 +379,7 @@ class Buffer {
 	renderWord() {
 		if (!this.selected) return this.renderEmpty();
 		const entryState = this.getEntryState();
-		if (!entryState || entryState.state_invalid) return this.renderState('Inconsistent unsure record', 'This unsure word has no usable UnsureEntryState and cannot be edited.', 'error');
+		if (!entryStates.isValid(this.selected)) return this.renderState('Inconsistent unsure record', 'This unsure word has no usable UnsureEntryState and cannot be edited.', 'error');
 
 		const { w_basic_form, wt_name, occurrence_count, w_character_type, token_ids, j_response, j_response_invalid } = this.selected;
 		this.elems.content.innerHTML = '';
@@ -437,17 +461,22 @@ class Buffer {
 		return this.candidates;
 	}
 	async toggleEntry(index) {
-		if (!this.isEditable() || index < 0 || index >= this.selected.j_response.length) return;
-		const selectedId = wordId(this.selected);
-		const state = new Set(this.getEntryState().state);
-		if (state.has(index)) state.delete(index);
-		else state.add(index);
-		const updatedEntryState = await entryStates.update(selectedId, { state });
-		if (!updatedEntryState || wordId(this.selected ?? {}) !== selectedId) return;
+		const selectedId = wordId(this.selected ?? {});
+		const selectionGeneration = this.selectionGeneration;
+		this.entryToggleQueue = this.entryToggleQueue.then(() => asyncHandler('TOGGLE UNSURE ENTRY', async () => {
+			if (this.selectionGeneration !== selectionGeneration || wordId(this.selected ?? {}) !== selectedId || !this.isEditable() || index < 0 || index >= this.selected.j_response.length) return;
+			const state = new Set(this.getEntryState().state);
+			if (state.has(index)) state.delete(index);
+			else state.add(index);
+			const updatedEntryState = await entryStates.update(selectedId, { state });
+			if (!updatedEntryState || this.selectionGeneration !== selectionGeneration || wordId(this.selected ?? {}) !== selectedId) return;
 
-		this.renderWord();
-		sidebar.renderSearchResults();
-		this.focusEntry(this.getEntries()[index] ?? this.getEntries()[0]);
+			this.renderWord();
+			sidebar.renderSearchResults();
+			this.focusEntry(this.getEntries()[index] ?? this.getEntries()[0]);
+		}));
+
+		await this.entryToggleQueue;
 	}
 	async toggleIgnore() {
 		const entryState = this.getEntryState();
