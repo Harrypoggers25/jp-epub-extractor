@@ -1,5 +1,5 @@
 import { UnsureEntryState, UnsureWordBuffer } from "./api.helper.js";
-import { asyncHandler, createElement, eventHandler, focusable, setClass, wordId } from "./tools.helper.js";
+import { asyncHandler, createElement, eventHandler, focusElem, focusable, setClass, wordId } from "./tools.helper.js";
 
 const getPermanentWordTargetId = word => `${word.w_basic_form}_${word.wt_name}`;
 
@@ -31,8 +31,8 @@ const KeydownHandlers = {
 				case 'ArrowUp': ev.preventDefault(); sidebar.focusNextCard(card, -1); break;
 				case 'Enter':
 				case ' ': ev.preventDefault(); await sidebar.selectWord(wordBuffer, true, true); break;
-				case 'i': ev.preventDefault(); await buffer.toggleIgnore(); break;
-				case 'm': ev.preventDefault(); await buffer.toggleMerge(); break;
+				case 'i': ev.preventDefault(); await sidebar.runWordAction(wordBuffer, async () => await buffer.toggleIgnore()); break;
+				case 'm': ev.preventDefault(); await sidebar.runWordAction(wordBuffer, async () => await buffer.toggleMerge()); break;
 				case 'c': ev.preventDefault(); sidebar.elems.btnConfirm.focus(); break;
 			}
 		},
@@ -106,6 +106,12 @@ const KeydownHandlers = {
 				case 'Enter':
 				case ' ': ev.preventDefault(); if (ev.ctrlKey) mergeModal.confirm(); else card.click(); break;
 			}
+		},
+		action: ev => {
+			if (ev.key === 'Escape' || ev.key === 'q') {
+				ev.preventDefault();
+				mergeModal.close();
+			}
 		}
 	}
 }
@@ -122,6 +128,13 @@ class EntryStates {
 	}
 	get(es_id) {
 		return this.entryStates[es_id];
+	}
+	isValid(wordBuffer) {
+		if (!wordBuffer) return false;
+		const entryState = this.get(wordId(wordBuffer));
+		if (!entryState || entryState.state_invalid || wordBuffer.j_response_invalid || !Array.isArray(wordBuffer.j_response)) return false;
+
+		return Array.from(entryState.state).every(index => Number.isInteger(index) && index >= 0 && index < wordBuffer.j_response.length);
 	}
 	async update(es_id, body) {
 		const entryState = await UnsureEntryState.update(es_id, body);
@@ -145,10 +158,17 @@ class EntryStates {
 		return entryStates;
 	}
 	verify(wordBuffers) {
-		return wordBuffers.every(wordBuffer => {
+		let hasEligibleWordBuffer = false;
+		for (const wordBuffer of wordBuffers) {
 			const entryState = this.get(wordId(wordBuffer));
-			return entryState && !entryState.state_invalid && (entryState.state.size || entryState.ignore || entryState.merged_with);
-		});
+			if (!entryState) continue;
+			const eligible = entryState.state_invalid || entryState.state.size || entryState.ignore || entryState.merged_with;
+			if (!eligible) continue;
+			if (!this.isValid(wordBuffer)) return false;
+			hasEligibleWordBuffer = true;
+		}
+
+		return hasEligibleWordBuffer;
 	}
 }
 
@@ -229,6 +249,13 @@ class Sidebar {
 		this.renderSearchResults();
 		if (focus) this.getCard(selectedWord)?.focus({ preventScroll: true });
 		await buffer.setWord(selectedWord, focusContent);
+	}
+	async runWordAction(wordBuffer, action) {
+		const intendedId = wordId(wordBuffer);
+		if (wordId(this.selected ?? {}) !== intendedId || wordId(buffer.selected ?? {}) !== intendedId) await this.selectWord(wordBuffer);
+		if (wordId(this.selected ?? {}) !== intendedId || wordId(buffer.selected ?? {}) !== intendedId) return;
+
+		await action();
 	}
 	renderLoading() {
 		this.elems.searchInput.disabled = true;
@@ -315,13 +342,16 @@ class Sidebar {
 
 class Buffer {
 	constructor() {
-		this.elems = { content: document.getElementById('unsureReviewContent'), entries: null, mergeCount: null, mergeWith: null, btnMerge: null, btnIgnore: null };
+		this.elems = { mainContent: document.querySelector('main.content'), content: document.getElementById('unsureReviewContent'), entries: null, mergeCount: null, mergeWith: null, btnMerge: null, btnIgnore: null };
 		this.selected = null;
 		this.candidates = { top: [], bottom: [] };
 		this.candidateRequestId = 0;
+		this.selectionGeneration = 0;
+		this.entryToggleQueue = Promise.resolve();
 	}
 	async setWord(wordBuffer, focus = false) {
 		this.candidateRequestId += 1;
+		this.selectionGeneration += 1;
 		this.selected = wordBuffer;
 		this.candidates = { top: [], bottom: [] };
 		this.renderWord();
@@ -332,7 +362,7 @@ class Buffer {
 	}
 	isEditable() {
 		const entryState = this.getEntryState();
-		return entryState && !entryState.state_invalid && !entryState.ignore && !entryState.merged_with && !this.selected.j_response_invalid;
+		return entryStates.isValid(this.selected) && !entryState.ignore && !entryState.merged_with;
 	}
 	renderLoading() {
 		this.renderState('Loading unsure word...');
@@ -355,7 +385,7 @@ class Buffer {
 	renderWord() {
 		if (!this.selected) return this.renderEmpty();
 		const entryState = this.getEntryState();
-		if (!entryState || entryState.state_invalid) return this.renderState('Inconsistent unsure record', 'This unsure word has no usable UnsureEntryState and cannot be edited.', 'error');
+		if (!entryStates.isValid(this.selected)) return this.renderState('Inconsistent unsure record', 'This unsure word has no usable UnsureEntryState and cannot be edited.', 'error');
 
 		const { w_basic_form, wt_name, occurrence_count, w_character_type, token_ids, j_response, j_response_invalid } = this.selected;
 		this.elems.content.innerHTML = '';
@@ -413,7 +443,7 @@ class Buffer {
 	syncActionState() {
 		const entryState = this.getEntryState();
 		if (!entryState || !this.elems.btnMerge || !this.elems.btnIgnore) return;
-		setClass(this.elems.btnIgnore, 'success', entryState.ignore);
+		setClass(this.elems.btnIgnore, 'selected', entryState.ignore);
 		setClass(this.elems.btnMerge, 'selected', Boolean(entryState.merged_with));
 		this.elems.btnMerge.textContent = entryState.merged_with ? 'Unmerge' : 'Merge';
 		this.elems.btnIgnore.textContent = 'Ignore';
@@ -437,17 +467,22 @@ class Buffer {
 		return this.candidates;
 	}
 	async toggleEntry(index) {
-		if (!this.isEditable() || index < 0 || index >= this.selected.j_response.length) return;
-		const selectedId = wordId(this.selected);
-		const state = new Set(this.getEntryState().state);
-		if (state.has(index)) state.delete(index);
-		else state.add(index);
-		const updatedEntryState = await entryStates.update(selectedId, { state });
-		if (!updatedEntryState || wordId(this.selected ?? {}) !== selectedId) return;
+		const selectedId = wordId(this.selected ?? {});
+		const selectionGeneration = this.selectionGeneration;
+		this.entryToggleQueue = this.entryToggleQueue.then(() => asyncHandler('TOGGLE UNSURE ENTRY', async () => {
+			if (this.selectionGeneration !== selectionGeneration || wordId(this.selected ?? {}) !== selectedId || !this.isEditable() || index < 0 || index >= this.selected.j_response.length) return;
+			const state = new Set(this.getEntryState().state);
+			if (state.has(index)) state.delete(index);
+			else state.add(index);
+			const updatedEntryState = await entryStates.update(selectedId, { state });
+			if (!updatedEntryState || this.selectionGeneration !== selectionGeneration || wordId(this.selected ?? {}) !== selectedId) return;
 
-		this.renderWord();
-		sidebar.renderSearchResults();
-		this.focusEntry(this.getEntries()[index] ?? this.getEntries()[0]);
+			this.renderWord();
+			sidebar.renderSearchResults();
+			this.focusEntry(this.getEntries()[index] ?? this.getEntries()[0]);
+		}));
+
+		await this.entryToggleQueue;
 	}
 	async toggleIgnore() {
 		const entryState = this.getEntryState();
@@ -557,11 +592,8 @@ class Buffer {
 		return this.elems.entries ? Array.from(this.elems.entries.getElementsByClassName('unsure-entry')) : [];
 	}
 	focusEntry(card) {
-		if (!card || !this.elems.entries) return;
-		card.focus({ preventScroll: true });
-		const cardRect = card.getBoundingClientRect();
-		const entriesRect = this.elems.entries.getBoundingClientRect();
-		this.elems.entries.scrollTo({ top: this.elems.entries.scrollTop + cardRect.top - entriesRect.top - 12, behavior: 'smooth' });
+		if (!card) return;
+		focusElem(card);
 	}
 	focusNextEntry(card, direction) {
 		const cards = this.getEntries();
@@ -570,7 +602,11 @@ class Buffer {
 		this.focusEntry(cards[(index + direction + cards.length) % cards.length]);
 	}
 	scrollEntries(direction) {
-		if (this.elems.entries) this.elems.entries.scrollBy({ top: direction * this.elems.entries.clientHeight * .25, behavior: 'smooth' });
+		if (!this.elems.mainContent) return;
+		const overflowY = getComputedStyle(this.elems.mainContent).overflowY;
+		const scrollOwner = overflowY === 'auto' || overflowY === 'scroll' ? this.elems.mainContent : window;
+		const clientHeight = scrollOwner === window ? window.innerHeight : this.elems.mainContent.clientHeight;
+		scrollOwner.scrollBy({ top: direction * clientHeight * .25, behavior: 'smooth' });
 	}
 	focus() {
 		this.focusEntry(this.getEntries().find(card => card.classList.contains('selected')) ?? this.getEntries()[0]);
@@ -591,15 +627,21 @@ class MergeModal {
 		this.candidates = { top: [], bottom: [] };
 		this.selected = null;
 		this.opener = null;
+		this.openRequestId = 0;
+		this.isConfirming = false;
 		this.elems.searchInput.oninput = () => this.renderCandidates();
 		this.elems.searchInput.addEventListener('keydown', KeydownHandlers.mergeModal.searchInput);
 		this.elems.cancel.onclick = eventHandler(() => this.close());
 		this.elems.confirm.onclick = eventHandler(async () => await this.confirm());
+		this.elems.cancel.addEventListener('keydown', KeydownHandlers.mergeModal.action);
+		this.elems.confirm.addEventListener('keydown', KeydownHandlers.mergeModal.action);
 		this.elems.overlay.onclick = eventHandler(ev => {
 			if (ev.target === this.elems.overlay) this.close();
 		});
 	}
 	async open() {
+		if (this.isConfirming) return;
+		const requestId = ++this.openRequestId;
 		this.opener = buffer.elems.btnMerge;
 		this.elems.target.textContent = `${buffer.selected.w_basic_form} [${buffer.selected.wt_name}]`;
 		this.elems.selected.textContent = '';
@@ -610,6 +652,7 @@ class MergeModal {
 		this.renderLoading();
 		setClass(this.elems.overlay, 'open', true);
 		const candidates = await buffer.transformCandidates();
+		if (requestId !== this.openRequestId) return;
 		if (!candidates) {
 			this.close();
 			return;
@@ -621,6 +664,8 @@ class MergeModal {
 		this.focusFirstCandidate();
 	}
 	close() {
+		if (this.isConfirming) return;
+		this.openRequestId += 1;
 		setClass(this.elems.overlay, 'open', false);
 		this.elems.target.textContent = '';
 		this.elems.selected.textContent = '';
@@ -629,6 +674,7 @@ class MergeModal {
 		this.elems.list.innerHTML = '';
 		this.candidates = { top: [], bottom: [] };
 		this.selected = null;
+		this.isConfirming = false;
 		this.elems.confirm.disabled = true;
 		this.opener?.focus({ preventScroll: true });
 	}
@@ -637,11 +683,18 @@ class MergeModal {
 		this.elems.list.appendChild(createElement('div', 'modal-candidate-empty', 'Loading merge candidates...'));
 	}
 	async confirm() {
-		if (!this.selected || !buffer.selected) return;
+		if (this.isConfirming || !this.selected || !buffer.selected) return;
+		this.isConfirming = true;
+		this.elems.confirm.disabled = true;
 		const updatedEntryStates = await entryStates.merge(wordId(buffer.selected), getPermanentWordTargetId(this.selected));
-		if (!updatedEntryStates) return;
+		if (!updatedEntryStates) {
+			this.isConfirming = false;
+			this.elems.confirm.disabled = !this.selected;
+			return;
+		}
 		buffer.renderWord();
 		sidebar.renderSearchResults();
+		this.isConfirming = false;
 		this.close();
 		buffer.elems.btnMerge?.focus({ preventScroll: true });
 	}
@@ -680,7 +733,7 @@ class MergeModal {
 		if (candidate.ignore) metadata.appendChild(createElement('span', 'modal-item-ignored', 'Ignored'));
 		card.appendChild(metadata);
 		const select = () => {
-			if (!recommended) return;
+			if (this.isConfirming) return;
 			if (this.selected && getPermanentWordTargetId(this.selected) === getPermanentWordTargetId(candidate)) {
 				this.selected = null;
 				this.elems.selected.textContent = '';
@@ -693,21 +746,21 @@ class MergeModal {
 			this.elems.confirm.disabled = false;
 			Array.from(this.elems.list.getElementsByClassName('modal-item')).forEach(item => setClass(item, 'selected', item === card));
 		};
-		if (recommended) card.onclick = eventHandler(select);
+		card.onclick = eventHandler(select);
 		card.addEventListener('keydown', ev => KeydownHandlers.mergeModal.card(card, ev));
-		if (!recommended) card.setAttribute('aria-disabled', 'true');
 		focusable(card);
 		return card;
 	}
 	focusFirstCandidate() {
 		const card = this.elems.list.getElementsByClassName('modal-item')[0];
-		if (card) card.focus({ preventScroll: true });
+		if (card) focusElem(card);
+		else focusElem(this.elems.cancel);
 	}
 	focusNextCandidate(card, direction) {
 		const cards = Array.from(this.elems.list.getElementsByClassName('modal-item'));
 		if (!cards.length) return;
 		const index = cards.indexOf(card);
-		cards[(index + direction + cards.length) % cards.length].focus({ preventScroll: true });
+		focusElem(cards[(index + direction + cards.length) % cards.length]);
 	}
 }
 
