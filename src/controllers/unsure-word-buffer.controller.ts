@@ -1,5 +1,5 @@
 // CONFIGS
-import { db, IUnsureWordBuffer, UnsureEntryState, UnsureWordBuffer, Word } from "../configs/db.config";
+import { db, IUnsureEntryState, IUnsureWordBuffer, UnsureEntryState, UnsureWordBuffer, Word } from "../configs/db.config";
 
 // HELPERS
 import { writeResponse } from "../helpers";
@@ -84,6 +84,18 @@ export namespace UnsureWordBufferHandler {
 
 	interface IEntries extends Record<string, { state: string, ignore: boolean, can_merge: number, merged_with: string | null }> { }
 	export const confirm = Route.asyncEventStreamHandler(async (_, res, write) => {
+		const parseState = (entryState: Pick<IUnsureEntryState, 'es_id' | 'state'>) => {
+			try {
+				const state = JSON.parse(entryState.state);
+				if (!isArrayObj<number>(state, Number.isInteger)) throw new Error();
+
+				return state;
+			} catch {
+				throw new Error(Message.failed(['confirm', 'unsure word buffer entry', entryState.es_id], {
+					subMessage: 'state must be an array of integer indexes'
+				}));
+			}
+		}
 		const unsureEntryStates1: IEntries = await (async () => {
 			const entryStates = await UnsureEntryState.find();
 			if (!entryStates) throw new Error(Message.failed(['confirm', 'unsure word buffers'], {
@@ -91,7 +103,7 @@ export namespace UnsureWordBufferHandler {
 			}));
 
 			return Object.fromEntries(entryStates.filter(entryState => {
-				const state = JSON.parse(entryState.state) as Array<number>;
+				const state = parseState(entryState);
 				const { ignore, merged_with } = entryState;
 				return state.length || ignore || merged_with;
 			}).map(entryState => {
@@ -105,6 +117,12 @@ export namespace UnsureWordBufferHandler {
 			if (!unsureWordBuffers) throw new Error(Message.failed(['confirm', 'unsure word buffers'], {
 				causer: ['find', 'unsure word buffers']
 			}));
+			const unsureWordBufferIds = new Set(unsureWordBuffers.map(({ w_basic_form, wt_name }) => `${w_basic_form}_${wt_name}`));
+			for (const es_id of Object.keys(unsureEntryStates1)) {
+				if (!unsureWordBufferIds.has(es_id)) throw new Error(Message.failed(['confirm', 'unsure word buffer entry', es_id], {
+					subMessage: 'eligible unsure entry state has no matching unsure word buffer'
+				}));
+			}
 
 			return unsureWordBuffers.filter(unsureWordBuffer => {
 				const { w_basic_form, wt_name } = unsureWordBuffer;
@@ -123,14 +141,22 @@ export namespace UnsureWordBufferHandler {
 			const es_id = `${w_basic_form}_${wt_name}`;
 			const { ignore, state, merged_with, can_merge } = unsureEntryStates[es_id];
 			const j_response = (() => {
-				const j_response = JSON.parse(unsureWordBuffer.j_response) as Array<IJishoReducedWord>;
-				const state = JSON.parse(unsureEntryStates[es_id].state) as Array<number>;
+				try {
+					const j_response = JSON.parse(unsureWordBuffer.j_response);
+					const state = parseState({ ...unsureEntryStates[es_id], es_id });
+					if (!isArrayObj<IJishoReducedWord>(j_response) || state.some(i => i < 0 || i >= j_response.length)) throw new Error();
 
-				return JSON.stringify(state.map(i => j_response[i]));
+					return JSON.stringify(state.map(i => j_response[i]));
+				} catch {
+					throw new Error(Message.failed(['confirm', 'unsure word buffer entry', es_id], {
+						subMessage: 'state must contain valid j_response indexes'
+					}));
+				}
 			})();
 
 			return { token_ids, w_basic_form, wt_name, j_response, w_character_type, occurrence_count, es_id, ignore, state, merged_with, can_merge };
 		};
+		for (const unsureWordBuffer of unsureWordBuffers1) combine(unsureWordBuffer, unsureEntryStates1);
 		const startTime = Date.now();
 		write(writeResponse({
 			percentage: 0,
