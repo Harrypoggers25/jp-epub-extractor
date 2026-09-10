@@ -1,5 +1,5 @@
 import { UnsureEntryState, UnsureWordBuffer } from "./api.helper.js";
-import { asyncHandler, createElement, eventHandler, focusable, setClass, wordId } from "./tools.helper.js";
+import { asyncHandler, createElement, eventHandler, focusElem, focusable, setClass, wordId } from "./tools.helper.js";
 
 const getPermanentWordTargetId = word => `${word.w_basic_form}_${word.wt_name}`;
 
@@ -315,7 +315,7 @@ class Sidebar {
 
 class Buffer {
 	constructor() {
-		this.elems = { content: document.getElementById('unsureReviewContent'), entries: null, mergeCount: null, mergeWith: null, btnMerge: null, btnIgnore: null };
+		this.elems = { mainContent: document.querySelector('main.content'), content: document.getElementById('unsureReviewContent'), entries: null, mergeCount: null, mergeWith: null, btnMerge: null, btnIgnore: null };
 		this.selected = null;
 		this.candidates = { top: [], bottom: [] };
 		this.candidateRequestId = 0;
@@ -557,11 +557,8 @@ class Buffer {
 		return this.elems.entries ? Array.from(this.elems.entries.getElementsByClassName('unsure-entry')) : [];
 	}
 	focusEntry(card) {
-		if (!card || !this.elems.entries) return;
-		card.focus({ preventScroll: true });
-		const cardRect = card.getBoundingClientRect();
-		const entriesRect = this.elems.entries.getBoundingClientRect();
-		this.elems.entries.scrollTo({ top: this.elems.entries.scrollTop + cardRect.top - entriesRect.top - 12, behavior: 'smooth' });
+		if (!card) return;
+		focusElem(card);
 	}
 	focusNextEntry(card, direction) {
 		const cards = this.getEntries();
@@ -570,7 +567,11 @@ class Buffer {
 		this.focusEntry(cards[(index + direction + cards.length) % cards.length]);
 	}
 	scrollEntries(direction) {
-		if (this.elems.entries) this.elems.entries.scrollBy({ top: direction * this.elems.entries.clientHeight * .25, behavior: 'smooth' });
+		if (!this.elems.mainContent) return;
+		const overflowY = getComputedStyle(this.elems.mainContent).overflowY;
+		const scrollOwner = overflowY === 'auto' || overflowY === 'scroll' ? this.elems.mainContent : window;
+		const clientHeight = scrollOwner === window ? window.innerHeight : this.elems.mainContent.clientHeight;
+		scrollOwner.scrollBy({ top: direction * clientHeight * .25, behavior: 'smooth' });
 	}
 	focus() {
 		this.focusEntry(this.getEntries().find(card => card.classList.contains('selected')) ?? this.getEntries()[0]);

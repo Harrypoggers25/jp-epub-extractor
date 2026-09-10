@@ -6,7 +6,7 @@
 .unsure-review-layout .content {
     display: flex;
     min-height: 0;
-    overflow: hidden;
+    overflow-y: auto;
 }
 
 .unsure-review-layout .container,
@@ -207,27 +207,7 @@
 }
 
 .unsure-review-layout .unsure-entries {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    padding-right: 8px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-}
-
-.unsure-review-layout .unsure-entries::-webkit-scrollbar {
-    width: 8px;
-}
-
-.unsure-review-layout .unsure-entries::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.unsure-review-layout .unsure-entries::-webkit-scrollbar-thumb {
-    border: 2px solid transparent;
-    border-radius: 999px;
-    background: var(--border);
-    background-clip: padding-box;
+    margin-bottom: 20px;
 }
 
 .unsure-review-layout .entry {
@@ -576,11 +556,6 @@
     .unsure-review-layout .unsure-review-panel,
     .unsure-review-layout .unsure-review-region {
         display: block;
-    }
-
-    .unsure-review-layout .unsure-entries {
-        max-height: 60vh;
-        margin-bottom: 20px;
     }
 
     .unsure-review-layout .unsure-word-header-top {
